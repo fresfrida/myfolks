@@ -6,10 +6,11 @@ from __future__ import annotations
 def register(ctx) -> None:
     # Imported once here so handlers never depend on this folder still being importable later:
     # a running gateway can keep a handler after the plugin's files are replaced or removed.
-    from . import ai_tool, cli, commands, guard
+    from . import ai_tool, cli, commands, guard, owner
 
     def handle_contacts(raw_args: str, source=None, platform=None, **_context) -> str:
-        return commands.handle(raw_args, platform=platform, source=source, ask=ctx.ask_choice)
+        shared = ctx.get_config(owner.SHARED_SETTING, [])
+        return commands.handle(raw_args, platform=platform, source=source, ask=ctx.ask_choice, shared=shared)
 
     def guard_tool_call(tool_name: str, args: dict, task_id: str = "", **context):
         return guard.pre_tool_call(tool_name, args, task_id, **context)

@@ -14,6 +14,9 @@ from . import db
 
 LOCAL_SURFACES = {"cli": "terminal", "tui": "terminal", "local": "terminal", "desktop": "Desktop"}
 PRIVATE_CHAT = "dm"
+SHARED_ACCESS = ("read", "add")
+SHARED_SETTING = "shared_people"
+FULL_ACCESS = "owner"
 _TRUE_VALUES = {"1", "true", "yes", "on"}
 _CODE_SETTING = "pairing_code"
 CODE_LIFETIME_SECONDS = 600
@@ -108,6 +111,17 @@ def is_messaging_owner(vault, platform: str, source) -> bool:
             return is_paired_owner(connection, platform, str(source.user_id))
     except VaultError:
         return False
+
+
+def shared_access(platform: str, source, entries) -> Optional[str]:
+    """"read" or "add" for someone the owner shared with, else None. Private chats only."""
+    if not is_private_sender(source):
+        return None
+    for entry in entries or []:
+        parts = [part.strip() for part in str(entry).split(":")]
+        if len(parts) == 3 and parts[0].lower() == platform and parts[1] == str(source.user_id) and parts[2].lower() in SHARED_ACCESS:
+            return parts[2].lower()
+    return None
 
 
 def _digest(code: str) -> str:

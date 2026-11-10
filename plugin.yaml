@@ -13,3 +13,7 @@ config_schema:
     type: bool
     default: false
     description: Let Hermes's AI look up matching lines and save new ones. Off by default.
+  shared_people:
+    type: list
+    default: []
+    description: 'People who may use MyFolks in a private chat, one per line, as platform:sender-id:access. Access is read, or add to also save lines. Example: telegram:12345:read'

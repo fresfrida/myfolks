@@ -87,8 +87,9 @@ def _pair(vault: Vault, platform: str, source, code: str) -> str:
     return messages.PAIRED if paired else messages.REFUSED
 
 
-def handle(raw_args: str, *, platform: Optional[str] = None, source=None, ask: Optional[Callable] = None, vault: Optional[Vault] = None) -> str:
+def handle(raw_args: str, *, platform: Optional[str] = None, source=None, ask: Optional[Callable] = None, vault: Optional[Vault] = None, shared=None) -> str:
     raw = raw_args or ""
+    access = owner.FULL_ACCESS
     label = owner.local_surface(platform)
     try:
         store = vault or Vault()
@@ -98,10 +99,13 @@ def handle(raw_args: str, *, platform: Optional[str] = None, source=None, ask: O
             code = _is_pair_request(raw)
             if code is not None:
                 return _pair(store, platform.strip().lower(), source, code)
-            if not owner.is_messaging_owner(store, platform.strip().lower(), source):
-                return messages.REFUSED
+            name = platform.strip().lower()
+            if not owner.is_messaging_owner(store, name, source):
+                access = owner.shared_access(name, source, shared)
+                if access is None:
+                    return messages.REFUSED
             label = owner.messaging_label(platform)
-        return _dispatch(raw, store, label, label == "terminal", ask)
+        return _dispatch(raw, store, label, label == "terminal", ask, access)
     except NotSetUp:
         return messages.NOT_SET_UP
     except Refused:
@@ -113,11 +117,11 @@ def handle(raw_args: str, *, platform: Optional[str] = None, source=None, ask: O
         return messages.ERROR
 
 
-def _dispatch(raw: str, vault: Vault, label: str, terminal: bool, ask: Optional[Callable]) -> str:
+def _dispatch(raw: str, vault: Vault, label: str, terminal: bool, ask: Optional[Callable], access: str = owner.FULL_ACCESS) -> str:
     answers: dict = {}
     for _attempt in range(_MAX_QUESTIONS):
         try:
-            return _run(raw, vault, label, terminal, answers)
+            return _run(raw, vault, label, terminal, answers, access)
         except NeedsAnswer as need:
             answer = ask(need.question, need.choices) if ask is not None else None
             if answer is None:
@@ -164,9 +168,20 @@ def _verb_for(vault: Vault, raw: str, parts: list[Token], label: str, terminal: 
         return verb if _lookup_finds_something(_context(connection, label, terminal, answers), raw) else corrected
 
 
-def _run(raw: str, vault: Vault, label: str, terminal: bool, answers: dict) -> str:
+def _allowed_for(access: str, verb: str) -> bool:
+    """People the owner shared with may look things up; "add" may also save."""
+    if access == owner.FULL_ACCESS:
+        return True
+    if verb == "save":
+        return access == "add"
+    return verb not in _VERBS
+
+
+def _run(raw: str, vault: Vault, label: str, terminal: bool, answers: dict, access: str) -> str:
     parts = tokens(raw)
     verb = _verb_for(vault, raw, parts, label, terminal, answers)
+    if not _allowed_for(access, verb):
+        return messages.REFUSED
     writers = {"save": _save, "link": _link, "correct": _correct, "undo": _undo, "review": _review}
     if verb in writers:
         with vault.write() as connection:

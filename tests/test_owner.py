@@ -23,8 +23,8 @@ def allow(mod, monkeypatch):
 def send(vault, mod):
     commands = mod("commands")
 
-    def go(text, source, platform="telegram"):
-        return commands.handle(text, platform=platform, source=source, ask=None, vault=vault)
+    def go(text, source, platform="telegram", shared=None):
+        return commands.handle(text, platform=platform, source=source, ask=None, vault=vault, shared=shared)
 
     return go
 
@@ -172,3 +172,64 @@ def test_no_sender_ids_in_logs(seeded, allow, send, caplog):
         send("priya", sender("987654321"))
         send("priya", sender("555555555"))
     assert "987654321" not in caplog.text and "555555555" not in caplog.text and "likes tea" not in caplog.text
+
+
+READ_ONLY = ["telegram:222:read"]
+CAN_ADD = ["telegram:222:add"]
+
+
+def test_shared_read_can_look_up(seeded, allow, send):
+    allow("111")
+    assert "likes tea" in send("priya tea", sender("222"), shared=READ_ONLY)
+
+
+@pytest.mark.parametrize("command", ["save Priya likes cake", "link Priya dog Biscuit", "correct Priya 1 likes cake", "undo", "review", "history Priya", "sav Priya likes cake"])
+def test_shared_read_cannot_change_or_see_history(seeded, allow, send, command):
+    allow("111")
+    before = seeded.store_path.read_bytes()
+    assert send(command, sender("222"), shared=READ_ONLY) == REFUSED
+    assert seeded.store_path.read_bytes() == before
+
+
+def test_shared_add_can_save(seeded, allow, send):
+    allow("111")
+    assert send("save Priya likes cake", sender("222"), shared=CAN_ADD) == "Saved to Priya."
+    assert "likes cake" in send("priya cake", sender("222"), shared=CAN_ADD)
+
+
+@pytest.mark.parametrize("command", ["link Priya dog Biscuit", "correct Priya 1 likes cake", "undo", "review merge 1"])
+def test_shared_add_cannot_do_more(seeded, allow, send, command):
+    allow("111")
+    assert send(command, sender("222"), shared=CAN_ADD) == REFUSED
+
+
+def test_removed_person_is_refused(seeded, allow, send):
+    allow("111")
+    assert "likes tea" in send("priya tea", sender("222"), shared=READ_ONLY)
+    assert send("priya tea", sender("222"), shared=[]) == REFUSED
+
+
+def test_shared_person_in_group_is_refused(seeded, allow, send):
+    allow("111")
+    assert send("priya tea", sender("222", chat_type="group"), shared=CAN_ADD) == REFUSED
+
+
+def test_shared_entry_is_per_platform(seeded, allow, send):
+    allow("111")
+    assert send("priya tea", sender("222"), platform="discord", shared=READ_ONLY) == REFUSED
+
+
+@pytest.mark.parametrize("entry", ["telegram:222", "telegram:222:admin", "222:read", "", "telegram::read"])
+def test_malformed_entries_grant_nothing(seeded, allow, send, entry):
+    allow("111")
+    assert send("priya tea", sender("222"), shared=[entry]) == REFUSED
+
+
+def test_default_is_empty(seeded, allow, send):
+    allow("111")
+    assert send("priya tea", sender("222")) == REFUSED
+
+
+def test_owner_keeps_full_access_with_sharing_on(seeded, allow, send):
+    allow("111")
+    assert send("save Priya likes cake", sender("111"), shared=READ_ONLY) == "Saved to Priya."
