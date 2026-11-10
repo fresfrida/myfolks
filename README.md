@@ -18,9 +18,9 @@ June this year · Telegram
 
 - **Exact answers.** You get back the words you saved.
 - **Receipts.** Every answer shows when and where it came from.
-- **No guessing.** If it isn't saved: `Nothing saved about that.` If MyFolks is unsure, the answer starts with `not sure`.
+- **No guessing.** If it isn't saved: `Nothing saved about that.` If MyFolks is unsure, the answer is marked `not sure`.
 - **The right person.** Only an exact name or nickname opens a card. A close spelling asks "Did you mean…?" and shows nothing until you choose.
-- **Linked cards.** Priya links to her dog Biscuit, so `/contacts priya dog birthday` finds it.
+- **Linked cards.** Priya links to their dog Biscuit, so `/contacts priya dog birthday` finds it.
 - **Forgiving search.** Most one-letter typos and common synonyms find the right line, with no AI model.
 - **Encrypted and local.** One encrypted file on your machine. No account and no cloud.
 - **Yours only.** Only you, unless you change a setting. Group chats are refused.
