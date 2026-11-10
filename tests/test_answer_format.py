@@ -218,7 +218,7 @@ def test_card_uses_latest_date_label(vault, mod):
     handle("save Priya likes tea", platform="cli", vault=vault)
     handle("save Priya likes cake", platform="cli", vault=vault)
     seed_dates(vault, [(1, at(2020, 1, 1).isoformat(), "terminal"), (2, at(2021, 1, 1).isoformat(), "terminal")])
-    assert handle("priya", platform="cli", vault=vault).split("\n")[-1] == "2 notes · more than a year ago".replace("2 notes · ", "2 notes · last saved ")
+    assert handle("priya", platform="cli", vault=vault).split("\n")[-1] == "2 notes · last saved more than a year ago"
 
 
 def test_card_on_telegram_has_private_line_after_notes(phone, vault, mod):
