@@ -46,6 +46,7 @@ class Context:
     pick: Callable
     answers: dict
     show_private: bool = True
+    is_owner: bool = True
 
 
 def _hint(connection: sqlite3.Connection, card: sqlite3.Row) -> str:
@@ -133,9 +134,9 @@ def _dispatch(raw: str, vault: Vault, label: str, terminal: bool, ask: Optional[
     return messages.ERROR
 
 
-def _context(connection: sqlite3.Connection, label: str, terminal: bool, answers: dict) -> Context:
+def _context(connection: sqlite3.Connection, label: str, terminal: bool, answers: dict, access: str = owner.FULL_ACCESS) -> Context:
     show_private = label in owner.LOCAL_SURFACES.values()
-    return Context(connection, label, terminal, _picker(connection, answers), answers, show_private)
+    return Context(connection, label, terminal, _picker(connection, answers), answers, show_private, access == owner.FULL_ACCESS)
 
 
 def _closest_verb(word: str) -> Optional[str]:
@@ -189,9 +190,9 @@ def _run(raw: str, vault: Vault, label: str, terminal: bool, answers: dict, acce
     writers = {"save": _save, "link": _link, "correct": _correct, "undo": _undo, "review": _review}
     if verb in writers:
         with vault.write() as connection:
-            return writers[verb](_context(connection, label, terminal, answers), raw, parts[1:])
+            return writers[verb](_context(connection, label, terminal, answers, access), raw, parts[1:])
     with vault.read() as connection:
-        context = _context(connection, label, terminal, answers)
+        context = _context(connection, label, terminal, answers, access)
         if not parts:
             return messages.overview(cards.count_cards(connection))
         if verb == "history":
@@ -495,6 +496,13 @@ def _history(context: Context, _raw: str, parts: list[Token]) -> str:
     return "\n".join([messages.history_title(card["name"]), *(body or [messages.NO_LINES])])
 
 
+def _hidden_count(context: Context, card: sqlite3.Row) -> int:
+    """How many notes to admit exist here. Only the owner, in chat, is ever told."""
+    if context.show_private or not context.is_owner:
+        return 0
+    return cards.private_count(context.connection, card["id"])
+
+
 def _plain_render(context: Context) -> Callable[[str], str]:
     return messages.telegram_plain if context.source_label == _BOLD_SURFACE else str
 
@@ -506,7 +514,7 @@ def _card_view(context: Context, card: sqlite3.Row) -> str:
     for link in cards.open_links(context.connection, card["id"]):
         outgoing = link["from_card"] == card["id"]
         out.append(messages.link_line(link["relation"], link["to_name"] if outgoing else link["from_name"], outgoing))
-    hidden = 0 if context.show_private else cards.private_count(context.connection, card["id"])
+    hidden = _hidden_count(context, card)
     if lines:
         out.append(messages.notes_line(len(lines), max(line["saved_at"] for line in lines)))
     elif not hidden:
@@ -555,6 +563,6 @@ def _query(context: Context, raw: str) -> str:
     if not wanted:
         return _card_view(context, card)
     results = search.rank(cards.active_lines(context.connection, card["id"], context.show_private), wanted)
-    if not (results.direct or results.related) and not context.show_private and cards.private_count(context.connection, card["id"]):
+    if not (results.direct or results.related) and _hidden_count(context, card):
         return messages.private_only(card["name"])
     return _format_results(context, card, results)

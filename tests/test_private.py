@@ -114,9 +114,26 @@ def test_correcting_private_keeps_it_private(desk, phone):
     assert phone("priya doctor") == PRIVATE_REPLY
 
 
-def test_shared_person_gets_private_reply(seeded, mod):
-    reply = mod("commands").handle("priya therapist", platform="telegram", source=dm("222"), vault=seeded, shared=["telegram:222:read"])
-    assert reply == PRIVATE_REPLY
+SHARED = {"shared": ["telegram:222:read"]}
+
+
+def shared_ask(mod, seeded, text):
+    return mod("commands").handle(text, platform="telegram", source=dm("222"), vault=seeded, **SHARED)
+
+
+def test_shared_person_gets_nothing_saved(seeded, mod):
+    assert shared_ask(mod, seeded, "priya therapist") == "Nothing saved about that."
+    assert shared_ask(mod, seeded, "priya shoe size") == "Nothing saved about that."
+
+
+def test_shared_person_sees_no_hidden_count(seeded, mod):
+    view = shared_ask(mod, seeded, "priya")
+    assert "hidden" not in view and "rivate" not in view and "computer" not in view and "therapist" not in view
+
+
+def test_shared_person_on_a_card_of_only_hidden_notes(seeded, mod):
+    mod("commands").handle("save --new --private Quentin only secret", platform="cli", vault=seeded)
+    assert shared_ask(mod, seeded, "quentin") == "Quentin\nNo lines saved yet."
 
 
 def test_ai_tool_never_returns_private(seeded, mod):
