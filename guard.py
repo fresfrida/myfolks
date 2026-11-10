@@ -21,6 +21,7 @@ _DATA_FRAGMENT = "plugin-data/myfolks"
 _MAX_TOKENS = 500
 _FILE_BODY_KEYS = {"content", "old_string", "new_string"}
 _FILE_WRITE_TOOLS = {"write_file", "patch"}
+_TERMINAL_ONLY_COMMANDS = re.compile(r"\bmyfolks\s+(setup|recover|pair|backup|restore|export)\b")
 _SEPARATORS = re.compile(r"[=:;|&<>()`,'\"\s]+")
 
 
@@ -77,6 +78,8 @@ def touches_protected(tool_name: str, args: dict, protected: tuple[Path, ...], h
     literals = [str(root) for root in protected]
     for text in _strings(args, tool_name):
         lowered = text.lower()
+        if _TERMINAL_ONLY_COMMANDS.search(lowered):
+            return True
         if _DATA_FRAGMENT in lowered or HISTORY_FILE in lowered or any(literal in text for literal in literals):
             return True
         if any(_resolves_inside(_expand(candidate, home), workdir, protected) for candidate in _candidates(text)):

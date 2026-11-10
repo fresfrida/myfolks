@@ -70,6 +70,10 @@ class Busy(VaultError):
     """Another process held the lock for too long."""
 
 
+class NotEmpty(VaultError):
+    """The store already holds contacts and the caller did not confirm replacing them."""
+
+
 def default_directory() -> Path:
     from plugins.plugin_storage import plugin_data_dir
 
@@ -208,20 +212,7 @@ class Vault:
                 raise AlreadySetUp("store already exists")
             data_key = secrets.token_bytes(KEY_BYTES)
             code = _new_recovery_code()
-            device_key = self.keys.create()
-            salt = secrets.token_bytes(16)
-            recovery_key = _derive(code, salt, SCRYPT_N, SCRYPT_R, SCRYPT_P)
-            header = {
-                "device": _wrap(device_key, data_key, _DEVICE_AAD),
-                "recovery": {
-                    "kdf": "scrypt",
-                    "salt": _b64(salt),
-                    "n": SCRYPT_N,
-                    "r": SCRYPT_R,
-                    "p": SCRYPT_P,
-                    **_wrap(recovery_key, data_key, _RECOVERY_AAD),
-                },
-            }
+            header = self._new_header(data_key, code)
             connection = self._connect()
             db.create_schema(connection)
             self._save(connection, data_key, header)
@@ -249,6 +240,55 @@ class Vault:
         if not (2 <= n <= _SCRYPT_MAX_N and r == SCRYPT_R and p == SCRYPT_P):
             raise Refused("store header is damaged")
         return _derive(code, salt, n, r, p)
+
+    def database_bytes(self) -> bytes:
+        """The whole database, in memory, for an encrypted backup."""
+        with self.read() as connection:
+            return connection.serialize()
+
+    def restore_database(self, database: bytes, replace: bool = False) -> Optional[str]:
+        """Load a backup. A new store gets a new recovery code, which is returned once.
+
+        An existing store keeps its keys, and is only overwritten with *replace* if it holds contacts.
+        """
+        with self._locked():
+            incoming = self._connect()
+            try:
+                incoming.deserialize(database)
+                db.configure(incoming)
+                db.check_schema(incoming)
+            except sqlite3.Error as exc:
+                raise Refused("backup does not contain a store") from exc
+            if not self.exists():
+                data_key = secrets.token_bytes(KEY_BYTES)
+                code = _new_recovery_code()
+                self._save(incoming, data_key, self._new_header(data_key, code))
+                return code
+            current, data_key, header = self._open()
+            try:
+                holds_contacts = current.execute("SELECT count(*) FROM cards").fetchone()[0] > 0
+            finally:
+                current.close()
+            if holds_contacts and not replace:
+                raise NotEmpty("store already holds contacts")
+            self._save(incoming, data_key, header)
+            return None
+
+    def _new_header(self, data_key: bytes, code: str) -> dict:
+        device_key = self.keys.create()
+        salt = secrets.token_bytes(16)
+        recovery_key = _derive(code, salt, SCRYPT_N, SCRYPT_R, SCRYPT_P)
+        return {
+            "device": _wrap(device_key, data_key, _DEVICE_AAD),
+            "recovery": {
+                "kdf": "scrypt",
+                "salt": _b64(salt),
+                "n": SCRYPT_N,
+                "r": SCRYPT_R,
+                "p": SCRYPT_P,
+                **_wrap(recovery_key, data_key, _RECOVERY_AAD),
+            },
+        }
 
     @contextmanager
     def read(self) -> Iterator[sqlite3.Connection]:

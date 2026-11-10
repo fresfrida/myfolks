@@ -13,12 +13,18 @@ def setup_parser(parser) -> None:
     commands.add_parser("setup", help="Create the encrypted store and show the recovery code once")
     commands.add_parser("recover", help="Open the store on this device with the recovery code")
     commands.add_parser("pair", help="Make a one-time code to link your messaging account")
+    for name, text in (
+        ("backup", "Write an encrypted backup, protected by a passphrase"),
+        ("restore", "Load an encrypted backup"),
+        ("export", "Write an unencrypted copy after a typed confirmation"),
+    ):
+        commands.add_parser(name, help=text).add_argument("path", help="File path")
     importing = commands.add_parser("import", help="Import contacts from a vCard or CSV file")
     importing.add_argument("path", help="Path to a .vcf or .csv file")
 
 
 def run(args) -> int:
-    handlers = {"setup": cmd_setup, "recover": cmd_recover, "pair": cmd_pair, "import": cmd_import}
+    handlers = {"setup": cmd_setup, "recover": cmd_recover, "pair": cmd_pair, "import": cmd_import, "backup": cmd_backup, "restore": cmd_restore, "export": cmd_export}
     return handlers[args.myfolks_command](args)
 
 
@@ -107,4 +113,134 @@ def cmd_import(args, *, vault=None, stdout=None) -> int:
         print(messages.BUSY, file=out)
         return 1
     print(messages.import_summary(summary.new, summary.merged, summary.review, summary.unchanged, summary.skipped, summary.trimmed), file=out)
+    return 0
+
+
+def _in_terminal(streams) -> bool:
+    return all(stream.isatty() for stream in streams)
+
+
+def _write_new_file(path, data: bytes) -> None:
+    """Write straight to the final path, private to this user. There is never a temporary copy."""
+    import os
+
+    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(descriptor, "wb") as handle:
+        handle.write(data)
+        handle.flush()
+        os.fsync(handle.fileno())
+
+
+def cmd_backup(args, *, vault=None, read_secret=None, stdin=None, stdout=None) -> int:
+    from pathlib import Path
+
+    from . import backup
+    from .vault import NotSetUp, Refused, Vault
+
+    out, source = stdout or sys.stdout, stdin or sys.stdin
+    if not _in_terminal((source, out)):
+        print(messages.TERMINAL_ONLY, file=sys.stderr)
+        return 1
+    ask = read_secret or getpass.getpass
+    path = Path(args.path).expanduser()
+    if path.exists():
+        print(messages.FILE_EXISTS, file=out)
+        return 1
+    passphrase = ask(messages.BACKUP_PROMPT)
+    if len(passphrase) < backup.MIN_PASSPHRASE:
+        print(messages.BACKUP_SHORT, file=out)
+        return 1
+    if ask(messages.BACKUP_PROMPT_AGAIN) != passphrase:
+        print(messages.BACKUP_MISMATCH, file=out)
+        return 1
+    try:
+        database = (vault or Vault()).database_bytes()
+    except NotSetUp:
+        print(messages.NOT_SET_UP, file=out)
+        return 1
+    except Refused:
+        print(messages.LOCKED, file=out)
+        return 1
+    try:
+        _write_new_file(path, backup.seal(database, passphrase))
+    except FileExistsError:
+        print(messages.FILE_EXISTS, file=out)
+        return 1
+    print(messages.BACKUP_DONE, file=out)
+    return 0
+
+
+def cmd_restore(args, *, vault=None, read_secret=None, read_line=None, stdin=None, stdout=None) -> int:
+    from pathlib import Path
+
+    from . import backup
+    from .vault import NotEmpty, Refused, Vault
+
+    out, source = stdout or sys.stdout, stdin or sys.stdin
+    if not _in_terminal((source, out)):
+        print(messages.TERMINAL_ONLY, file=sys.stderr)
+        return 1
+    try:
+        blob = Path(args.path).expanduser().read_bytes()
+    except OSError:
+        print(messages.RESTORE_REFUSED, file=out)
+        return 1
+    try:
+        database = backup.unseal(blob, (read_secret or getpass.getpass)(messages.RESTORE_PROMPT))
+    except backup.BackupRefused:
+        print(messages.RESTORE_REFUSED, file=out)
+        return 1
+    vault = vault or Vault()
+    try:
+        try:
+            code = vault.restore_database(database)
+        except NotEmpty:
+            if (read_line or input)(messages.RESTORE_ASK_REPLACE).strip() != "REPLACE":
+                print(messages.RESTORE_CANCELLED, file=out)
+                return 1
+            code = vault.restore_database(database, replace=True)
+    except Refused:
+        print(messages.RESTORE_REFUSED, file=out)
+        return 1
+    print(messages.RESTORE_DONE, file=out)
+    if code:
+        print(messages.SETUP_CODE_INTRO, file=out)
+        print(code, file=out)
+        print(messages.SETUP_CODE_NEEDED, file=out)
+    return 0
+
+
+def cmd_export(args, *, vault=None, read_line=None, stdin=None, stdout=None) -> int:
+    import json
+    from pathlib import Path
+
+    from . import backup
+    from .vault import NotSetUp, Refused, Vault
+
+    out, source = stdout or sys.stdout, stdin or sys.stdin
+    if not _in_terminal((source, out)):
+        print(messages.TERMINAL_ONLY, file=sys.stderr)
+        return 1
+    path = Path(args.path).expanduser()
+    if path.exists():
+        print(messages.FILE_EXISTS, file=out)
+        return 1
+    if (read_line or input)(messages.EXPORT_ASK).strip() != "EXPORT":
+        print(messages.RESTORE_CANCELLED, file=out)
+        return 1
+    try:
+        with (vault or Vault()).read() as connection:
+            document = backup.export_document(connection)
+    except NotSetUp:
+        print(messages.NOT_SET_UP, file=out)
+        return 1
+    except Refused:
+        print(messages.LOCKED, file=out)
+        return 1
+    try:
+        _write_new_file(path, json.dumps(document, ensure_ascii=False, indent=2).encode("utf-8"))
+    except FileExistsError:
+        print(messages.FILE_EXISTS, file=out)
+        return 1
+    print(messages.EXPORT_DONE, file=out)
     return 0

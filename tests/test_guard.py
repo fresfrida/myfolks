@@ -107,6 +107,11 @@ def test_nested_arguments_blocked(env, blocked):
     assert blocked("tool_call", {"calls": [{"name": "read_file", "arguments": {"path": str(env["data"] / "store.enc")}}]})
 
 
+@pytest.mark.parametrize("sub", ["setup", "recover", "pair", "backup /tmp/x", "restore /tmp/x", "export /tmp/x"])
+def test_terminal_only_commands_blocked(env, blocked, sub):
+    assert blocked("terminal", {"command": f"hermes -p demo myfolks {sub}"})
+
+
 def test_unrelated_file_allowed(env, blocked):
     assert not blocked("read_file", {"path": str(env["other"])})
     assert not blocked("terminal", {"command": f"cat {env['other']} | grep -i store.enc && ls"})
