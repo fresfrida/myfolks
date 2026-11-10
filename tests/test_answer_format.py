@@ -66,11 +66,14 @@ def test_format_one_line_this_year(m):
     )
 
 
-def test_format_mixed_receipts_end_each_line(m):
+def test_format_different_dates_end_each_line_with_date_only(m):
     lines = [("is allergic to peanuts", at(2025, 2, 2).isoformat(), "terminal"), ("likes tea", at(2026, 6, 2).isoformat(), "Telegram")]
-    assert text(m, "Priya", lines) == (
-        "Priya\nis allergic to peanuts · last year · terminal\nlikes tea · June this year · Telegram"
-    )
+    assert text(m, "Priya", lines) == "Priya\nis allergic to peanuts · last year\nlikes tea · June this year"
+
+
+def test_format_different_dates_same_source_also_has_no_source(m):
+    lines = [("x", at(2025, 2, 2).isoformat(), "terminal"), ("y", at(2026, 6, 2).isoformat(), "terminal")]
+    assert text(m, "A", lines) == "A\nx · last year\ny · June this year"
 
 
 def test_format_not_sure(m):
@@ -79,9 +82,14 @@ def test_format_not_sure(m):
     )
 
 
-def test_same_date_different_source_ends_each_line(m):
+def test_same_date_different_sources_ends_with_date_only(m):
     saved = at(2026, 11, 10).isoformat()
-    assert text(m, "A", [("x", saved, "terminal"), ("y", saved, "Telegram")]) == "A\nx · today · terminal\ny · today · Telegram"
+    assert text(m, "A", [("x", saved, "terminal"), ("y", saved, "Telegram")]) == "A\nx\ny\ntoday"
+
+
+def test_same_date_and_source_keeps_full_receipt(m):
+    saved = at(2026, 11, 10).isoformat()
+    assert text(m, "A", [("x", saved, "terminal"), ("y", saved, "terminal")]) == "A\nx\ny\ntoday · terminal"
 
 
 def test_telegram_bolds_only_saved_words(m):
@@ -94,7 +102,7 @@ def test_telegram_bolds_only_saved_words(m):
 def test_telegram_mixed_keeps_receipt_plain(m):
     lines = [("a b", at(2026, 6, 2).isoformat(), "Telegram"), ("c d", at(2025, 6, 2).isoformat(), "terminal")]
     assert m.answer("N", lines, unsure=False, render=m.telegram_words, now=NOW) == (
-        "N\n**a b** · June this year · Telegram\n**c d** · last year · terminal"
+        "N\n**a b** · June this year\n**c d** · last year"
     )
 
 
@@ -111,7 +119,7 @@ def test_backticks_or_new_lines_use_a_code_block(m, words):
 def test_code_block_receipt_goes_on_its_own_line(m):
     lines = [("a `b`", at(2026, 6, 2).isoformat(), "Telegram"), ("c", at(2025, 6, 2).isoformat(), "terminal")]
     assert m.answer("N", lines, unsure=False, render=m.telegram_words, now=NOW) == (
-        "N\n```\na `b`\n```\nJune this year · Telegram\n**c** · last year · terminal"
+        "N\n```\na `b`\n```\nJune this year\n**c** · last year"
     )
 
 
@@ -158,7 +166,7 @@ def test_end_to_end_mixed_dates(vault, mod, phone):
     phone("save Priya likes tea")
     phone("save Priya likes cake")
     seed_dates(vault, [(1, at(2020, 1, 1).isoformat(), "terminal")])
-    assert phone("priya likes") == "Priya\n**likes tea** · more than a year ago · terminal\n**likes cake** · today · Telegram"
+    assert phone("priya likes") == "Priya\n**likes tea** · more than a year ago\n**likes cake** · today"
 
 
 def test_card_and_history_keep_exact_dates(vault, mod):

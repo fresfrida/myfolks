@@ -56,11 +56,13 @@ def more_line(count: int, name: str) -> str:
 def answer(name: str, lines: list[tuple[str, str, str]], unsure: bool, render: Callable[[str], str], now: Optional[datetime] = None, more: int = 0) -> str:
     """An answer readable at a glance. *lines* are (saved words, saved at, source)."""
     head = f"{name}{_SEPARATOR}{_NOT_SURE}" if unsure else name
-    receipts = [f"{date_label(saved_at, now)}{_SEPARATOR}{source}" for _text, saved_at, source in lines]
-    if len(set(receipts)) == 1:
-        body = [head, *(render(text) for text, _saved, _source in lines), receipts[0]]
+    dates = [date_label(saved_at, now) for _text, saved_at, _source in lines]
+    sources = {source for _text, _saved, source in lines}
+    if len(set(dates)) == 1:
+        tail = f"{dates[0]}{_SEPARATOR}{sources.pop()}" if len(sources) == 1 else dates[0]
+        body = [head, *(render(line[0]) for line in lines), tail]
     else:
-        body = [head, *(_with_tail(render(line[0]), tail) for line, tail in zip(lines, receipts))]
+        body = [head, *(_with_tail(render(line[0]), date) for line, date in zip(lines, dates))]
     if more:
         body.append(more_line(more, name))
     return "\n".join(body)
