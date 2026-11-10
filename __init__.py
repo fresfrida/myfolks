@@ -6,10 +6,6 @@ PLUGIN_ID = "myfolks"
 DATA_DIR_FRAGMENT = "plugin-data/myfolks"
 
 
-def handle_contacts(raw_args: str, **_context) -> str:
-    return "MyFolks isn't ready yet."
-
-
 def _strings_in(value):
     if isinstance(value, str):
         yield value
@@ -42,6 +38,11 @@ def _run_cli(args):
 
 
 def register(ctx) -> None:
+    def handle_contacts(raw_args: str, source=None, platform=None, **_context) -> str:
+        from . import commands
+
+        return commands.handle(raw_args, platform=platform, source=source, ask=ctx.ask_choice)
+
     ctx.register_command(
         "contacts",
         handle_contacts,

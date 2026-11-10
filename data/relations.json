@@ -1,0 +1,43 @@
+{
+  "_about": "Relationship words. Readable data only. 'equivalent' words mean the same relation; 'broader' words cover narrower relations; 'inverse' is what the other side of a link is called; 'kinds' sets the card type when a link creates a new card.",
+  "equivalent": [
+    ["mom", "mother", "mum", "mama", "mommy"],
+    ["dad", "father", "papa", "daddy"],
+    ["wife", "husband", "spouse", "partner"],
+    ["boss", "manager", "supervisor"],
+    ["kid", "child", "son", "daughter"],
+    ["dog", "puppy"],
+    ["cat", "kitten"],
+    ["colleague", "coworker"],
+    ["doctor", "dr", "physician"],
+    ["employer", "company", "workplace"]
+  ],
+  "broader": {
+    "pet": ["dog", "puppy", "cat", "kitten", "rabbit", "hamster", "bird", "parrot", "fish"],
+    "parent": ["mom", "mother", "mum", "mama", "mommy", "dad", "father", "papa", "daddy"],
+    "sibling": ["brother", "sister"]
+  },
+  "inverse": {
+    "dog": ["owner", "human"],
+    "puppy": ["owner", "human"],
+    "cat": ["owner", "human"],
+    "kitten": ["owner", "human"],
+    "pet": ["owner", "human"],
+    "mom": ["kid", "child", "son", "daughter"],
+    "dad": ["kid", "child", "son", "daughter"],
+    "kid": ["parent", "mom", "mother", "mum", "dad", "father"],
+    "boss": ["employee", "report"],
+    "employer": ["employee"],
+    "wife": ["wife", "husband", "spouse", "partner"],
+    "friend": ["friend"],
+    "colleague": ["colleague", "coworker"],
+    "brother": ["sibling", "brother", "sister"],
+    "sister": ["sibling", "brother", "sister"],
+    "neighbor": ["neighbor"]
+  },
+  "kinds": {
+    "pet": ["pet", "dog", "puppy", "cat", "kitten", "rabbit", "hamster", "bird", "parrot", "fish"],
+    "company": ["employer", "company", "workplace"],
+    "place": ["home", "office", "school", "clinic"]
+  }
+}
