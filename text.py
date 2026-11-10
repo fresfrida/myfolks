@@ -54,3 +54,24 @@ def word(value: str) -> str:
 
 def query_words(raw: str) -> list[str]:
     return [w for w in (word(t.text) for t in tokens(raw)) if w]
+
+
+def one_edit_apart(left: str, right: str, min_longer: int = 0) -> bool:
+    """True when two different strings differ by one missing, extra or changed letter, or two swapped neighbors."""
+    if left == right or max(len(left), len(right)) < min_longer or abs(len(left) - len(right)) > 1:
+        return False
+    if len(left) > len(right):
+        left, right = right, left
+    start = 0
+    while start < len(left) and left[start] == right[start]:
+        start += 1
+    if len(left) != len(right):
+        return left[start:] == right[start + 1 :]
+    if left[start + 1 :] == right[start + 1 :]:
+        return True
+    return (
+        start + 1 < len(left)
+        and left[start] == right[start + 1]
+        and left[start + 1] == right[start]
+        and left[start + 2 :] == right[start + 2 :]
+    )

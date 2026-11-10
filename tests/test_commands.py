@@ -240,3 +240,130 @@ def test_handler_needs_no_import_after_register(monkeypatch):
     monkeypatch.delitem(sys.modules, "myfolks.commands")
     monkeypatch.delattr(package, "commands", raising=False)
     assert isinstance(captured["contacts"]("", platform="telegram"), str)
+
+
+def test_exact_name_always_wins_over_close(run):
+    run("save Prya likes tea")
+    run("save --new Priya likes cake")
+    assert run("prya").startswith("Prya\n")
+    assert run("priya").startswith("Priya\n")
+
+
+def test_one_close_name_is_used_and_announced(run):
+    run("save Priya likes cake")
+    reply = run("prya cake")
+    assert reply.split("\n")[0] == "Showing Priya."
+    assert 'Priya: "likes cake"' in reply
+
+
+def test_short_names_get_no_typo_help(run):
+    run("save Bob likes cake")
+    assert run("bo cake") == "Nothing saved about that."
+
+
+def test_several_close_names_ask(run):
+    run("save Marla likes hiking")
+    run("save --new Maria likes painting")
+    reply = run("marca", answer=lambda choices: next(c["value"] for c in choices if "Maria" in c["label"]))
+    assert len(run.state["asked"]) == 2 and reply.startswith("Maria\n")
+    assert run("marca", answer=None).startswith("More than one match.")
+
+
+def test_history_with_close_name(run):
+    run("save Priya likes cake")
+    assert run("history prya").startswith("Showing Priya.")
+
+
+def test_mistyped_name_on_save_asks_before_writing(run, vault):
+    run("save Priya likes cake")
+    before = vault.store_path.read_bytes()
+    reply = run("save Prya likes tea", answer=None)
+    assert reply.split("\n")[0] == "Did you mean Priya?"
+    assert "/contacts save Priya likes tea" in reply
+    assert "/contacts save --new Prya likes tea" in reply
+    assert vault.store_path.read_bytes() == before
+
+
+def test_mistyped_save_choose_existing(run):
+    run("save Priya likes cake")
+    reply = run("save Prya likes tea", answer=lambda choices: choices[0]["value"])
+    assert reply == "Saved to Priya."
+    assert [c["label"] for c in run.state["asked"]] == ["Priya", "New card for Prya"]
+    assert "likes tea" in run("priya")
+
+
+def test_mistyped_save_choose_new(run):
+    run("save Priya likes cake")
+    assert run("save Prya likes tea", answer=lambda choices: "new") == "New card for Prya. Saved."
+    assert "likes tea" in run("prya") and "likes tea" not in run("priya")
+
+
+def test_new_flag_skips_the_question(run):
+    run("save Priya likes cake")
+    assert run("save --new Prya likes tea") == "New card for Prya. Saved."
+
+
+def test_question_is_asked_with_store_unlocked(run, vault, mod):
+    run("save Priya likes cake")
+
+    def answer(choices):
+        with vault.read() as connection:
+            connection.execute("SELECT 1")
+        return choices[0]["value"]
+
+    other = mod("vault").Vault(vault.directory, keys=vault.keys, lock_timeout=0.05)
+    assert mod("commands").handle(
+        "save Prya likes tea", platform="cli", vault=other,
+        ask=lambda _q, choices: answer(choices),
+    ) == "Saved to Priya."
+
+
+def test_mistyped_name_on_link_asks(run, vault):
+    run("save Priya likes cake")
+    run("save Biscuit likes walks")
+    before = vault.store_path.read_bytes()
+    reply = run("link Prya dog Biscuit", answer=None)
+    assert reply.split("\n")[0] == "Did you mean Priya?"
+    assert "/contacts link Priya dog Biscuit" in reply and "/contacts link --new Prya dog Biscuit" in reply
+    assert vault.store_path.read_bytes() == before
+    assert run("link Prya dog Biscuit", answer=lambda choices: choices[0]["value"]) == "Linked: Priya, dog, Biscuit."
+
+
+def test_mistyped_right_name_on_link_asks(run):
+    run("save Priya likes cake")
+    run("save Biscuit likes walks")
+    reply = run("link Priya dog Biscut", answer=None)
+    assert "/contacts link Priya dog Biscuit" in reply
+
+
+def test_correct_with_close_name_asks(run):
+    run("save Priya lives in Oslo")
+    assert run("correct Prya 1 lives in Bergen", answer=None).split("\n")[0] == "Did you mean Priya?"
+    assert "lives in Oslo" in run("priya")
+    assert run("correct Prya 1 lives in Bergen", answer=lambda choices: choices[0]["value"]) == "Saved to Priya."
+
+
+@pytest.mark.parametrize("typed,text,expected_start", [
+    ("sav", "Priya likes cake", "Saved to Priya."),
+    ("svae", "Priya likes cake", "Saved to Priya."),
+    ("hisory", "Priya", "Priya: history"),
+    ("undoo", "", "Undone:"),
+    ("reviw", "", "Nothing to review."),
+    ("lnik", "Priya dog Biscuit", "Linked: Priya, dog, Biscuit."),
+    ("corect", "Priya 1 likes pie", "Saved to Priya."),
+])
+def test_mistyped_subcommands(run, typed, text, expected_start):
+    run("save Priya likes tea")
+    run("save Biscuit likes walks")
+    assert run(f"{typed} {text}".strip()).startswith(expected_start)
+
+
+def test_subcommand_typo_yields_to_real_lookup(run):
+    run("save Sane likes cake")
+    assert 'Sane: "likes cake"' in run("sane cake")
+    run("save Linc birthday June 2")
+    assert 'Linc: "birthday June 2"' in run("linc birthday")
+
+
+def test_two_close_subcommands_are_not_guessed(mod):
+    assert mod("commands")._closest_verb("zzz") is None

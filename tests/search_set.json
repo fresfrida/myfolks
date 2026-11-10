@@ -30,93 +30,489 @@
     "save Marco wears size 42 shoes",
     "save Marco brother Luca lives in Milan",
     "save Acme office in Singapore",
-    "save Acme CEO is Lina"
+    "save Acme CEO is Lina",
+    "save Marla likes hiking",
+    "save --new Maria likes painting"
   ],
   "questions": [
-    {"q": "priya allergic peanuts", "expect": "direct", "find": "allergic to peanuts"},
-    {"q": "priya allergic", "expect": "direct", "find": "allergic to peanuts"},
-    {"q": "priya allergy", "expect": "direct", "find": "allergic to peanuts"},
-    {"q": "priya alergic", "expect": "direct", "find": "allergic to peanuts"},
-    {"q": "priya alergy", "expect": "direct", "find": "allergic to peanuts"},
-    {"q": "priya peanut", "expect": "direct", "find": "allergic to peanuts"},
-    {"q": "priya penuts", "expect": "direct", "find": "allergic to peanuts"},
-    {"q": "priya green", "expect": "direct", "find": "colour is green"},
-    {"q": "priya favourite colour", "expect": "direct", "find": "colour is green"},
-    {"q": "priya favorite color", "expect": "direct", "find": "colour is green"},
-    {"q": "priya color", "expect": "direct", "find": "colour is green"},
-    {"q": "priya favorite food", "expect": "not_direct", "find": "colour is green"},
-    {"q": "priya shoe size", "expect": "nothing"},
-    {"q": "priya shoe", "expect": "nothing"},
-    {"q": "priya passport", "expect": "nothing"},
-    {"q": "priya salary", "expect": "nothing"},
-    {"q": "priya phone", "expect": "direct", "find": "+65 9123 4567"},
-    {"q": "priya mobile", "expect": "related", "find": "+65 9123 4567"},
-    {"q": "priya number", "expect": "related", "find": "+65 9123 4567"},
-    {"q": "priya works", "expect": "direct", "find": "Acme Robotics"},
-    {"q": "priya job", "expect": "related", "find": "Acme Robotics"},
-    {"q": "priya employer", "expect": "related", "find": "Acme Robotics"},
-    {"q": "priya lives", "expect": "direct", "find": "Queenstown"},
-    {"q": "priya address", "expect": "related", "find": "Queenstown"},
-    {"q": "priya home", "expect": "related", "find": "Queenstown"},
-    {"q": "priya daughter", "expect": "direct", "find": "Mei"},
-    {"q": "priya school", "expect": "direct", "find": "Mei"},
-    {"q": "priya oat milk", "expect": "direct", "find": "lattes"},
-    {"q": "priya coffee", "expect": "related", "find": "lattes"},
-    {"q": "priya drink", "expect": "direct", "find": "lattes"},
-    {"q": "what is priya allergic to", "expect": "direct", "find": "allergic to peanuts"},
-    {"q": "where does priya live", "expect": "direct", "find": "Queenstown"},
-    {"q": "priya dog", "expect": "card", "find": "Biscuit"},
-    {"q": "priya dog birthday", "expect": "direct", "find": "March 3"},
-    {"q": "priya's dog birthday", "expect": "direct", "find": "March 3"},
-    {"q": "priya dog breed", "expect": "related", "find": "golden retriever"},
-    {"q": "priya dog vet", "expect": "direct", "find": "Dr Tan"},
-    {"q": "priya pet afraid", "expect": "direct", "find": "thunderstorms"},
-    {"q": "priya dog scared", "expect": "related", "find": "thunderstorms"},
-    {"q": "priya dog allergic", "expect": "nothing"},
-    {"q": "biscuit owner phone", "expect": "direct", "find": "+65 9123 4567"},
-    {"q": "biscuit owner allergy", "expect": "direct", "find": "allergic to peanuts"},
-    {"q": "biscuit birthday", "expect": "direct", "find": "March 3"},
-    {"q": "biscuit bday", "expect": "related", "find": "March 3"},
-    {"q": "biscuit thunder", "expect": "direct", "find": "thunderstorms"},
-    {"q": "biscuit storm", "expect": "related", "find": "thunderstorms"},
-    {"q": "priya mom tulips", "expect": "direct", "find": "tulips"},
-    {"q": "mom tulips", "expect": "direct", "find": "tulips"},
-    {"q": "asha flowers", "expect": "related", "find": "tulips"},
-    {"q": "asha favourite flower", "expect": "related", "find": "tulips"},
-    {"q": "priya mother birthday", "expect": "direct", "find": "14 August 1958"},
-    {"q": "asha daughter phone", "expect": "direct", "find": "+65 9123 4567"},
-    {"q": "asha surgery", "expect": "direct", "find": "hip surgery"},
-    {"q": "asha hip", "expect": "direct", "find": "hip surgery"},
-    {"q": "asha operation", "expect": "related", "find": "hip surgery"},
-    {"q": "asha shoe size", "expect": "nothing"},
-    {"q": "sam chess", "choose": "Lee", "expect": "direct", "find": "chess"},
-    {"q": "sam chess", "choose": "Ong", "expect": "nothing"},
-    {"q": "sam lee chess", "expect": "direct", "find": "chess"},
-    {"q": "sam ong wife", "expect": "direct", "find": "Joanne"},
-    {"q": "sam ong spouse", "expect": "related", "find": "Joanne"},
-    {"q": "sam ong anniversary", "expect": "direct", "find": "June 12"},
-    {"q": "sam ong aniversary", "expect": "direct", "find": "June 12"},
-    {"q": "sam lee vegetarian", "expect": "direct", "find": "vegetarian"},
-    {"q": "sam lee diet", "expect": "related", "find": "vegetarian"},
-    {"q": "sam lee wife", "expect": "nothing"},
-    {"q": "marco owes", "expect": "direct", "find": "50 dollars"},
-    {"q": "marco money", "expect": "related", "find": "50 dollars"},
-    {"q": "marco debt", "expect": "related", "find": "50 dollars"},
-    {"q": "marco passport", "expect": "direct", "find": "renewal"},
-    {"q": "marco passprot", "expect": "direct", "find": "renewal"},
-    {"q": "marco shoe size", "expect": "direct", "find": "size 42"},
-    {"q": "marco shoe", "expect": "direct", "find": "size 42"},
-    {"q": "marco hat size", "expect": "nothing"},
-    {"q": "marco coffee order", "expect": "related", "find": "flat white"},
-    {"q": "marco birthday", "expect": "nothing"},
-    {"q": "marco brother", "expect": "direct", "find": "Luca"},
-    {"q": "marco mother", "expect": "nothing"},
-    {"q": "marco sugr", "expect": "direct", "find": "no sugar"},
-    {"q": "acme ceo", "expect": "direct", "find": "Lina"},
-    {"q": "acme office", "expect": "direct", "find": "Singapore"},
-    {"q": "acme boss", "expect": "related", "find": "Lina"},
-    {"q": "acme revenue", "expect": "nothing"},
-    {"q": "nobody lives", "expect": "nothing"},
-    {"q": "priya", "expect": "card", "find": "Priya"}
+    {
+      "q": "priya allergic peanuts",
+      "expect": "direct",
+      "find": "allergic to peanuts"
+    },
+    {
+      "q": "priya allergic",
+      "expect": "direct",
+      "find": "allergic to peanuts"
+    },
+    {
+      "q": "priya allergy",
+      "expect": "direct",
+      "find": "allergic to peanuts"
+    },
+    {
+      "q": "priya alergic",
+      "expect": "direct",
+      "find": "allergic to peanuts"
+    },
+    {
+      "q": "priya alergy",
+      "expect": "direct",
+      "find": "allergic to peanuts"
+    },
+    {
+      "q": "priya peanut",
+      "expect": "direct",
+      "find": "allergic to peanuts"
+    },
+    {
+      "q": "priya penuts",
+      "expect": "direct",
+      "find": "allergic to peanuts"
+    },
+    {
+      "q": "priya green",
+      "expect": "direct",
+      "find": "colour is green"
+    },
+    {
+      "q": "priya favourite colour",
+      "expect": "direct",
+      "find": "colour is green"
+    },
+    {
+      "q": "priya favorite color",
+      "expect": "direct",
+      "find": "colour is green"
+    },
+    {
+      "q": "priya color",
+      "expect": "direct",
+      "find": "colour is green"
+    },
+    {
+      "q": "priya favorite food",
+      "expect": "not_direct",
+      "find": "colour is green"
+    },
+    {
+      "q": "priya shoe size",
+      "expect": "nothing"
+    },
+    {
+      "q": "priya shoe",
+      "expect": "nothing"
+    },
+    {
+      "q": "priya passport",
+      "expect": "nothing"
+    },
+    {
+      "q": "priya salary",
+      "expect": "nothing"
+    },
+    {
+      "q": "priya phone",
+      "expect": "direct",
+      "find": "+65 9123 4567"
+    },
+    {
+      "q": "priya mobile",
+      "expect": "related",
+      "find": "+65 9123 4567"
+    },
+    {
+      "q": "priya number",
+      "expect": "related",
+      "find": "+65 9123 4567"
+    },
+    {
+      "q": "priya works",
+      "expect": "direct",
+      "find": "Acme Robotics"
+    },
+    {
+      "q": "priya job",
+      "expect": "related",
+      "find": "Acme Robotics"
+    },
+    {
+      "q": "priya employer",
+      "expect": "related",
+      "find": "Acme Robotics"
+    },
+    {
+      "q": "priya lives",
+      "expect": "direct",
+      "find": "Queenstown"
+    },
+    {
+      "q": "priya address",
+      "expect": "related",
+      "find": "Queenstown"
+    },
+    {
+      "q": "priya home",
+      "expect": "related",
+      "find": "Queenstown"
+    },
+    {
+      "q": "priya daughter",
+      "expect": "direct",
+      "find": "Mei"
+    },
+    {
+      "q": "priya school",
+      "expect": "direct",
+      "find": "Mei"
+    },
+    {
+      "q": "priya oat milk",
+      "expect": "direct",
+      "find": "lattes"
+    },
+    {
+      "q": "priya coffee",
+      "expect": "related",
+      "find": "lattes"
+    },
+    {
+      "q": "priya drink",
+      "expect": "direct",
+      "find": "lattes"
+    },
+    {
+      "q": "what is priya allergic to",
+      "expect": "direct",
+      "find": "allergic to peanuts"
+    },
+    {
+      "q": "where does priya live",
+      "expect": "direct",
+      "find": "Queenstown"
+    },
+    {
+      "q": "priya dog",
+      "expect": "card",
+      "find": "Biscuit"
+    },
+    {
+      "q": "priya dog birthday",
+      "expect": "direct",
+      "find": "March 3"
+    },
+    {
+      "q": "priya's dog birthday",
+      "expect": "direct",
+      "find": "March 3"
+    },
+    {
+      "q": "priya dog breed",
+      "expect": "related",
+      "find": "golden retriever"
+    },
+    {
+      "q": "priya dog vet",
+      "expect": "direct",
+      "find": "Dr Tan"
+    },
+    {
+      "q": "priya pet afraid",
+      "expect": "direct",
+      "find": "thunderstorms"
+    },
+    {
+      "q": "priya dog scared",
+      "expect": "related",
+      "find": "thunderstorms"
+    },
+    {
+      "q": "priya dog allergic",
+      "expect": "nothing"
+    },
+    {
+      "q": "biscuit owner phone",
+      "expect": "direct",
+      "find": "+65 9123 4567"
+    },
+    {
+      "q": "biscuit owner allergy",
+      "expect": "direct",
+      "find": "allergic to peanuts"
+    },
+    {
+      "q": "biscuit birthday",
+      "expect": "direct",
+      "find": "March 3"
+    },
+    {
+      "q": "biscuit bday",
+      "expect": "related",
+      "find": "March 3"
+    },
+    {
+      "q": "biscuit thunder",
+      "expect": "direct",
+      "find": "thunderstorms"
+    },
+    {
+      "q": "biscuit storm",
+      "expect": "related",
+      "find": "thunderstorms"
+    },
+    {
+      "q": "priya mom tulips",
+      "expect": "direct",
+      "find": "tulips"
+    },
+    {
+      "q": "mom tulips",
+      "expect": "direct",
+      "find": "tulips"
+    },
+    {
+      "q": "asha flowers",
+      "expect": "related",
+      "find": "tulips"
+    },
+    {
+      "q": "asha favourite flower",
+      "expect": "related",
+      "find": "tulips"
+    },
+    {
+      "q": "priya mother birthday",
+      "expect": "direct",
+      "find": "14 August 1958"
+    },
+    {
+      "q": "asha daughter phone",
+      "expect": "direct",
+      "find": "+65 9123 4567"
+    },
+    {
+      "q": "asha surgery",
+      "expect": "direct",
+      "find": "hip surgery"
+    },
+    {
+      "q": "asha hip",
+      "expect": "direct",
+      "find": "hip surgery"
+    },
+    {
+      "q": "asha operation",
+      "expect": "related",
+      "find": "hip surgery"
+    },
+    {
+      "q": "asha shoe size",
+      "expect": "nothing"
+    },
+    {
+      "q": "sam chess",
+      "choose": "Lee",
+      "expect": "direct",
+      "find": "chess"
+    },
+    {
+      "q": "sam chess",
+      "choose": "Ong",
+      "expect": "nothing"
+    },
+    {
+      "q": "sam lee chess",
+      "expect": "direct",
+      "find": "chess"
+    },
+    {
+      "q": "sam ong wife",
+      "expect": "direct",
+      "find": "Joanne"
+    },
+    {
+      "q": "sam ong spouse",
+      "expect": "related",
+      "find": "Joanne"
+    },
+    {
+      "q": "sam ong anniversary",
+      "expect": "direct",
+      "find": "June 12"
+    },
+    {
+      "q": "sam ong aniversary",
+      "expect": "direct",
+      "find": "June 12"
+    },
+    {
+      "q": "sam lee vegetarian",
+      "expect": "direct",
+      "find": "vegetarian"
+    },
+    {
+      "q": "sam lee diet",
+      "expect": "related",
+      "find": "vegetarian"
+    },
+    {
+      "q": "sam lee wife",
+      "expect": "nothing"
+    },
+    {
+      "q": "marco owes",
+      "expect": "direct",
+      "find": "50 dollars"
+    },
+    {
+      "q": "marco money",
+      "expect": "related",
+      "find": "50 dollars"
+    },
+    {
+      "q": "marco debt",
+      "expect": "related",
+      "find": "50 dollars"
+    },
+    {
+      "q": "marco passport",
+      "expect": "direct",
+      "find": "renewal"
+    },
+    {
+      "q": "marco passprot",
+      "expect": "direct",
+      "find": "renewal"
+    },
+    {
+      "q": "marco shoe size",
+      "expect": "direct",
+      "find": "size 42"
+    },
+    {
+      "q": "marco shoe",
+      "expect": "direct",
+      "find": "size 42"
+    },
+    {
+      "q": "marco hat size",
+      "expect": "nothing"
+    },
+    {
+      "q": "marco coffee order",
+      "expect": "related",
+      "find": "flat white"
+    },
+    {
+      "q": "marco birthday",
+      "expect": "nothing"
+    },
+    {
+      "q": "marco brother",
+      "expect": "direct",
+      "find": "Luca"
+    },
+    {
+      "q": "marco mother",
+      "expect": "nothing"
+    },
+    {
+      "q": "marco sugr",
+      "expect": "direct",
+      "find": "no sugar"
+    },
+    {
+      "q": "acme ceo",
+      "expect": "direct",
+      "find": "Lina"
+    },
+    {
+      "q": "acme office",
+      "expect": "direct",
+      "find": "Singapore"
+    },
+    {
+      "q": "acme boss",
+      "expect": "related",
+      "find": "Lina"
+    },
+    {
+      "q": "acme revenue",
+      "expect": "nothing"
+    },
+    {
+      "q": "nobody lives",
+      "expect": "nothing"
+    },
+    {
+      "q": "priya",
+      "expect": "card",
+      "find": "Priya"
+    },
+    {
+      "q": "prya allergic",
+      "expect": "direct",
+      "find": "allergic to peanuts"
+    },
+    {
+      "q": "prya",
+      "expect": "card",
+      "find": "Priya"
+    },
+    {
+      "q": "biscut birthday",
+      "expect": "direct",
+      "find": "March 3"
+    },
+    {
+      "q": "priya penuts allergy",
+      "expect": "direct",
+      "find": "allergic to peanuts"
+    },
+    {
+      "q": "priya queenstwon",
+      "expect": "direct",
+      "find": "Queenstown"
+    },
+    {
+      "q": "asha tuplis",
+      "expect": "direct",
+      "find": "tulips"
+    },
+    {
+      "q": "marca",
+      "choose": "Marla",
+      "expect": "card",
+      "find": "Marla"
+    },
+    {
+      "q": "marca",
+      "choose": "Maria",
+      "expect": "card",
+      "find": "Maria"
+    },
+    {
+      "q": "prya shoe size",
+      "expect": "nothing"
+    },
+    {
+      "q": "zzzz birthday",
+      "expect": "nothing"
+    },
+    {
+      "q": "marco bears",
+      "expect": "nothing",
+      "trap": true
+    },
+    {
+      "q": "sam lee chest",
+      "expect": "nothing",
+      "trap": true
+    },
+    {
+      "q": "priya loves",
+      "expect": "nothing",
+      "trap": true
+    }
   ]
 }

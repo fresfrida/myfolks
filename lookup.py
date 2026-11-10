@@ -13,12 +13,14 @@ from .text import STOPWORDS
 Pick = Callable[[list, str], sqlite3.Row]
 _CARD_ID = re.compile(r"^#(\d+)$")
 _MAX_HOPS = 4
+_MAX_NAME_WORDS = 3
 
 
 @dataclass
 class Resolved:
     card: sqlite3.Row
     words: list[str]
+    corrected: bool = False
 
 
 def cards_for_words(connection: sqlite3.Connection, words: list[str]) -> list:
@@ -34,6 +36,18 @@ def find_span(connection: sqlite3.Connection, words: list[str]) -> Optional[tupl
     for start in range(len(words)):
         for end in range(len(words), start, -1):
             matches = cards_for_words(connection, words[start:end])
+            if matches:
+                return start, end, matches
+    return None
+
+
+def find_close_span(connection: sqlite3.Connection, words: list[str]) -> Optional[tuple[int, int, list]]:
+    """Like find_span, for a name typed with one mistake. Words that carry no meaning are skipped."""
+    for start in range(len(words)):
+        if words[start] in STOPWORDS:
+            continue
+        for end in range(min(len(words), start + _MAX_NAME_WORDS), start, -1):
+            matches = cards.find_close_cards(connection, " ".join(words[start:end]))
             if matches:
                 return start, end, matches
     return None
@@ -67,10 +81,14 @@ def follow_links(connection: sqlite3.Connection, card: sqlite3.Row, words: list[
 
 def resolve(connection: sqlite3.Connection, words: list[str], pick: Pick) -> Optional[Resolved]:
     span = find_span(connection, words)
+    corrected = False
     if span is None:
-        return None
+        span = find_close_span(connection, words)
+        if span is None:
+            return None
+        corrected = len(span[2]) == 1
     start, end, matches = span
     card = pick(matches, " ".join(words[start:end]))
     remaining = [w for w in words[:start] if w not in STOPWORDS] + words[end:]
     card, remaining = follow_links(connection, card, remaining, pick)
-    return Resolved(card, remaining)
+    return Resolved(card, remaining, corrected)

@@ -12,13 +12,14 @@ import re
 from collections import Counter
 from dataclasses import dataclass
 
-from .text import STOPWORDS, load_data, tokens, word
+from .text import STOPWORDS, load_data, one_edit_apart, tokens, word
 
 SPELLING_THRESHOLD = 0.66
 CONCEPT_STRENGTH = 0.8
 RELATED_CUTOFF = 0.5
 LAST_WORD_WEIGHT = 2
 MIN_PREFIX = 4
+MIN_TYPO_LENGTH = 5
 MAX_DIRECT = 5
 MAX_RELATED = 3
 
@@ -70,6 +71,8 @@ def spelled_alike(question_word: str, line_word: str) -> bool:
         return True
     if question_word.isdigit() or line_word.isdigit():
         return False
+    if one_edit_apart(question_word, line_word, MIN_TYPO_LENGTH):
+        return True
     left, right = _spelling_form(question_word), _spelling_form(line_word)
     if len(left) >= MIN_PREFIX and right.startswith(left):
         return True
@@ -95,6 +98,10 @@ def line_words(text: str) -> list[str]:
     return [w for part in found for w in re.split(r"[-/]", part) if w and w not in STOPWORDS]
 
 
+def _exact_count(wanted: list[str], words_on_line: list[str]) -> int:
+    return sum(1 for w in wanted if w in words_on_line)
+
+
 def _strength(question_word: str, words_on_line: list[str]) -> tuple[float, bool]:
     if any(spelled_alike(question_word, w) for w in words_on_line):
         return 1.0, True
@@ -111,10 +118,11 @@ def rank(lines: list, words: list[str]) -> Results:
         words_on_line = line_words(line["text"])
         strengths = [_strength(w, words_on_line) for w in wanted]
         if strengths and all(by_spelling for _value, by_spelling in strengths):
-            direct.append(line)
+            direct.append((_exact_count(wanted, words_on_line), line))
             continue
         score = sum(weight * value for weight, (value, _s) in zip(weights, strengths)) / sum(weights)
         if score >= RELATED_CUTOFF:
             related.append((score, line))
     related.sort(key=lambda pair: pair[0], reverse=True)
-    return Results(direct[:MAX_DIRECT], [line for _score, line in related[:MAX_RELATED]])
+    direct.sort(key=lambda pair: pair[0], reverse=True)
+    return Results([line for _exact, line in direct[:MAX_DIRECT]], [line for _score, line in related[:MAX_RELATED]])

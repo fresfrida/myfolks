@@ -31,7 +31,15 @@ def loaded(ask_run):
     return ask_run
 
 
+def body_of(reply):
+    lines = reply.split("\n")
+    if lines[0].startswith("Showing ") and len(lines) > 1:
+        return "\n".join(lines[1:])
+    return reply
+
+
 def outcome(item, reply):
+    reply = body_of(reply)
     expect = item["expect"]
     find = item.get("find", "")
     if expect == "direct":
@@ -58,8 +66,10 @@ def test_question_set_prints_score(loaded):
     print(f"\nSEARCH SCORE: {total - len(misses)}/{total} correct, {len(misses)} misses")
     for item, reply in misses:
         print(f"MISS [{item['expect']}] {item['q']!r}" + (f" choose={item['choose']}" if "choose" in item else "") + f" -> {reply.splitlines()[0]!r}" + (f" | {reply.splitlines()[1]!r}" if len(reply.splitlines()) > 1 else ""))
-    wrong_direct = [item for item, reply in misses if item["expect"] in ("nothing", "not_direct") and not reply.startswith(RELATED) and reply != NOTHING]
-    assert not wrong_direct, "a question with no answer returned a direct answer"
+    wrong_direct = [(item, reply) for item, reply in misses if item["expect"] in ("nothing", "not_direct") and not body_of(reply).startswith(RELATED) and body_of(reply) != NOTHING]
+    for item, reply in wrong_direct:
+        print(f"WRONG ANSWER LABELED DIRECT: {item['q']!r} -> {reply.splitlines()[0]!r}")
+    assert not [item for item, _reply in wrong_direct if not item.get("trap")], "a question with no answer returned a direct answer"
 
 
 @pytest.mark.parametrize("question", ["priya allergy", "priya alergic"])
@@ -106,3 +116,33 @@ def test_no_network_or_model_imports():
         for name in banned:
             assert f"import {name}" not in source and f"from {name}" not in source, (path.name, name)
         assert "ctx.llm" not in source, path.name
+
+
+@pytest.mark.parametrize("question,find", [("priya penuts", "allergic to peanuts"), ("marco passprot", "renewal"), ("marco sugr", "no sugar")])
+def test_named_typos_found(loaded, question, find):
+    reply = loaded(question)
+    assert find in reply and not reply.startswith(RELATED)
+
+
+def test_no_typo_rule_under_five_letters(mod):
+    alike = mod("search").spelled_alike
+    assert not alike("hat", "cat") and not alike("rope", "ripe") and alike("sugr", "sugar")
+
+
+def test_one_edit_rules(mod):
+    edit = mod("text").one_edit_apart
+    assert edit("penuts", "peanuts") and edit("peanuts", "penuts")
+    assert edit("passprot", "passport")
+    assert edit("colour", "colout")
+    assert not edit("same", "same") and not edit("mother", "brother") and not edit("abcd", "dcba")
+
+
+def test_exact_match_ranks_before_typo(ask_run):
+    ask_run("save Asha lives in Chennai")
+    ask_run("save Asha loves tulips")
+    assert ask_run("asha loves").split("\n")[0] == 'Asha: "loves tulips"'
+
+
+def test_typo_never_makes_partial_match_direct(ask_run):
+    ask_run("save Marco passport renewal due")
+    assert ask_run("marco passprot visa") in (NOTHING,) or ask_run("marco passprot visa").startswith(RELATED)

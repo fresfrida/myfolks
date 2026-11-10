@@ -6,7 +6,7 @@ import sqlite3
 from typing import Optional
 
 from . import db, fields
-from .text import load_data, normalize
+from .text import load_data, normalize, one_edit_apart
 
 _RELATIONS = load_data("relations.json")
 _EQUIVALENT = {word: set(group) for group in _RELATIONS["equivalent"] for word in group}
@@ -21,6 +21,19 @@ def find_cards(connection: sqlite3.Connection, name: str) -> list[sqlite3.Row]:
            WHERE cards.norm_name=? OR aliases.norm_alias=? ORDER BY cards.id""",
         (norm, norm),
     ).fetchall()
+
+
+MIN_TYPO_NAME = 5
+
+
+def find_close_cards(connection: sqlite3.Connection, name: str) -> list[sqlite3.Row]:
+    """Cards whose name or alias is one edit from *name*. Call only when there is no exact match."""
+    norm = normalize(name)
+    found = set()
+    for row in connection.execute("SELECT id, norm_name AS value FROM cards UNION ALL SELECT card_id, norm_alias FROM aliases"):
+        if one_edit_apart(norm, row["value"], MIN_TYPO_NAME):
+            found.add(row["id"])
+    return [card_by_id(connection, card_id) for card_id in sorted(found)]
 
 
 def card_by_id(connection: sqlite3.Connection, card_id: int) -> Optional[sqlite3.Row]:
