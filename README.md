@@ -101,7 +101,7 @@ Search, read cards, follow links, save a line and work through your review list.
 
 ## Turning on AI use
 
-AI access is **off by default**. To turn it on, go to Settings, then Plugins, then MyFolks, or set this in `config.yaml`:
+AI access is **off by default**. To turn it on, go to Settings, then Plugins, then MyFolks, then Agent settings, or set this in `config.yaml`:
 
 ```yaml
 plugins:
@@ -125,7 +125,7 @@ plugins:
         shared_people: "telegram:12345:read, telegram:67890:add"
 ```
 
-Or use Settings, then Plugins, then MyFolks. It works only in private chats. Remove an entry to remove the person.
+Or use Settings, then Plugins, then MyFolks, then Agent settings. It works only in private chats. Remove an entry to remove the person.
 
 If more than one person is allowed on your bot, link your own account once with `hermes myfolks pair`, then send the code it gives you to your bot in a private chat.
 
