@@ -52,6 +52,10 @@ class LineBody(BaseModel):
     text: str
 
 
+class HiddenBody(BaseModel):
+    hidden: bool
+
+
 class ReviewBody(BaseModel):
     action: str
     card_id: Optional[int] = None
@@ -75,6 +79,11 @@ async def card(card_id: int):
 @router.post("/cards/{card_id}/lines")
 async def save_line(card_id: int, body: LineBody):
     return _call(lambda s: s.save_line(card_id, body.text))
+
+
+@router.post("/lines/{line_id}/hidden")
+async def set_hidden(line_id: int, body: HiddenBody):
+    return _call(lambda s: s.set_hidden(line_id, body.hidden))
 
 
 @router.get("/review")

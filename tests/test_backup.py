@@ -1,3 +1,4 @@
+from loader import save_hidden
 import argparse
 import io
 import json
@@ -22,7 +23,7 @@ class NotTerminal(io.StringIO):
 def filled(vault, mod):
     handle = mod("commands").handle
     handle("save Priya is allergic to peanuts", platform="cli", vault=vault)
-    handle("save --private Priya sees a therapist", platform="cli", vault=vault)
+    save_hidden(vault, "Priya sees a therapist")
     return vault
 
 

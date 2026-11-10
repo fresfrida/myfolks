@@ -19,11 +19,11 @@ _WARNED_SETTING = "terminal_warning_shown"
 _SELF_WORDS = {"me", "my", "i", "myself"}
 _ALIAS_WORDS = {"alias", "aka", "nickname"}
 _TYPO_VERBS = ("save", "link", "history", "correct", "undo", "review")
-_VERBS = set(_TYPO_VERBS)
+_VERBS = {*_TYPO_VERBS, "hide", "unhide"}
 _MAX_QUESTIONS = 4
 _BOLD_SURFACE = "Telegram"
 _NEW_FLAG = "--new"
-_PRIVATE_FLAG = "--private"
+_RETIRED_FLAGS = {"--private", "--computer-only"}
 _MAX_NAME_TOKENS = 3
 
 
@@ -187,7 +187,7 @@ def _run(raw: str, vault: Vault, label: str, terminal: bool, answers: dict, acce
     verb = _verb_for(vault, raw, parts, label, terminal, answers)
     if not _allowed_for(access, verb):
         return messages.REFUSED
-    writers = {"save": _save, "link": _link, "correct": _correct, "undo": _undo, "review": _review}
+    writers = {"save": _save, "link": _link, "correct": _correct, "undo": _undo, "review": _review, "hide": _hide, "unhide": _unhide}
     if verb in writers:
         with vault.write() as connection:
             return writers[verb](_context(connection, label, terminal, answers, access), raw, parts[1:])
@@ -219,7 +219,7 @@ def _match_suffix(context: Context, parts: list[Token], limit: int) -> tuple[int
 
 def _strip_flags(parts: list[Token]) -> tuple[list[Token], set[str]]:
     flags: set[str] = set()
-    while parts and parts[0].text.casefold() in (_NEW_FLAG, _PRIVATE_FLAG):
+    while parts and parts[0].text.casefold() == _NEW_FLAG:
         flags.add(parts[0].text.casefold())
         parts = parts[1:]
     return parts, flags
@@ -254,9 +254,10 @@ def _confirm_close_name(context: Context, typed: str, close: list, command_for: 
 
 
 def _save(context: Context, raw: str, parts: list[Token]) -> str:
+    if any(not part.quoted and part.text.casefold() in _RETIRED_FLAGS for part in parts):
+        return messages.HIDE_ON_COMPUTER
     parts, flags = _strip_flags(parts)
     force_new = _NEW_FLAG in flags
-    private = _PRIVATE_FLAG in flags
     if len(parts) < 2:
         return messages.USAGE_SAVE
     used, matches = _match_prefix(context, parts, len(parts) - 1)
@@ -268,11 +269,10 @@ def _save(context: Context, raw: str, parts: list[Token]) -> str:
         if close:
             typed = " ".join(p.text for p in parts[:close_used])
             text = raw[parts[close_used].start:].strip()
-            private_flag = f"{_PRIVATE_FLAG} " if private else ""
             card = _confirm_close_name(
                 context, typed, close,
-                lambda name: f"/contacts save {private_flag}{name} {text}",
-                f"/contacts save {private_flag}{_NEW_FLAG} {_display_token(typed)} {text}",
+                lambda name: f"/contacts save {name} {text}",
+                f"/contacts save {_NEW_FLAG} {_display_token(typed)} {text}",
             )
             used = close_used
     if card is None and not used:
@@ -287,7 +287,7 @@ def _save(context: Context, raw: str, parts: list[Token]) -> str:
         card_id = cards.add_card(change, name, context.source_label)
     else:
         card_id, name = card["id"], card["name"]
-    cards.add_detail(change, card_id, text, context.source_label, private=private)
+    cards.add_detail(change, card_id, text, context.source_label)
     change.finish(f"saved to {name}")
     reply = messages.new_card(name) if is_new else messages.saved(name)
     return _with_terminal_warning(context, reply)
@@ -383,6 +383,50 @@ def _confirm_or_cancel(context: Context, typed: str, close: list, command_for: C
     choices = [{"value": str(card["id"]), "label": card["name"]} for card in close]
     choices.append({"value": "cancel", "label": messages.CANCEL_CHOICE})
     raise NeedsAnswer(key, question, choices, fallback(question, [command_for(_display_token(card["name"])) for card in close]))
+
+
+def _hide(context: Context, _raw: str, parts: list[Token]) -> str:
+    return _set_hidden(context, parts, True)
+
+
+def _unhide(context: Context, _raw: str, parts: list[Token]) -> str:
+    return _set_hidden(context, parts, False)
+
+
+def _set_hidden(context: Context, parts: list[Token], hidden: bool) -> str:
+    """Terminal and Desktop only. In chat nothing is saved."""
+    if not context.show_private:
+        return messages.HIDE_ON_COMPUTER
+    if not parts:
+        return messages.USAGE_HIDE
+    verb = "hide" if hidden else "unhide"
+    number = int(parts[-1].text) if len(parts) > 1 and parts[-1].text.isdigit() else None
+    name_parts = parts[:-1] if number is not None else parts
+    typed = " ".join(p.text for p in name_parts)
+    matches = lookup.cards_for_words(context.connection, [typed])
+    if matches:
+        card = context.pick(matches, typed)
+    else:
+        close = cards.find_close_cards(context.connection, typed)
+        if not close:
+            return messages.NOTHING
+        suffix = f" {number}" if number is not None else ""
+        card = _confirm_or_cancel(context, typed, close, lambda name: f"/contacts {verb} {name}{suffix}", messages.did_you_mean_open)
+        if card is None:
+            return messages.CANCELLED
+    lines = cards.active_lines(context.connection, card["id"])
+    if number is None:
+        listed = [messages.hide_list_line(i, line["text"], bool(line["private"])) for i, line in enumerate(lines, 1)]
+        return "\n".join([card["name"], *(listed or [messages.NO_LINES]), messages.USAGE_HIDE])
+    if not 1 <= number <= len(lines):
+        return messages.NO_SUCH_LINE
+    line = lines[number - 1]
+    if bool(line["private"]) == hidden:
+        return messages.ALREADY_HIDDEN if hidden else messages.ALREADY_SHOWN
+    change = db.Change(context.connection, "hide", context.source_label)
+    change.update("details", line["id"], private=int(hidden))
+    change.finish(f"{'hid' if hidden else 'unhid'} a line on {card['name']}")
+    return messages.HIDDEN_DONE if hidden else messages.SHOWN_DONE
 
 
 def _correct_list(context: Context, parts: list[Token]) -> str:
@@ -521,7 +565,7 @@ def _card_view(context: Context, card: sqlite3.Row) -> str:
     elif not hidden:
         out.append(messages.NO_LINES)
     if hidden:
-        out.append(messages.private_count_line(hidden))
+        out.append(messages.hidden_count_line(hidden))
     return "\n".join(out)
 
 
@@ -565,5 +609,5 @@ def _query(context: Context, raw: str) -> str:
         return _card_view(context, card)
     results = search.rank(cards.active_lines(context.connection, card["id"], context.show_private), wanted)
     if not (results.direct or results.related) and _hidden_count(context, card):
-        return messages.private_only(card["name"])
+        return messages.hidden_only(card["name"])
     return _format_results(context, card, results)

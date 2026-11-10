@@ -33,7 +33,9 @@ const COPY = {
   choose: 'More than one match. Choose one:',
   moreThanShown: (shown, total) => `Showing ${shown} of ${total}. Search to narrow it down.`,
   noLines: 'No lines saved yet.',
-  privateTag: 'Private',
+  hiddenTag: 'Hidden from chat',
+  hideFromChat: 'Hide from chat',
+  showInChat: 'Show in chat',
   linked: 'Linked',
   linkTo: (relation, name, outgoing) => {
     const word = relation.charAt(0).toUpperCase() + relation.slice(1)
@@ -108,7 +110,7 @@ const Note = ({ children }) => jsx('div', { className: 'text-sm text-(--ui-text-
 const Command = ({ children }) => jsx('code', { className: 'font-mono text-sm text-(--ui-text-secondary)', children })
 
 // The signature element: the saved words first, then when and where they came from.
-function Receipt({ line }) {
+function Receipt({ line, onToggleHidden }) {
   return jsxs('div', {
     className: 'flex flex-col gap-1 border-l-2 py-1 pl-3',
     style: { borderColor: 'var(--ui-accent)' },
@@ -122,7 +124,13 @@ function Receipt({ line }) {
       }),
       jsxs('div', {
         className: 'flex items-center gap-2',
-        children: [jsx(Muted, { children: line.receipt }), line.private ? jsx(Badge, { children: COPY.privateTag }) : null]
+        children: [
+          jsx(Muted, { children: line.receipt }),
+          line.private ? jsx(Badge, { children: COPY.hiddenTag }) : null,
+          onToggleHidden
+            ? jsx(Button, { onClick: () => onToggleHidden(line), size: 'inline', variant: 'text', children: line.private ? COPY.showInChat : COPY.hideFromChat })
+            : null
+        ]
       })
     ]
   })
@@ -305,6 +313,11 @@ function CardView({ ctx, trail, onCrumb, onFollow, onBack }) {
   const current = trail[trail.length - 1]
   const detail = useApi(ctx, `/cards/${current.id}`)
   const data = detail.data
+  const toggleHidden = line =>
+    ctx
+      .rest(`/lines/${line.id}/hidden`, { body: { hidden: !line.private }, method: 'POST' })
+      .then(detail.reload)
+      .catch(detail.reload)
 
   if (detail.failed) {
     return jsx(StatePanel, { onRetry: detail.reload, state: 'error' })
@@ -323,7 +336,7 @@ function CardView({ ctx, trail, onCrumb, onFollow, onBack }) {
         : jsxs('div', {
             className: 'flex flex-col',
             children: data.lines.length
-              ? data.lines.map(line => jsx(Receipt, { line }, line.number))
+              ? data.lines.map(line => jsx(Receipt, { line, onToggleHidden: toggleHidden }, line.number))
               : [jsx(Muted, { children: COPY.noLines }, 'none')]
           }),
       data && data.links.length

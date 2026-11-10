@@ -219,7 +219,7 @@ RESTORE_REFUSED = "That passphrase doesn't open this backup, or the file is dama
 RESTORE_ASK_REPLACE = "This replaces every contact now in MyFolks. Type REPLACE to continue: "
 RESTORE_CANCELLED = "Nothing was changed."
 RESTORE_DONE = "Restored."
-EXPORT_ASK = "This writes every contact, including private lines, to an unencrypted file. Type EXPORT to continue: "
+EXPORT_ASK = "This writes every contact, including notes hidden from chat, to an unencrypted file. Type EXPORT to continue: "
 EXPORT_DONE = "Exported. This file is not encrypted."
 TERMINAL_ONLY = "Run this directly in your own terminal."
 CANCEL_CHOICE = "Cancel"
@@ -238,10 +238,21 @@ def ai_saved(name: str, text: str) -> str:
     return f'MyFolks saved to {name}: "{text}"'
 
 
-def private_only(name: str) -> str:
-    return f"{name}\nNothing to show here.\nPrivate notes are only on your computer."
+def hidden_only(name: str) -> str:
+    return f"{name}\nNothing to show here.\nSome notes are hidden from chat."
 
 
-def private_count_line(count: int) -> str:
-    noun = "private note" if count == 1 else "private notes"
-    return f"{count} {noun} · on your computer"
+def hidden_count_line(count: int) -> str:
+    return f"{count} hidden from chat"
+
+
+HIDE_ON_COMPUTER = "To hide a note from chat, use your computer."
+USAGE_HIDE = "To hide: /contacts hide <name> <line number>. To show again: /contacts unhide <name> <line number>."
+HIDDEN_DONE = "Hidden from chat."
+SHOWN_DONE = "Showing in chat again."
+ALREADY_HIDDEN = "That line is already hidden from chat."
+ALREADY_SHOWN = "That line is already showing in chat."
+
+
+def hide_list_line(number: int, text: str, hidden: bool) -> str:
+    return f"{number}. {text}" + (f"{_SEPARATOR}hidden from chat" if hidden else "")

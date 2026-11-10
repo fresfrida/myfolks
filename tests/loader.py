@@ -15,3 +15,13 @@ def load():
     sys.modules["myfolks"] = module
     spec.loader.exec_module(module)
     return module
+
+
+def save_hidden(vault, command):
+    """Save a line, then hide it from chat the way the Desktop page does."""
+    import importlib
+
+    importlib.import_module("myfolks.commands").handle(f"save {command}", platform="cli", vault=vault)
+    with vault.read() as connection:
+        line_id = connection.execute("SELECT max(id) FROM details").fetchone()[0]
+    importlib.import_module("myfolks.desktop_service").set_hidden(line_id, True, vault)

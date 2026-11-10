@@ -53,7 +53,7 @@ def _summary(card: sqlite3.Row) -> dict:
 
 
 def _line(line: sqlite3.Row, number: Optional[int] = None) -> dict:
-    return {"number": number, "text": line["text"], "receipt": messages.receipt(line["saved_at"], line["source"]), "private": bool(line["private"])}
+    return {"id": line["id"], "number": number, "text": line["text"], "receipt": messages.receipt(line["saved_at"], line["source"]), "private": bool(line["private"])}
 
 
 def _matching_cards(connection: sqlite3.Connection, query: str) -> tuple[list, int]:
@@ -136,6 +136,19 @@ def save_line(card_id: int, text: str, vault: Optional[Vault] = None) -> dict:
         cards.add_detail(change, card_id, cleaned, SOURCE)
         change.finish(f"saved to {card['name']}")
         return {"state": "ready", "message": messages.saved(card["name"])}
+
+
+def set_hidden(line_id: int, hidden: bool, vault: Optional[Vault] = None) -> dict:
+    with (vault or Vault()).write() as connection:
+        line = connection.execute("SELECT * FROM details WHERE id=? AND closed_at IS NULL", (line_id,)).fetchone()
+        if line is None:
+            return {"state": "missing"}
+        if bool(line["private"]) != bool(hidden):
+            card = cards.card_by_id(connection, line["card_id"])
+            change = db.Change(connection, "hide", SOURCE)
+            change.update("details", line_id, private=int(bool(hidden)))
+            change.finish(f"{'hid' if hidden else 'unhid'} a line on {card['name']}")
+        return {"state": "ready"}
 
 
 def review_list(vault: Optional[Vault] = None) -> dict:

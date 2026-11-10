@@ -1,3 +1,4 @@
+from loader import save_hidden
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
@@ -223,13 +224,13 @@ def test_card_uses_latest_date_label(vault, mod):
 
 def test_card_on_telegram_has_private_line_after_notes(phone, vault, mod):
     mod("commands").handle("save Priya likes tea", platform="cli", vault=vault)
-    mod("commands").handle("save --private Priya sees a therapist", platform="cli", vault=vault)
-    assert phone("priya") == "Priya\nlikes tea\n1 note · last saved today\n1 private note · on your computer"
+    save_hidden(vault, "Priya sees a therapist")
+    assert phone("priya") == "Priya\nlikes tea\n1 note · last saved today\n1 hidden from chat"
 
 
 def test_card_with_only_private_notes_on_telegram(phone, vault, mod):
-    mod("commands").handle("save --private Priya secret line", platform="cli", vault=vault)
-    assert phone("priya") == "Priya\n1 private note · on your computer"
+    save_hidden(vault, "Priya secret line")
+    assert phone("priya") == "Priya\n1 hidden from chat"
 
 
 def test_card_keeps_formatting_characters_exact_on_telegram(phone, vault, mod):
@@ -249,7 +250,7 @@ def test_correct_with_only_a_name_lists_numbered_lines(vault, mod):
 def test_correct_list_on_messaging_hides_private_lines(phone, vault, mod):
     handle = mod("commands").handle
     handle("save Priya likes tea", platform="cli", vault=vault)
-    handle("save --private Priya secret line", platform="cli", vault=vault)
+    save_hidden(vault, "Priya secret line")
     handle("save Priya likes cake", platform="cli", vault=vault)
     reply = phone("correct priya")
     assert "secret" not in reply and "2. likes cake" in reply
