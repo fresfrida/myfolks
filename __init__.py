@@ -29,6 +29,18 @@ def block_store_access(tool_name: str, args: dict, task_id: str = "", **_context
     return None
 
 
+def _setup_cli(parser) -> None:
+    from . import cli
+
+    cli.setup_parser(parser)
+
+
+def _run_cli(args):
+    from . import cli
+
+    return cli.run(args)
+
+
 def register(ctx) -> None:
     ctx.register_command(
         "contacts",
@@ -37,3 +49,9 @@ def register(ctx) -> None:
         args_hint="<query>",
     )
     ctx.register_hook("pre_tool_call", block_store_access)
+    ctx.register_cli_command(
+        "myfolks",
+        "Set up, recover and manage MyFolks",
+        _setup_cli,
+        _run_cli,
+    )

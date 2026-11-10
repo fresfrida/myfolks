@@ -1,6 +1,8 @@
 name: myfolks
 version: 0.0.1
-description: Pre-flight hello-world for MyFolks for Hermes. Throwaway; proves Hermes behaviors before real features exist.
+description: Exact, private recall of your people through /contacts, with no AI in the path.
 requires_hermes: ">=0.23.1"
+python_dependencies:
+  - "cryptography>=3.4.8,<51"
 provides_hooks:
   - pre_tool_call
