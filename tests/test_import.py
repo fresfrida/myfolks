@@ -29,7 +29,7 @@ def do_import(vault, importer, name):
 def test_vcard_21_quoted_printable_and_soft_breaks(importer):
     first, second = parse(importer, "contacts_21.vcf")
     assert first.name == "Jürgen Müller"
-    assert first.phones == ["+49 170 5550101"]
+    assert first.phones == ["+1 202 555 0101"]
     assert first.emails == ["juergen@example.test"]
     assert first.details == ["Likes long walks and quiet cafes"]
     assert first.birthdays == ["1981-02-14"]
@@ -40,7 +40,7 @@ def test_vcard_30_folding_groups_escapes_and_photo(importer):
     contact = parse(importer, "contacts_30.vcf")[0]
     assert contact.name == "Amara Okafor"
     assert contact.aliases == ["Ammy", "Ams"]
-    assert contact.phones == ["+234 803 555 0103"]
+    assert contact.phones == ["+1 202 555 0103"]
     assert "company Lumen Labs Research" in contact.details
     assert "job title Lead analyst" in contact.details
     assert "address 12 Acacia Road, Lagos, 100001, Nigeria" in contact.details
@@ -51,7 +51,7 @@ def test_vcard_30_folding_groups_escapes_and_photo(importer):
 
 def test_vcard_40(importer):
     contact = parse(importer, "contacts_40.vcf")[0]
-    assert contact.phones == ["+4915205550104"]
+    assert contact.phones == ["+12025550104"]
     assert contact.birthdays == ["19900321"]
     assert contact.details == ["Comma, semicolon; backslash\\ kept"]
 
@@ -59,7 +59,7 @@ def test_vcard_40(importer):
 def test_google_csv(importer):
     noor, ravi = parse(importer, "google.csv")
     assert noor.name == "Noor Hassan" and noor.aliases == ["Nono"]
-    assert noor.phones == ["+60 12 555 0105"] and noor.emails == ["noor@example.test"]
+    assert noor.phones == ["+1 202 555 0105"] and noor.emails == ["noor@example.test"]
     assert "company Blue Harbor" in noor.details and "job title Designer" in noor.details and "Vegetarian" in noor.details
     assert ravi.name == "Ravi K Menon"
     assert ravi.emails == ["ravi@example.test", "ravi2@example.test"]
@@ -70,8 +70,8 @@ def test_google_csv(importer):
 def test_outlook_csv(importer):
     ingrid, kofi = parse(importer, "outlook.csv")
     assert ingrid.name == "Ingrid Larsen" and ingrid.aliases == ["Inge"]
-    assert ingrid.phones == ["+47 22 555 0108", "+47 41 555 0109"]
-    assert "+47 22 555 0199" not in ingrid.phones
+    assert ingrid.phones == ["+1 202 555 0108", "+1 202 555 0109"]
+    assert "+1 202 555 0199" not in ingrid.phones
     assert ingrid.birthdays == ["14/3/1980"] and "Allergic to shellfish" in ingrid.details
     assert kofi.birthdays == ["3/4/1975"]
 
@@ -109,14 +109,14 @@ def test_first_name_and_nickname_resolve(vault, importer, run):
 
 
 def test_exact_phone_merges_and_undo_reverses(vault, importer, run, mod):
-    run("save Noor phone +60 12 555 0105")
+    run("save Noor phone +1 202 555 0105")
     summary = do_import(vault, importer, "google.csv")
     assert (summary.new, summary.merged, summary.review) == (1, 1, 0)
     view = run("noor")
     assert "email noor@example.test" in view and "Vegetarian" in view
     assert run("undo").startswith("Undone:")
     view = run("noor")
-    assert "Vegetarian" not in view and "phone +60 12 555 0105" in view
+    assert "Vegetarian" not in view and "phone +1 202 555 0105" in view
     assert run("ravi") == "Nothing saved about that."
 
 
@@ -127,7 +127,7 @@ def test_exact_email_merges_case_insensitive(vault, importer, run):
 
 
 def test_normalized_phone_formats_match(vault, importer, run):
-    run("save Noor phone 0060-12-555-0105")
+    run("save Noor phone 001-202-555-0105")
     assert do_import(vault, importer, "google.csv").merged == 1
 
 
@@ -168,7 +168,7 @@ def test_undo_review_restores_pending(vault, importer, run):
 
 
 def test_two_phone_matches_go_to_review(vault, importer, run):
-    run("save Aa phone +60 12 555 0105")
+    run("save Aa phone +1 202 555 0105")
     run("save Bb email noor@example.test")
     summary = do_import(vault, importer, "google.csv")
     assert summary.review == 1 and summary.merged == 0
@@ -184,8 +184,8 @@ def test_reimport_changes_nothing(vault, importer):
 
 
 def test_duplicates_inside_one_file_merge(vault, importer, run):
-    first = importer.Incoming(name="Ana", phones=["+1 415 555 0110"], details=["likes tea"])
-    second = importer.Incoming(name="Anna Maria", phones=["+14155550110"], details=["likes jazz"])
+    first = importer.Incoming(name="Ana", phones=["+1 202 555 0110"], details=["likes tea"])
+    second = importer.Incoming(name="Anna Maria", phones=["+12025550110"], details=["likes jazz"])
     summary = do_import(vault, importer, [first, second])
     assert (summary.new, summary.merged) == (1, 1)
     assert "likes jazz" in run("ana")

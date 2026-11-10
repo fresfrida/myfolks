@@ -2,7 +2,7 @@ BEGIN:VCARD
 VERSION:4.0
 FN:Lena Fischer
 N:Fischer;Lena;;;
-TEL;VALUE=uri;TYPE=cell:tel:+4915205550104
+TEL;VALUE=uri;TYPE=cell:tel:+12025550104
 EMAIL:lena@example.test
 BDAY:19900321
 NOTE:Comma\, semicolon\; backslash\\ kept

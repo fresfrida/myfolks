@@ -9,7 +9,7 @@ LOCAL = ("cli", None)
 @pytest.fixture
 def loaded(vault, mod):
     handle = mod("commands").handle
-    for line in ("save Priya is allergic to peanuts", "save Priya phone +65 9123 4567", "save Biscuit birthday March 3", "link Priya dog Biscuit"):
+    for line in ("save Priya is allergic to peanuts", "save Priya phone +1 202 555 0147", "save Biscuit birthday March 3", "link Priya dog Biscuit"):
         handle(line, platform="cli", vault=vault)
     return vault
 

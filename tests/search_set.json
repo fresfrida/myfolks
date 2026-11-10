@@ -2,7 +2,7 @@
   "setup": [
     "save Priya is allergic to peanuts",
     "save Priya favourite colour is green",
-    "save Priya phone +65 9123 4567",
+    "save Priya phone +1 202 555 0147",
     "save Priya works at Acme Robotics as an engineer",
     "save Priya lives in Queenstown",
     "save Priya daughter Mei started school in January",
@@ -19,7 +19,7 @@
     "link Priya mom Asha",
     "link me mom Asha",
     "save \"Sam Lee\" plays chess on Tuesdays",
-    "save \"Sam Lee\" phone +1 415 555 0100",
+    "save \"Sam Lee\" phone +1 202 555 0100",
     "save \"Sam Lee\" is vegetarian",
     "save \"Sam Ong\" coffee at Nylon every Friday",
     "save \"Sam Ong\" wife is Joanne",
@@ -116,17 +116,17 @@
     {
       "q": "priya phone",
       "expect": "direct",
-      "find": "+65 9123 4567"
+      "find": "+1 202 555 0147"
     },
     {
       "q": "priya mobile",
       "expect": "direct",
-      "find": "+65 9123 4567"
+      "find": "+1 202 555 0147"
     },
     {
       "q": "priya number",
       "expect": "related",
-      "find": "+65 9123 4567"
+      "find": "+1 202 555 0147"
     },
     {
       "q": "priya works",
@@ -235,7 +235,7 @@
     {
       "q": "biscuit owner phone",
       "expect": "direct",
-      "find": "+65 9123 4567"
+      "find": "+1 202 555 0147"
     },
     {
       "q": "biscuit owner allergy",
@@ -290,7 +290,7 @@
     {
       "q": "asha daughter phone",
       "expect": "direct",
-      "find": "+65 9123 4567"
+      "find": "+1 202 555 0147"
     },
     {
       "q": "asha surgery",

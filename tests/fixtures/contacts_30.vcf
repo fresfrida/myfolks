@@ -3,7 +3,7 @@ VERSION:3.0
 FN:Amara Okafor
 N:Okafor;Amara;;;
 NICKNAME:Ammy,Ams
-item1.TEL;type=CELL:+234 803 555 0103
+item1.TEL;type=CELL:+1 202 555 0103
 item1.X-ABLabel:mobile
 EMAIL;type=INTERNET;type=WORK:amara@example.test
 ORG:Lumen Labs;Research

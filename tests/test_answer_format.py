@@ -207,10 +207,10 @@ def test_more_line_is_plain_on_telegram(phone):
 def test_card_view_exact_format(vault, mod):
     handle = mod("commands").handle
     handle("save Priya likes tea", platform="cli", vault=vault)
-    handle("save Priya phone +65 9123 4567", platform="cli", vault=vault)
+    handle("save Priya phone +1 202 555 0147", platform="cli", vault=vault)
     handle("save Biscuit likes walks", platform="cli", vault=vault)
     handle("link Priya dog Biscuit", platform="cli", vault=vault)
-    assert handle("priya", platform="cli", vault=vault) == "Priya\nlikes tea\nphone +65 9123 4567\nDog: Biscuit\n2 notes · last saved today"
+    assert handle("priya", platform="cli", vault=vault) == "Priya\nlikes tea\nphone +1 202 555 0147\nDog: Biscuit\n2 notes · last saved today"
     assert handle("biscuit", platform="cli", vault=vault) == "Biscuit\nlikes walks\nDog of Priya\n1 note · last saved today"
 
 

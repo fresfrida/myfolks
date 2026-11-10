@@ -115,10 +115,10 @@ def test_link_and_follow(run):
 
 
 def test_link_works_both_ways(run):
-    run("save Priya phone +65 9123 4567")
+    run("save Priya phone +1 202 555 0147")
     run("save Biscuit likes walks")
     run("link Priya dog Biscuit")
-    assert run("biscuit owner phone").startswith('Priya\nphone +65 9123 4567')
+    assert run("biscuit owner phone").startswith('Priya\nphone +1 202 555 0147')
     assert "Dog of Priya" in run("biscuit")
     assert "Dog: Biscuit" in run("priya")
 
@@ -183,14 +183,14 @@ def test_save_to_same_name_asks(run):
 
 
 def test_structured_values_recognized(run, vault):
-    run("save Priya phone +65 9123 4567")
+    run("save Priya phone +1 202 555 0147")
     run("save Priya email Priya@Example.com")
     run("save Priya birthday March 3")
     run("save Priya born 1990-07-21")
     run("save Priya phone number is unknown")
     with vault.read() as connection:
         rows = connection.execute("SELECT field,norm_value,birth_year,birth_month,birth_day FROM details ORDER BY id").fetchall()
-    assert tuple(rows[0]) == ("phone", "+6591234567", None, None, None)
+    assert tuple(rows[0]) == ("phone", "+12025550147", None, None, None)
     assert tuple(rows[1]) == ("email", "priya@example.com", None, None, None)
     assert tuple(rows[2]) == ("birthday", None, None, 3, 3)
     assert tuple(rows[3]) == ("birthday", None, 1990, 7, 21)
