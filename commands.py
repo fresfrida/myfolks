@@ -491,7 +491,7 @@ def _format_results(context: Context, card: sqlite3.Row, results: search.Results
     if not chosen:
         return messages.NOTHING
     lines = [(line["text"], line["saved_at"], line["source"]) for line in chosen]
-    return messages.answer(card["name"], lines, unsure=not results.direct, render=render)
+    return messages.answer(card["name"], lines, unsure=not results.direct, render=render, more=results.more if results.direct else 0)
 
 
 def _chosen_close_card(context: Context, words: list[str]) -> Optional[tuple[sqlite3.Row, list[str]]]:

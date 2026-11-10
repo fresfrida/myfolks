@@ -20,7 +20,7 @@ RELATED_CUTOFF = 0.5
 LAST_WORD_WEIGHT = 2
 MIN_PREFIX = 4
 MIN_TYPO_LENGTH = 5
-MAX_DIRECT = 5
+MAX_DIRECT = 8
 MAX_RELATED = 3
 
 _SUFFIXES = ("ies", "ied", "ing", "ed", "es", "s", "ic", "y")
@@ -35,6 +35,7 @@ _TOPIC_GROUPS = [frozenset(terms) for terms in _WORD_LISTS["topics"].values()]
 class Results:
     direct: list
     related: list
+    more: int = 0
 
 
 def important_words(words: list[str]) -> list[str]:
@@ -127,4 +128,5 @@ def rank(lines: list, words: list[str]) -> Results:
             related.append((score, line))
     related.sort(key=lambda pair: pair[0], reverse=True)
     direct.sort(key=lambda pair: pair[0], reverse=True)
-    return Results([line for _exact, line in direct[:MAX_DIRECT]], [line for _score, line in related[:MAX_RELATED]])
+    more = max(0, len(direct) - MAX_DIRECT)
+    return Results([line for _exact, line in direct[:MAX_DIRECT]], [line for _score, line in related[:MAX_RELATED]], more)

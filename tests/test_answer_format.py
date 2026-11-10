@@ -171,3 +171,26 @@ def test_card_and_history_keep_exact_dates(vault, mod):
 def test_desktop_receipt_keeps_exact_date(vault, mod):
     mod("commands").handle("save Priya likes tea", platform="cli", vault=vault)
     assert str(datetime.now().year) in mod("desktop_service").card_detail(1, vault)["lines"][0]["receipt"]
+
+
+def test_more_line_when_over_the_limit(vault, mod):
+    handle = mod("commands").handle
+    for number in range(11):
+        handle(f"save Priya likes thing{number}", platform="cli", vault=vault)
+    lines = handle("priya likes", platform="cli", vault=vault).split("\n")
+    assert len([line for line in lines if line.startswith("likes thing")]) == 8
+    assert lines[-1] == "+3 more · /contacts Priya"
+
+
+def test_no_more_line_at_exactly_the_limit(vault, mod):
+    handle = mod("commands").handle
+    for number in range(8):
+        handle(f"save Priya likes thing{number}", platform="cli", vault=vault)
+    reply = handle("priya likes", platform="cli", vault=vault)
+    assert "more ·" not in reply and reply.count("likes thing") == 8
+
+
+def test_more_line_is_plain_on_telegram(phone):
+    for number in range(9):
+        phone(f"save Priya likes thing{number}")
+    assert phone("priya likes").split("\n")[-1] == "+1 more · /contacts Priya"

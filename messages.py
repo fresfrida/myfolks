@@ -49,13 +49,21 @@ def _with_tail(rendered: str, tail: str) -> str:
     return f"{rendered}\n{tail}" if rendered.endswith("```") else f"{rendered}{_SEPARATOR}{tail}"
 
 
-def answer(name: str, lines: list[tuple[str, str, str]], unsure: bool, render: Callable[[str], str], now: Optional[datetime] = None) -> str:
+def more_line(count: int, name: str) -> str:
+    return f"+{count} more · /contacts {name}"
+
+
+def answer(name: str, lines: list[tuple[str, str, str]], unsure: bool, render: Callable[[str], str], now: Optional[datetime] = None, more: int = 0) -> str:
     """An answer readable at a glance. *lines* are (saved words, saved at, source)."""
     head = f"{name}{_SEPARATOR}{_NOT_SURE}" if unsure else name
     receipts = [f"{date_label(saved_at, now)}{_SEPARATOR}{source}" for _text, saved_at, source in lines]
     if len(set(receipts)) == 1:
-        return "\n".join([head, *(render(text) for text, _saved, _source in lines), receipts[0]])
-    return "\n".join([head, *(_with_tail(render(line[0]), tail) for line, tail in zip(lines, receipts))])
+        body = [head, *(render(text) for text, _saved, _source in lines), receipts[0]]
+    else:
+        body = [head, *(_with_tail(render(line[0]), tail) for line, tail in zip(lines, receipts))]
+    if more:
+        body.append(more_line(more, name))
+    return "\n".join(body)
 
 
 NOTHING = "Nothing saved about that."
