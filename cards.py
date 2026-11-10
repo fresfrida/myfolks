@@ -67,6 +67,10 @@ def active_lines(connection: sqlite3.Connection, card_id: int, include_private: 
     return [row for row in rows if include_private or not row["private"]]
 
 
+def private_count(connection: sqlite3.Connection, card_id: int) -> int:
+    return connection.execute("SELECT count(*) FROM details WHERE card_id=? AND closed_at IS NULL AND private=1", (card_id,)).fetchone()[0]
+
+
 def all_lines(connection: sqlite3.Connection, card_id: int, include_private: bool = True) -> list[sqlite3.Row]:
     rows = connection.execute("SELECT * FROM details WHERE card_id=? ORDER BY saved_at, id", (card_id,)).fetchall()
     return [row for row in rows if include_private or not row["private"]]

@@ -155,7 +155,7 @@ def _lookup_finds_something(context: Context, raw: str) -> bool:
     card, remaining = lookup.follow_links(context.connection, span[2][0], remaining, context.pick)
     if not remaining:
         return True
-    results = search.rank(cards.active_lines(context.connection, card["id"]), remaining)
+    results = search.rank(cards.active_lines(context.connection, card["id"], context.show_private), remaining)
     return bool(results.direct or results.related)
 
 
@@ -479,6 +479,9 @@ def _card_view(context: Context, card: sqlite3.Row) -> str:
     for link in cards.open_links(context.connection, card["id"]):
         outgoing = link["from_card"] == card["id"]
         out.append(messages.link_line(link["relation"], link["to_name"] if outgoing else link["from_name"], outgoing))
+    hidden = 0 if context.show_private else cards.private_count(context.connection, card["id"])
+    if hidden:
+        out.append(messages.private_count_line(hidden))
     return "\n".join(out)
 
 
@@ -520,7 +523,7 @@ def _query(context: Context, raw: str) -> str:
     wanted = search.important_words(remaining)
     if not wanted:
         return _card_view(context, card)
-    results = search.rank(cards.active_lines(context.connection, card["id"]), wanted)
-    if not context.show_private and any(line["private"] for line in [*results.direct, *results.related]):
-        return messages.PRIVATE_LINE
+    results = search.rank(cards.active_lines(context.connection, card["id"], context.show_private), wanted)
+    if not (results.direct or results.related) and not context.show_private and cards.private_count(context.connection, card["id"]):
+        return messages.private_only(card["name"])
     return _format_results(context, card, results)

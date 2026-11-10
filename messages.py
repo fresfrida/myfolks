@@ -199,7 +199,6 @@ RESTORE_DONE = "Restored."
 EXPORT_ASK = "This writes every contact, including private lines, to an unencrypted file. Type EXPORT to continue: "
 EXPORT_DONE = "Exported. This file is not encrypted."
 TERMINAL_ONLY = "Run this directly in your own terminal."
-PRIVATE_LINE = "Private. See it on your computer."
 CANCEL_CHOICE = "Cancel"
 CANCELLED = "Nothing was changed."
 
@@ -214,3 +213,12 @@ def did_you_mean_fallback(question: str, commands: list[str]) -> str:
 
 def ai_saved(name: str, text: str) -> str:
     return f'MyFolks saved to {name}: "{text}"'
+
+
+def private_only(name: str) -> str:
+    return f"{name}\nNothing to show here.\nPrivate notes are only on your computer."
+
+
+def private_count_line(count: int) -> str:
+    noun = "private note" if count == 1 else "private notes"
+    return f"{count} {noun} · on your computer"

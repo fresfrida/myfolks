@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
-PRIVATE_REPLY = "Private. See it on your computer."
+PRIVATE_REPLY = "Priya\nNothing to show here.\nPrivate notes are only on your computer."
 
 
 def dm(user_id="111"):
@@ -46,12 +46,49 @@ def test_desktop_page_shows_and_marks_private(seeded, mod):
     assert [line["private"] for line in lines] == [False, True, False]
 
 
-def test_messaging_says_only_private(phone):
-    assert phone("priya therapist") == PRIVATE_REPLY
+def test_messaging_private_match_and_no_match_are_identical(phone):
+    matching_private = phone("priya therapist")
+    matching_nothing = phone("priya shoe size")
+    assert matching_private == matching_nothing == PRIVATE_REPLY
+    assert "therapist" not in matching_private
 
 
-def test_messaging_private_match_hides_public_matches_too(phone):
-    assert phone("priya tuesdays") == PRIVATE_REPLY
+def test_messaging_public_answer_never_mentions_private(phone):
+    reply = phone("priya tuesdays")
+    assert "plays tennis on Tuesdays" in reply and "therapist" not in reply and "rivate" not in reply
+
+
+def test_card_without_private_says_nothing_saved(mod, seeded):
+    handle = mod("commands").handle
+    handle("save Marco likes jazz", platform="cli", vault=seeded)
+    assert handle("marco shoe size", platform="telegram", source=dm(), vault=seeded) == "Nothing saved about that."
+
+
+def test_card_view_counts_private_notes(phone):
+    assert phone("priya").split("\n")[-1] == "1 private note · on your computer"
+
+
+def test_card_view_counts_several_private_notes(mod, seeded, phone):
+    mod("commands").handle("save --private Priya second secret", platform="cli", vault=seeded)
+    assert phone("priya").split("\n")[-1] == "2 private notes · on your computer"
+    assert "second secret" not in phone("priya")
+
+
+def test_card_view_has_no_private_line_without_private_notes(mod, seeded):
+    handle = mod("commands").handle
+    handle("save Marco likes jazz", platform="cli", vault=seeded)
+    assert "rivate" not in handle("marco", platform="telegram", source=dm(), vault=seeded)
+
+
+def test_terminal_card_has_no_private_count_line(desk):
+    assert "on your computer" not in desk("priya")
+
+
+def test_old_wording_is_gone():
+    from pathlib import Path
+
+    root = Path(__file__).parent.parent
+    assert not any("See it on your computer" in path.read_text() for path in root.glob("*.py"))
 
 
 def test_messaging_public_match_is_normal(phone):
