@@ -36,13 +36,18 @@ def date_label(iso_timestamp: str, now: Optional[datetime] = None) -> str:
     return "more than a year ago"
 
 
+def _telegram_code(text: str) -> str:
+    return f"```\n{text}\n```" if "`" in text or "\n" in text else f"`{text}`"
+
+
 def telegram_words(text: str) -> str:
     """Bold saved words on Telegram. Words with formatting characters go in a code span instead, so they show exactly."""
-    if not _TELEGRAM_FORMATTING.search(text):
-        return f"**{text}**"
-    if "`" in text or "\n" in text:
-        return f"```\n{text}\n```"
-    return f"`{text}`"
+    return _telegram_code(text) if _TELEGRAM_FORMATTING.search(text) else f"**{text}**"
+
+
+def telegram_plain(text: str) -> str:
+    """Saved words on Telegram without bold, still shown exactly."""
+    return _telegram_code(text) if _TELEGRAM_FORMATTING.search(text) else text
 
 
 def _with_tail(rendered: str, tail: str) -> str:
@@ -144,12 +149,18 @@ def undone(summary: str) -> str:
     return f"Undone: {summary}."
 
 
-def card_line(number: int, text: str, iso_timestamp: str, source: str) -> str:
-    return f"{number}. {text} ({_display_date(iso_timestamp)}, {source})"
-
-
 def link_line(relation: str, other: str, outgoing: bool) -> str:
-    return f"{relation}: {other}" if outgoing else f"{relation} of: {other}"
+    word = relation[:1].upper() + relation[1:]
+    return f"{word}: {other}" if outgoing else f"{word} of {other}"
+
+
+def notes_line(count: int, latest_saved_at: str, now: Optional[datetime] = None) -> str:
+    noun = "note" if count == 1 else "notes"
+    return f"{count} {noun}{_SEPARATOR}last saved {date_label(latest_saved_at, now)}"
+
+
+def numbered_line(number: int, rendered: str) -> str:
+    return f"{number}. {rendered}"
 
 
 def history_line(text: str, iso_timestamp: str, source: str, closed_iso: str | None) -> str:

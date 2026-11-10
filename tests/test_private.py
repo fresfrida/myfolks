@@ -95,9 +95,9 @@ def test_messaging_public_match_is_normal(phone):
     assert phone("priya tea") == "Priya\n**likes tea**\ntoday · terminal"
 
 
-def test_messaging_card_view_omits_private_and_renumbers(phone):
+def test_messaging_card_view_omits_private_lines(phone):
     view = phone("priya")
-    assert "therapist" not in view and view.split("\n")[2].startswith("2. plays tennis")
+    assert "therapist" not in view and "plays tennis" in view
 
 
 def test_messaging_history_omits_private(phone):

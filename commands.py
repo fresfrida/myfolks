@@ -384,9 +384,34 @@ def _confirm_or_cancel(context: Context, typed: str, close: list, command_for: C
     raise NeedsAnswer(key, question, choices, fallback(question, [command_for(_display_token(card["name"])) for card in close]))
 
 
+def _correct_list(context: Context, parts: list[Token]) -> str:
+    """`/contacts correct <name>` alone: the numbered lines to pick from."""
+    typed = " ".join(p.text for p in parts)
+    if not typed:
+        return messages.USAGE_CORRECT
+    matches = lookup.cards_for_words(context.connection, [typed])
+    if matches:
+        card = context.pick(matches, parts[0].text)
+    else:
+        close = cards.find_close_cards(context.connection, typed)
+        if not close:
+            return messages.USAGE_CORRECT
+        card = _confirm_or_cancel(context, typed, close, lambda name: f"/contacts correct {name}", messages.did_you_mean_open)
+        if card is None:
+            return messages.CANCELLED
+    lines = cards.active_lines(context.connection, card["id"], context.show_private)
+    if not lines:
+        return messages.NO_LINES
+    render = _plain_render(context)
+    numbered = [messages.numbered_line(number, render(line["text"])) for number, line in enumerate(lines, 1)]
+    return "\n".join([card["name"], *numbered, messages.USAGE_CORRECT])
+
+
 def _correct(context: Context, raw: str, parts: list[Token]) -> str:
     position = next((i for i, part in enumerate(parts) if i and re.fullmatch(r"\d+", part.text)), None)
-    if position is None or position + 1 >= len(parts):
+    if position is None:
+        return _correct_list(context, parts)
+    if position + 1 >= len(parts):
         return messages.USAGE_CORRECT
     typed = " ".join(p.text for p in parts[:position])
     text = raw[parts[position + 1].start:].strip()
@@ -470,16 +495,22 @@ def _history(context: Context, _raw: str, parts: list[Token]) -> str:
     return "\n".join([messages.history_title(card["name"]), *(body or [messages.NO_LINES])])
 
 
+def _plain_render(context: Context) -> Callable[[str], str]:
+    return messages.telegram_plain if context.source_label == _BOLD_SURFACE else str
+
+
 def _card_view(context: Context, card: sqlite3.Row) -> str:
     lines = cards.active_lines(context.connection, card["id"], context.show_private)
-    out = [card["name"]]
-    out += [messages.card_line(i, l["text"], l["saved_at"], l["source"]) for i, l in enumerate(lines, 1)]
-    if not lines:
-        out.append(messages.NO_LINES)
+    render = _plain_render(context)
+    out = [card["name"], *(render(line["text"]) for line in lines)]
     for link in cards.open_links(context.connection, card["id"]):
         outgoing = link["from_card"] == card["id"]
         out.append(messages.link_line(link["relation"], link["to_name"] if outgoing else link["from_name"], outgoing))
     hidden = 0 if context.show_private else cards.private_count(context.connection, card["id"])
+    if lines:
+        out.append(messages.notes_line(len(lines), max(line["saved_at"] for line in lines)))
+    elif not hidden:
+        out.append(messages.NO_LINES)
     if hidden:
         out.append(messages.private_count_line(hidden))
     return "\n".join(out)

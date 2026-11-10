@@ -61,13 +61,10 @@ def test_unknown_person_says_nothing(run):
     assert run("nobody birthday") == "Nothing saved about that."
 
 
-def test_card_view_numbered(run):
+def test_card_view_has_no_numbers(run):
     run("save Priya likes tea")
     run("save Priya likes cake")
-    reply = run("priya").split("\n")
-    assert reply[0] == "Priya"
-    assert reply[1].startswith("1. likes tea")
-    assert reply[2].startswith("2. likes cake")
+    assert run("priya").split("\n")[:3] == ["Priya", "likes tea", "likes cake"]
 
 
 def test_terminal_warning_shown_once(run):
@@ -122,8 +119,8 @@ def test_link_works_both_ways(run):
     run("save Biscuit likes walks")
     run("link Priya dog Biscuit")
     assert run("biscuit owner phone").startswith('Priya\nphone +65 9123 4567')
-    assert "dog of: Priya" in run("biscuit")
-    assert "dog: Biscuit" in run("priya")
+    assert "Dog of Priya" in run("biscuit")
+    assert "Dog: Biscuit" in run("priya")
 
 
 def test_link_creates_unknown_cards(run):
@@ -137,7 +134,7 @@ def test_link_twice(run):
 
 def test_link_of_form_reverses(run):
     run("link Biscuit dog of Priya")
-    assert "dog: Biscuit" in run("priya")
+    assert "Dog: Biscuit" in run("priya")
 
 
 def test_relationship_word_as_alias(run):

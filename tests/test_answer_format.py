@@ -169,11 +169,10 @@ def test_end_to_end_mixed_dates(vault, mod, phone):
     assert phone("priya likes") == "Priya\n**likes tea** · more than a year ago\n**likes cake** · today"
 
 
-def test_card_and_history_keep_exact_dates(vault, mod):
+def test_history_keeps_exact_dates(vault, mod):
     handle = mod("commands").handle
     handle("save Priya likes tea", platform="cli", vault=vault)
-    year = str(datetime.now().year)
-    assert year in handle("priya", platform="cli", vault=vault) and year in handle("history priya", platform="cli", vault=vault)
+    assert str(datetime.now().year) in handle("history priya", platform="cli", vault=vault)
 
 
 def test_desktop_receipt_keeps_exact_date(vault, mod):
@@ -202,3 +201,66 @@ def test_more_line_is_plain_on_telegram(phone):
     for number in range(9):
         phone(f"save Priya likes thing{number}")
     assert phone("priya likes").split("\n")[-1] == "+1 more · /contacts Priya"
+
+
+def test_card_view_exact_format(vault, mod):
+    handle = mod("commands").handle
+    handle("save Priya likes tea", platform="cli", vault=vault)
+    handle("save Priya phone +65 9123 4567", platform="cli", vault=vault)
+    handle("save Biscuit likes walks", platform="cli", vault=vault)
+    handle("link Priya dog Biscuit", platform="cli", vault=vault)
+    assert handle("priya", platform="cli", vault=vault) == "Priya\nlikes tea\nphone +65 9123 4567\nDog: Biscuit\n2 notes · last saved today"
+    assert handle("biscuit", platform="cli", vault=vault) == "Biscuit\nlikes walks\nDog of Priya\n1 note · last saved today"
+
+
+def test_card_uses_latest_date_label(vault, mod):
+    handle = mod("commands").handle
+    handle("save Priya likes tea", platform="cli", vault=vault)
+    handle("save Priya likes cake", platform="cli", vault=vault)
+    seed_dates(vault, [(1, at(2020, 1, 1).isoformat(), "terminal"), (2, at(2021, 1, 1).isoformat(), "terminal")])
+    assert handle("priya", platform="cli", vault=vault).split("\n")[-1] == "2 notes · more than a year ago".replace("2 notes · ", "2 notes · last saved ")
+
+
+def test_card_on_telegram_has_private_line_after_notes(phone, vault, mod):
+    mod("commands").handle("save Priya likes tea", platform="cli", vault=vault)
+    mod("commands").handle("save --private Priya sees a therapist", platform="cli", vault=vault)
+    assert phone("priya") == "Priya\nlikes tea\n1 note · last saved today\n1 private note · on your computer"
+
+
+def test_card_with_only_private_notes_on_telegram(phone, vault, mod):
+    mod("commands").handle("save --private Priya secret line", platform="cli", vault=vault)
+    assert phone("priya") == "Priya\n1 private note · on your computer"
+
+
+def test_card_keeps_formatting_characters_exact_on_telegram(phone, vault, mod):
+    mod("commands").handle("save Priya uses 2*3 _here_", platform="cli", vault=vault)
+    assert "`uses 2*3 _here_`" in phone("priya")
+
+
+def test_correct_with_only_a_name_lists_numbered_lines(vault, mod):
+    handle = mod("commands").handle
+    handle("save Priya likes tea", platform="cli", vault=vault)
+    handle("save Priya likes cake", platform="cli", vault=vault)
+    lines = handle("correct priya", platform="cli", vault=vault).split("\n")
+    assert lines[:3] == ["Priya", "1. likes tea", "2. likes cake"] and lines[3].startswith("To correct:")
+    assert str(datetime.now().year) not in "\n".join(lines)
+
+
+def test_correct_list_on_messaging_hides_private_lines(phone, vault, mod):
+    handle = mod("commands").handle
+    handle("save Priya likes tea", platform="cli", vault=vault)
+    handle("save --private Priya secret line", platform="cli", vault=vault)
+    handle("save Priya likes cake", platform="cli", vault=vault)
+    reply = phone("correct priya")
+    assert "secret" not in reply and "2. likes cake" in reply
+
+
+def test_correct_list_near_name_asks_with_no_details(vault, mod):
+    handle = mod("commands").handle
+    handle("save Priya likes tea", platform="cli", vault=vault)
+    reply = handle("correct prya", platform="cli", vault=vault)
+    assert reply.startswith("Did you mean Priya?") and "likes tea" not in reply
+
+
+def test_correct_with_unknown_name_shows_usage(vault, mod):
+    assert mod("commands").handle("correct nobody", platform="cli", vault=vault).startswith("To correct:")
