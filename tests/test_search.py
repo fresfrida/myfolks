@@ -32,9 +32,6 @@ def loaded(ask_run):
 
 
 def body_of(reply):
-    lines = reply.split("\n")
-    if lines[0].startswith("Showing ") and len(lines) > 1:
-        return "\n".join(lines[1:])
     return reply
 
 
@@ -42,6 +39,8 @@ def outcome(item, reply):
     reply = body_of(reply)
     expect = item["expect"]
     find = item.get("find", "")
+    if expect == "ask":
+        return reply.startswith(find) and '"' not in reply.split("To see it")[0]
     if expect == "direct":
         return not reply.startswith(RELATED) and find in reply and reply != NOTHING
     if expect == "related":

@@ -30,7 +30,6 @@ const COPY = {
   emptyCommand: 'hermes myfolks import <file>',
   nothing: 'Nothing saved about that.',
   unsure: 'Related, not sure:',
-  showing: name => `Showing ${name}.`,
   choose: 'More than one match. Choose one:',
   moreThanShown: (shown, total) => `Showing ${shown} of ${total}. Search to narrow it down.`,
   noLines: 'No lines saved yet.',
@@ -160,9 +159,22 @@ function Answer({ answer, onOpen }) {
   if (!answer || answer.kind === 'card') {
     return null
   }
-  const note = answer.corrected && answer.card ? jsx(Muted, { children: COPY.showing(answer.card.name) }) : null
   if (answer.kind === 'nothing') {
-    return jsxs('div', { className: 'flex flex-col gap-1', children: [note, jsx(Note, { children: COPY.nothing })] })
+    return jsx(Note, { children: COPY.nothing })
+  }
+  if (answer.kind === 'did_you_mean') {
+    return jsxs('div', {
+      className: 'flex flex-col gap-2',
+      children: [
+        jsx(Note, { children: answer.question }),
+        jsx('div', {
+          className: 'flex flex-wrap gap-2',
+          children: answer.choices.map(card =>
+            jsx(Button, { onClick: () => onOpen(card), size: 'sm', variant: 'outline', children: card.name }, card.id)
+          )
+        })
+      ]
+    })
   }
   if (answer.kind === 'choose') {
     return jsxs('div', {
@@ -181,7 +193,6 @@ function Answer({ answer, onOpen }) {
   return jsxs('div', {
     className: 'flex flex-col gap-1',
     children: [
-      note,
       answer.kind === 'related' ? jsx(Note, { children: COPY.unsure }) : null,
       jsx('button', {
         className: 'self-start text-sm font-medium',

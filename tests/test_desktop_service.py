@@ -47,9 +47,20 @@ def test_find_nothing(loaded, service):
     assert service.find("nobody here", loaded)["answer"]["kind"] == "nothing"
 
 
-def test_find_typo_is_announced(loaded, service):
-    answer = service.find("prya allergic", loaded)["answer"]
-    assert answer["corrected"] is True and answer["card"]["name"] == "Priya"
+def test_near_name_asks_with_no_details(vault, service, mod):
+    mod("commands").handle("save Briya is allergic to peanuts", platform="cli", vault=vault)
+    result = service.find("priya allergy", vault)
+    assert result["answer"]["kind"] == "did_you_mean" and result["answer"]["question"] == "Did you mean Briya?"
+    assert [c["name"] for c in result["answer"]["choices"]] == ["Briya"]
+    assert "peanuts" not in str(result) and "allergic" not in str(result)
+
+
+def test_exact_name_opens_with_near_name_present(vault, service, mod):
+    handle = mod("commands").handle
+    handle("save Briya likes tea", platform="cli", vault=vault)
+    handle("save --new Priya likes cake", platform="cli", vault=vault)
+    answer = service.find("priya", vault)["answer"]
+    assert answer["kind"] == "card" and answer["card"]["name"] == "Priya"
 
 
 def test_find_same_name_offers_choices(vault, service, mod):

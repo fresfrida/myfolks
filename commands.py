@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import Callable, Optional
 
 from . import cards, db, importer, lookup, messages, owner, search
-from .text import Token, normalize, one_edit_apart, query_words, tokens
+from .text import STOPWORDS, Token, normalize, one_edit_apart, query_words, tokens
 from .vault import Busy, NotSetUp, Refused, Vault, VaultError
 
 logger = logging.getLogger(__name__)
@@ -145,7 +145,7 @@ def _closest_verb(word: str) -> Optional[str]:
 def _lookup_finds_something(context: Context, raw: str) -> bool:
     """Whether the whole line, read as a plain question, reaches a card and an answer."""
     words = query_words(raw)
-    span = (lookup.find_span(context.connection, words) or lookup.find_close_span(context.connection, words)) if words else None
+    span = lookup.find_span(context.connection, words) if words else None
     if span is None:
         return False
     if len(span[2]) > 1:
@@ -368,18 +368,19 @@ def _link(context: Context, _raw: str, parts: list[Token]) -> str:
     return messages.linked(left_shown, relation, right_shown, created)
 
 
-def _confirm_close_for_correct(context: Context, typed: str, close: list, position_text: str) -> Optional[sqlite3.Row]:
-    key = f"correct:{normalize(typed)}"
+def _confirm_or_cancel(context: Context, typed: str, close: list, command_for: Callable[[str], str], fallback: Callable[[str, list[str]], str]) -> Optional[sqlite3.Row]:
+    """Ask which close card was meant. Returns the chosen card, or None if cancelled. Names only: no details."""
+    key = f"choose:{normalize(typed)}"
     answer = context.answers.get(key)
     if answer == "cancel":
         return None
     for card in close:
         if answer == str(card["id"]):
             return card
-    question = messages.did_you_mean(close[0]["name"] if len(close) == 1 else " or ".join(card["name"] for card in close))
-    choices = [{"value": str(card["id"]), "label": card["name"]} for card in close] + [{"value": "cancel", "label": messages.CANCEL_CHOICE}]
-    commands = [f"/contacts correct {_display_token(card['name'])} {position_text}" for card in close]
-    raise NeedsAnswer(key, question, choices, messages.did_you_mean_fallback(question, commands))
+    question = messages.did_you_mean(" or ".join(card["name"] for card in close))
+    choices = [{"value": str(card["id"]), "label": card["name"]} for card in close]
+    choices.append({"value": "cancel", "label": messages.CANCEL_CHOICE})
+    raise NeedsAnswer(key, question, choices, fallback(question, [command_for(_display_token(card["name"])) for card in close]))
 
 
 def _correct(context: Context, raw: str, parts: list[Token]) -> str:
@@ -397,7 +398,8 @@ def _correct(context: Context, raw: str, parts: list[Token]) -> str:
         close = cards.find_close_cards(context.connection, typed)
         if not close:
             return messages.NOTHING
-        card = _confirm_close_for_correct(context, typed, close, f"{parts[position].text} {text}")
+        rest = f"{parts[position].text} {text}"
+        card = _confirm_or_cancel(context, typed, close, lambda name: f"/contacts correct {name} {rest}", messages.did_you_mean_fallback)
         if card is None:
             return messages.CANCELLED
     lines = cards.active_lines(context.connection, card["id"], context.show_private)
@@ -453,17 +455,18 @@ def _history(context: Context, _raw: str, parts: list[Token]) -> str:
         return messages.USAGE_HISTORY
     typed = " ".join(p.text for p in parts)
     matches = lookup.cards_for_words(context.connection, [typed])
-    corrected = False
-    if not matches:
-        matches = cards.find_close_cards(context.connection, typed)
-        corrected = len(matches) == 1
-    if not matches:
-        return messages.NOTHING
-    card = context.pick(matches, parts[0].text)
+    if matches:
+        card = context.pick(matches, parts[0].text)
+    else:
+        close = cards.find_close_cards(context.connection, typed)
+        if not close:
+            return messages.NOTHING
+        card = _confirm_or_cancel(context, typed, close, lambda name: f"/contacts history {name}", messages.did_you_mean_open)
+        if card is None:
+            return messages.CANCELLED
     lines = cards.all_lines(context.connection, card["id"], context.show_private)
     body = [messages.history_line(l["text"], l["saved_at"], l["source"], l["closed_at"]) for l in lines]
-    reply = "\n".join([messages.history_title(card["name"]), *(body or [messages.NO_LINES])])
-    return messages.showing(card["name"], reply) if corrected else reply
+    return "\n".join([messages.history_title(card["name"]), *(body or [messages.NO_LINES])])
 
 
 def _card_view(context: Context, card: sqlite3.Row) -> str:
@@ -489,16 +492,36 @@ def _format_results(card: sqlite3.Row, results: search.Results) -> str:
     return messages.NOTHING
 
 
+def _chosen_close_card(context: Context, words: list[str]) -> Optional[tuple[sqlite3.Row, list[str]]]:
+    """No exact name was found: ask about close names. Returns (card, remaining words) once one is chosen."""
+    span = lookup.find_close_span(context.connection, words)
+    if span is None:
+        return None
+    start, end, close = span
+    remaining = [w for w in words[:start] if w not in STOPWORDS] + words[end:]
+    suffix = "".join(f" {w}" for w in remaining)
+    card = _confirm_or_cancel(context, " ".join(words[start:end]), close, lambda name: f"/contacts {name}{suffix}", messages.did_you_mean_open)
+    return (card, remaining) if card is not None else (None, [])
+
+
 def _query(context: Context, raw: str) -> str:
     words = query_words(raw)
-    resolved = lookup.resolve(context.connection, words, context.pick) if words else None
-    if resolved is None:
+    if not words:
         return messages.NOTHING
-    wanted = search.important_words(resolved.words)
-    if wanted:
-        results = search.rank(cards.active_lines(context.connection, resolved.card["id"]), wanted)
-        hidden = not context.show_private and any(line["private"] for line in [*results.direct, *results.related])
-        reply = messages.PRIVATE_LINE if hidden else _format_results(resolved.card, results)
+    resolved = lookup.resolve(context.connection, words, context.pick)
+    if resolved is not None:
+        card, remaining = resolved.card, resolved.words
     else:
-        reply = _card_view(context, resolved.card)
-    return messages.showing(resolved.card["name"], reply) if resolved.corrected else reply
+        chosen = _chosen_close_card(context, words)
+        if chosen is None:
+            return messages.NOTHING
+        if chosen[0] is None:
+            return messages.CANCELLED
+        card, remaining = lookup.follow_links(context.connection, chosen[0], chosen[1], context.pick)
+    wanted = search.important_words(remaining)
+    if not wanted:
+        return _card_view(context, card)
+    results = search.rank(cards.active_lines(context.connection, card["id"]), wanted)
+    if not context.show_private and any(line["private"] for line in [*results.direct, *results.related]):
+        return messages.PRIVATE_LINE
+    return _format_results(card, results)

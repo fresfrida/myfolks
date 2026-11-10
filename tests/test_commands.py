@@ -258,11 +258,53 @@ def test_exact_name_always_wins_over_close(run):
     assert run("priya").startswith("Priya\n")
 
 
-def test_one_close_name_is_used_and_announced(run):
-    run("save Priya likes cake")
-    reply = run("prya cake")
-    assert reply.split("\n")[0] == "Showing Priya."
-    assert 'Priya: "likes cake"' in reply
+def test_near_name_shows_no_details_and_asks(run):
+    run("save Briya is allergic to peanuts")
+    reply = run("priya allergy", answer=None)
+    assert reply.split("\n")[0] == "Did you mean Briya?"
+    assert "allergic" not in reply and "peanuts" not in reply
+    assert "/contacts Briya allergy" in reply
+
+
+def test_choosing_near_name_then_shows_details(run):
+    run("save Briya is allergic to peanuts")
+    reply = run("priya allergy", answer=lambda choices: choices[0]["value"])
+    assert [c["label"] for c in run.state["asked"]] == ["Briya", "Cancel"]
+    assert 'Briya: "is allergic to peanuts"' in reply
+
+
+def test_cancel_shows_nothing(run):
+    run("save Briya is allergic to peanuts")
+    reply = run("priya allergy", answer=lambda choices: "cancel")
+    assert reply == "Nothing was changed."
+
+
+def test_exact_name_opens_with_no_question_when_both_saved(run):
+    run("save Briya likes tea")
+    run("save --new Priya likes cake")
+    assert run("priya").startswith("Priya\n") and run.state["asked"] is None
+    assert "likes tea" not in run("priya")
+
+
+def test_marc_and_marco_never_confused(run):
+    run("save Marc likes tea")
+    run("save --new Marco likes jazz")
+    assert run("marc").startswith("Marc\n") and run.state["asked"] is None
+    assert run("marco").startswith("Marco\n") and run.state["asked"] is None
+
+
+def test_only_marco_saved_does_not_open_for_marc(run):
+    run("save Marco likes jazz")
+    reply = run("marc", answer=None)
+    assert reply.startswith("Did you mean Marco?") and "jazz" not in reply
+
+
+def test_near_name_never_followed_through_links(run):
+    run("save Briya likes tea")
+    run("save Biscuit birthday March 3")
+    run("link Briya dog Biscuit")
+    reply = run("priya dog birthday", answer=None)
+    assert reply.startswith("Did you mean Briya?") and "March" not in reply
 
 
 def test_short_names_get_no_typo_help(run):
@@ -274,13 +316,16 @@ def test_several_close_names_ask(run):
     run("save Marla likes hiking")
     run("save --new Maria likes painting")
     reply = run("marca", answer=lambda choices: next(c["value"] for c in choices if "Maria" in c["label"]))
-    assert len(run.state["asked"]) == 2 and reply.startswith("Maria\n")
-    assert run("marca", answer=None).startswith("More than one match.")
+    assert [c["label"] for c in run.state["asked"]] == ["Marla", "Maria", "Cancel"] and reply.startswith("Maria\n")
+    reply = run("marca", answer=None)
+    assert reply.startswith("Did you mean Marla or Maria?") and "hiking" not in reply and "painting" not in reply
 
 
-def test_history_with_close_name(run):
+def test_history_with_close_name_asks_first(run):
     run("save Priya likes cake")
-    assert run("history prya").startswith("Showing Priya.")
+    reply = run("history prya", answer=None)
+    assert reply.startswith("Did you mean Priya?") and "cake" not in reply and "/contacts history Priya" in reply
+    assert run("history prya", answer=lambda choices: choices[0]["value"]).startswith("Priya: history")
 
 
 def test_mistyped_name_on_save_asks_before_writing(run, vault):

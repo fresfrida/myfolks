@@ -239,3 +239,14 @@ def test_shared_setting_accepts_comma_text(seeded, allow, send):
     allow("111")
     assert "likes tea" in send("priya tea", sender("222"), shared="telegram:333:add, telegram:222:read")
     assert send("save Priya x y", sender("222"), shared="telegram:333:add, telegram:222:read") == REFUSED
+
+
+def test_owner_check_comes_before_any_name_question(seeded, allow, send):
+    allow("111")
+    assert send("prya tea", sender("222")) == REFUSED
+
+
+def test_near_name_on_messaging_gives_question_and_command_only(seeded, allow, send):
+    allow("111")
+    reply = send("prya tea", sender("111"))
+    assert reply.startswith("Did you mean Priya?") and "/contacts Priya tea" in reply and "likes tea" not in reply

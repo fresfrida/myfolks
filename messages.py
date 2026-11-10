@@ -138,10 +138,6 @@ def import_summary(new: int, merged: int, review: int, unchanged: int, skipped: 
 # New wording below is TENTATIVE.
 
 
-def showing(name: str, reply: str) -> str:
-    return f"Showing {name}.\n{reply}"
-
-
 def did_you_mean(name: str) -> str:
     return f"Did you mean {name}?"
 
@@ -167,6 +163,10 @@ TERMINAL_ONLY = "Run this directly in your own terminal."
 PRIVATE_LINE = "Private. See it on your computer."
 CANCEL_CHOICE = "Cancel"
 CANCELLED = "Nothing was changed."
+
+
+def did_you_mean_open(question: str, commands: list[str]) -> str:
+    return "\n".join([question, "To see it, send:", *commands])
 
 
 def did_you_mean_fallback(question: str, commands: list[str]) -> str:

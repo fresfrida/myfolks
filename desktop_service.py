@@ -75,17 +75,20 @@ def _answer(connection: sqlite3.Connection, words: list[str]) -> Optional[dict]:
     except _Ambiguous as ambiguous:
         return {"kind": "choose", "choices": [_summary(card) for card in ambiguous.matches]}
     if resolved is None:
-        return {"kind": "nothing"}
+        close = lookup.find_close_span(connection, words)
+        if close is None:
+            return {"kind": "nothing"}
+        return {"kind": "did_you_mean", "question": messages.did_you_mean(" or ".join(card["name"] for card in close[2])), "choices": [_summary(card) for card in close[2]]}
     card = _summary(resolved.card)
     wanted = search.important_words(resolved.words)
     if not wanted:
-        return {"kind": "card", "card": card, "corrected": resolved.corrected}
+        return {"kind": "card", "card": card}
     results = search.rank(cards.active_lines(connection, resolved.card["id"]), wanted)
     if results.direct:
-        return {"kind": "direct", "card": card, "corrected": resolved.corrected, "lines": [_line(l) for l in results.direct]}
+        return {"kind": "direct", "card": card, "lines": [_line(l) for l in results.direct]}
     if results.related:
-        return {"kind": "related", "card": card, "corrected": resolved.corrected, "lines": [_line(l) for l in results.related]}
-    return {"kind": "nothing", "card": card, "corrected": resolved.corrected}
+        return {"kind": "related", "card": card, "lines": [_line(l) for l in results.related]}
+    return {"kind": "nothing", "card": card}
 
 
 def find(query: str, vault: Optional[Vault] = None) -> dict:

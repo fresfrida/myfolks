@@ -136,3 +136,10 @@ def test_check_function_follows_setting(mod):
     assert captured["check"]() is False
     context.settings["ai_tool"] = True
     assert captured["check"]() is True
+
+
+def test_near_name_is_no_match(loaded, mod, tool):
+    mod("commands").handle("save Briya is vegetarian", platform="cli", vault=loaded)
+    reply = tool({"action": "lookup", "question": "brija vegetarian"})
+    assert reply == {"status": "nothing", "matches": []}
+    assert tool({"action": "lookup", "question": "prya allergic"}) == {"status": "nothing", "matches": []}

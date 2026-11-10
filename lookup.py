@@ -20,7 +20,6 @@ _MAX_NAME_WORDS = 3
 class Resolved:
     card: sqlite3.Row
     words: list[str]
-    corrected: bool = False
 
 
 def cards_for_words(connection: sqlite3.Connection, words: list[str]) -> list:
@@ -42,7 +41,7 @@ def find_span(connection: sqlite3.Connection, words: list[str]) -> Optional[tupl
 
 
 def find_close_span(connection: sqlite3.Connection, words: list[str]) -> Optional[tuple[int, int, list]]:
-    """Like find_span, for a name typed with one mistake. Words that carry no meaning are skipped."""
+    """Names one edit from what was typed. These never open a card: the user must choose first."""
     for start in range(len(words)):
         if words[start] in STOPWORDS:
             continue
@@ -81,14 +80,10 @@ def follow_links(connection: sqlite3.Connection, card: sqlite3.Row, words: list[
 
 def resolve(connection: sqlite3.Connection, words: list[str], pick: Pick) -> Optional[Resolved]:
     span = find_span(connection, words)
-    corrected = False
     if span is None:
-        span = find_close_span(connection, words)
-        if span is None:
-            return None
-        corrected = len(span[2]) == 1
+        return None
     start, end, matches = span
     card = pick(matches, " ".join(words[start:end]))
     remaining = [w for w in words[:start] if w not in STOPWORDS] + words[end:]
     card, remaining = follow_links(connection, card, remaining, pick)
-    return Resolved(card, remaining, corrected)
+    return Resolved(card, remaining)

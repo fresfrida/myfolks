@@ -452,17 +452,20 @@
     {
       "q": "prya allergic",
       "expect": "direct",
-      "find": "allergic to peanuts"
+      "find": "allergic to peanuts",
+      "choose": "Priya"
     },
     {
       "q": "prya",
       "expect": "card",
-      "find": "Priya"
+      "find": "Priya",
+      "choose": "Priya"
     },
     {
       "q": "biscut birthday",
       "expect": "direct",
-      "find": "March 3"
+      "find": "March 3",
+      "choose": "Biscuit"
     },
     {
       "q": "priya penuts allergy",
@@ -493,7 +496,8 @@
     },
     {
       "q": "prya shoe size",
-      "expect": "nothing"
+      "expect": "nothing",
+      "choose": "Priya"
     },
     {
       "q": "zzzz birthday",
@@ -513,6 +517,21 @@
       "q": "priya loves",
       "expect": "nothing",
       "trap": true
+    },
+    {
+      "q": "prya allergic",
+      "expect": "ask",
+      "find": "Did you mean Priya?"
+    },
+    {
+      "q": "biscut birthday",
+      "expect": "ask",
+      "find": "Did you mean Biscuit?"
+    },
+    {
+      "q": "marca",
+      "expect": "ask",
+      "find": "Did you mean"
     }
   ]
 }
