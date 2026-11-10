@@ -163,8 +163,10 @@ def numbered_line(number: int, rendered: str) -> str:
     return f"{number}. {rendered}"
 
 
-def history_line(text: str, iso_timestamp: str, source: str, closed_iso: str | None) -> str:
-    line = f'"{text}"\nSaved {_display_date(iso_timestamp)} from {source}'
+def history_line(text: str, iso_timestamp: str, source: str, closed_iso: str | None, render: Callable[[str], str] = str) -> str:
+    shown = render(text)
+    words = f'"{shown}"' if shown == text else shown
+    line = f"{words}\nSaved {_display_date(iso_timestamp)} from {source}"
     return line + (f", replaced {_display_date(closed_iso)}" if closed_iso else "")
 
 

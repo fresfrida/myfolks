@@ -492,7 +492,8 @@ def _history(context: Context, _raw: str, parts: list[Token]) -> str:
         if card is None:
             return messages.CANCELLED
     lines = cards.all_lines(context.connection, card["id"], context.show_private)
-    body = [messages.history_line(l["text"], l["saved_at"], l["source"], l["closed_at"]) for l in lines]
+    render = _plain_render(context)
+    body = [messages.history_line(l["text"], l["saved_at"], l["source"], l["closed_at"], render) for l in lines]
     return "\n".join([messages.history_title(card["name"]), *(body or [messages.NO_LINES])])
 
 

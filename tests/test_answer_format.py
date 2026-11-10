@@ -264,3 +264,24 @@ def test_correct_list_near_name_asks_with_no_details(vault, mod):
 
 def test_correct_with_unknown_name_shows_usage(vault, mod):
     assert mod("commands").handle("correct nobody", platform="cli", vault=vault).startswith("To correct:")
+
+
+def test_history_on_telegram_shows_formatting_characters_exactly(phone, vault, mod):
+    mod("commands").handle("save Priya uses 2*3 _here_", platform="cli", vault=vault)
+    assert "`uses 2*3 _here_`\nSaved " in phone("history priya")
+
+
+def test_history_on_telegram_keeps_quotes_on_plain_words(phone, vault, mod):
+    mod("commands").handle("save Priya likes tea", platform="cli", vault=vault)
+    assert '"likes tea"\nSaved ' in phone("history priya")
+
+
+def test_history_on_telegram_uses_a_block_for_backticks(phone, vault, mod):
+    mod("commands").handle("save Priya has `ticks` here", platform="cli", vault=vault)
+    assert "```\nhas `ticks` here\n```\nSaved " in phone("history priya")
+
+
+def test_history_in_terminal_is_unchanged(vault, mod):
+    handle = mod("commands").handle
+    handle("save Priya uses 2*3 _here_", platform="cli", vault=vault)
+    assert '"uses 2*3 _here_"\nSaved ' in handle("history priya", platform="cli", vault=vault)
