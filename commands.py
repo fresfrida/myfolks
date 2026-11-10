@@ -91,9 +91,9 @@ def _pair(vault: Vault, platform: str, source, code: str) -> str:
 
 def handle(raw_args: str, *, platform: Optional[str] = None, source=None, ask: Optional[Callable] = None, vault: Optional[Vault] = None) -> str:
     raw = raw_args or ""
-    store = vault or Vault()
     label = owner.local_surface(platform)
     try:
+        store = vault or Vault()
         if label is None:
             if not platform:
                 return messages.REFUSED
