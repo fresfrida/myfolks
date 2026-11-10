@@ -15,6 +15,7 @@ from .vault import Busy, NotSetUp, Refused, Vault, VaultError
 logger = logging.getLogger(__name__)
 
 MAX_TEXT = 2000
+_WARNED_SETTING = "terminal_warning_shown"
 _SELF_WORDS = {"me", "my", "i", "myself"}
 _ALIAS_WORDS = {"alias", "aka", "nickname"}
 
@@ -168,7 +169,16 @@ def _save(context: Context, raw: str, parts: list[Token]) -> str:
         card_id, name = card["id"], card["name"]
     cards.add_detail(change, card_id, text, context.source_label)
     change.finish(f"saved to {name}")
-    return messages.new_card(name) if is_new else messages.saved(name)
+    reply = messages.new_card(name) if is_new else messages.saved(name)
+    return _with_terminal_warning(context, reply)
+
+
+def _with_terminal_warning(context: Context, reply: str) -> str:
+    """The first save typed in the terminal gets a one-time heads-up."""
+    if not context.terminal or db.get_setting(context.connection, _WARNED_SETTING):
+        return reply
+    db.set_setting(context.connection, _WARNED_SETTING, "1")
+    return f"{reply}\n{messages.TERMINAL_WARNING}"
 
 
 def _card_for_link(context: Context, change: db.Change, name: str, matches: list, relation: str, right_side: bool, created: list[str]) -> tuple[int, str]:

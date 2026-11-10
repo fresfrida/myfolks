@@ -26,6 +26,7 @@ def test_empty_shows_help_and_count(run):
 
 
 def test_save_new_then_existing_card(run):
+    run("save Warmup likes tea")
     assert run("save Priya is allergic to peanuts") == "New card for Priya. Saved."
     assert run("save priya likes tea") == "Saved to Priya."
 
@@ -40,6 +41,7 @@ def test_save_needs_text(run):
 
 
 def test_save_multiword_name_with_quotes(run):
+    run("save Warmup likes tea")
     assert run('save "Priya Sharma" likes tea') == "New card for Priya Sharma. Saved."
     assert run("save priya sharma drinks water") == "Saved to Priya Sharma."
     assert "likes tea" in run("priya sharma")
@@ -69,6 +71,16 @@ def test_card_view_numbered(run):
     assert reply[0] == "Priya"
     assert reply[1].startswith("1. likes tea")
     assert reply[2].startswith("2. likes cake")
+
+
+def test_terminal_warning_shown_once(run):
+    warning = "Heads up: Hermes keeps a plain-text history of what you type in this terminal, including this command."
+    assert run("save Priya likes tea") == f"New card for Priya. Saved.\n{warning}"
+    assert warning not in run("save Priya likes cake")
+
+
+def test_terminal_warning_not_shown_on_desktop(run):
+    assert "Heads up" not in run("save Priya likes tea", platform="desktop")
 
 
 def test_correct_closes_old_and_history_keeps_it(run):

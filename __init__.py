@@ -2,29 +2,6 @@
 
 from __future__ import annotations
 
-PLUGIN_ID = "myfolks"
-DATA_DIR_FRAGMENT = "plugin-data/myfolks"
-
-
-def _strings_in(value):
-    if isinstance(value, str):
-        yield value
-    elif isinstance(value, dict):
-        for item in value.values():
-            yield from _strings_in(item)
-    elif isinstance(value, (list, tuple)):
-        for item in value:
-            yield from _strings_in(item)
-
-
-def block_store_access(tool_name: str, args: dict, task_id: str = "", **_context):
-    """Refuse tool calls whose arguments name the plugin's data folder."""
-    for text in _strings_in(args):
-        if DATA_DIR_FRAGMENT in text.lower():
-            return {"action": "block", "message": "MyFolks blocked this: the contact store is not available to AI tools."}
-    return None
-
-
 def _setup_cli(parser) -> None:
     from . import cli
 
@@ -49,7 +26,12 @@ def register(ctx) -> None:
         description="Look up your contacts",
         args_hint="<query>",
     )
-    ctx.register_hook("pre_tool_call", block_store_access)
+    def guard_tool_call(tool_name: str, args: dict, task_id: str = "", **context):
+        from . import guard
+
+        return guard.pre_tool_call(tool_name, args, task_id, **context)
+
+    ctx.register_hook("pre_tool_call", guard_tool_call)
     ctx.register_cli_command(
         "myfolks",
         "Set up, recover and manage MyFolks",
