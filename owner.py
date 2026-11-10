@@ -117,7 +117,8 @@ def shared_access(platform: str, source, entries) -> Optional[str]:
     """"read" or "add" for someone the owner shared with, else None. Private chats only."""
     if not is_private_sender(source):
         return None
-    for entry in entries or []:
+    listed = entries.split(",") if isinstance(entries, str) else (entries or [])
+    for entry in listed:
         parts = [part.strip() for part in str(entry).split(":")]
         if len(parts) == 3 and parts[0].lower() == platform and parts[1] == str(source.user_id) and parts[2].lower() in SHARED_ACCESS:
             return parts[2].lower()

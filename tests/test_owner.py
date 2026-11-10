@@ -233,3 +233,9 @@ def test_default_is_empty(seeded, allow, send):
 def test_owner_keeps_full_access_with_sharing_on(seeded, allow, send):
     allow("111")
     assert send("save Priya likes cake", sender("111"), shared=READ_ONLY) == "Saved to Priya."
+
+
+def test_shared_setting_accepts_comma_text(seeded, allow, send):
+    allow("111")
+    assert "likes tea" in send("priya tea", sender("222"), shared="telegram:333:add, telegram:222:read")
+    assert send("save Priya x y", sender("222"), shared="telegram:333:add, telegram:222:read") == REFUSED
