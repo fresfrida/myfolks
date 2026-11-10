@@ -35,7 +35,10 @@ const COPY = {
   noLines: 'No lines saved yet.',
   privateTag: 'Private',
   linked: 'Linked',
-  linkTo: (relation, name, outgoing) => (outgoing ? `${relation}: ${name}` : `${relation} of: ${name}`),
+  linkTo: (relation, name, outgoing) => {
+    const word = relation.charAt(0).toUpperCase() + relation.slice(1)
+    return outgoing ? `${word}: ${name}` : `${word} of ${name}`
+  },
   addLine: 'Add a line',
   addPlaceholder: 'What do you want to remember?',
   save: 'Save',
@@ -104,11 +107,19 @@ const Muted = ({ children }) => jsx('div', { className: 'text-xs text-(--ui-text
 const Note = ({ children }) => jsx('div', { className: 'text-sm text-(--ui-text-secondary)', children })
 const Command = ({ children }) => jsx('code', { className: 'font-mono text-sm text-(--ui-text-secondary)', children })
 
+// The signature element: the saved words first, then when and where they came from.
 function Receipt({ line }) {
   return jsxs('div', {
-    className: 'flex flex-col gap-1 py-2',
+    className: 'flex flex-col gap-1 border-l-2 py-1 pl-3',
+    style: { borderColor: 'var(--ui-accent)' },
     children: [
-      jsx('div', { className: 'text-sm', children: `${line.number ? `${line.number}. ` : ''}“${line.text}”` }),
+      jsxs('div', {
+        className: 'text-base font-medium',
+        children: [
+          line.number ? jsx('span', { className: 'text-(--ui-text-tertiary)', children: `${line.number}. ` }) : null,
+          `\u201c${line.text}\u201d`
+        ]
+      }),
       jsxs('div', {
         className: 'flex items-center gap-2',
         children: [jsx(Muted, { children: line.receipt }), line.private ? jsx(Badge, { children: COPY.privateTag }) : null]
@@ -121,8 +132,10 @@ function CenteredMessage({ title, body, command, action }) {
   return jsxs('div', {
     className: 'flex h-full flex-col items-center justify-center gap-3 p-6',
     children: [
-      jsx(EmptyState, { className: 'min-h-0', description: body, title }),
-      command ? jsx(Command, { children: command }) : null,
+      jsxs('div', {
+        className: 'flex flex-col items-center gap-2',
+        children: [jsx(EmptyState, { className: 'min-h-0', description: body, title }), command ? jsx(Command, { children: command }) : null]
+      }),
       action || null
     ]
   })
@@ -302,7 +315,7 @@ function CardView({ ctx, trail, onCrumb, onFollow, onBack }) {
   return jsxs('div', {
     className: 'flex flex-col gap-3',
     children: [
-      onBack ? jsx(Button, { className: 'self-start', onClick: onBack, size: 'sm', variant: 'ghost', children: COPY.allContacts }) : null,
+      onBack ? jsx(Button, { className: 'self-start', onClick: onBack, size: 'inline', variant: 'ghost', children: COPY.allContacts }) : null,
       jsx(Trail, { onCrumb, trail }),
       jsx('h2', { className: 'text-lg font-medium', children: current.name }),
       !data
