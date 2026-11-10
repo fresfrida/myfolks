@@ -1,12 +1,87 @@
-"""MyFolks pre-flight hello backend. Throwaway."""
+"""Backend for the MyFolks Desktop page. Thin routes over desktop_service.
 
-from fastapi import APIRouter
+Hermes puts these routes behind its own login check. Contact text travels only in request and
+response bodies, never in URLs, so it cannot end up in access logs.
+"""
 
+from __future__ import annotations
+
+import hashlib
+import importlib
+import importlib.util
+import logging
+import sys
+from pathlib import Path
+from typing import Callable, Optional
+
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("/hello")
-async def hello():
-    from hermes_constants import get_hermes_home
+def _service():
+    """Load the plugin's own code as a package, wherever Hermes installed it."""
+    root = Path(__file__).resolve().parent.parent
+    name = "myfolks_page_" + hashlib.sha256(str(root).encode()).hexdigest()[:12]
+    if name not in sys.modules:
+        spec = importlib.util.spec_from_file_location(name, root / "__init__.py", submodule_search_locations=[str(root)])
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[name] = module
+        spec.loader.exec_module(module)
+    return importlib.import_module(f"{name}.desktop_service")
 
-    return {"status": "ok", "home": get_hermes_home().name}
+
+def _call(action: Callable[[object], dict]) -> dict:
+    service = _service()
+    try:
+        return action(service)
+    except service.VaultError as error:
+        return service.state_for(error)
+    except Exception as error:
+        logger.error("MyFolks page request failed: %s", type(error).__name__)
+        raise HTTPException(status_code=500, detail="error") from None
+
+
+class FindBody(BaseModel):
+    query: str = ""
+
+
+class LineBody(BaseModel):
+    text: str
+
+
+class ReviewBody(BaseModel):
+    action: str
+    card_id: Optional[int] = None
+
+
+@router.get("/status")
+async def status():
+    return _call(lambda s: s.status())
+
+
+@router.post("/find")
+async def find(body: FindBody):
+    return _call(lambda s: s.find(body.query))
+
+
+@router.get("/cards/{card_id}")
+async def card(card_id: int):
+    return _call(lambda s: s.card_detail(card_id))
+
+
+@router.post("/cards/{card_id}/lines")
+async def save_line(card_id: int, body: LineBody):
+    return _call(lambda s: s.save_line(card_id, body.text))
+
+
+@router.get("/review")
+async def review():
+    return _call(lambda s: s.review_list())
+
+
+@router.post("/review/{item_id}")
+async def resolve_review(item_id: int, body: ReviewBody):
+    return _call(lambda s: s.resolve_review(item_id, body.action, body.card_id))

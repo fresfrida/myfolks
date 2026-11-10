@@ -10,8 +10,12 @@ def _display_date(iso_timestamp: str) -> str:
     return f"{moment:%b} {moment.day}, {moment.year}"
 
 
+def receipt(iso_timestamp: str, source: str) -> str:
+    return f"Saved {_display_date(iso_timestamp)} from {source}"
+
+
 def answer_line(name: str, saved_words: str, iso_timestamp: str, source: str) -> str:
-    return f'{name}: "{saved_words}"\nSaved {_display_date(iso_timestamp)} from {source}'
+    return f'{name}: "{saved_words}"\n{receipt(iso_timestamp, source)}'
 
 
 RELATED = "Related, not sure:"
