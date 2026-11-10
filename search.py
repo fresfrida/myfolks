@@ -12,7 +12,7 @@ import re
 from collections import Counter
 from dataclasses import dataclass
 
-from .text import STOPWORDS, load_data, one_edit_apart, tokens, word
+from .text import STOPWORDS, changed_one_letter, load_data, one_edit_apart, tokens, word
 
 SPELLING_THRESHOLD = 0.66
 CONCEPT_STRENGTH = 0.8
@@ -71,6 +71,8 @@ def spelled_alike(question_word: str, line_word: str) -> bool:
         return True
     if question_word.isdigit() or line_word.isdigit():
         return False
+    if changed_one_letter(question_word, line_word, MIN_TYPO_LENGTH):
+        return False
     if one_edit_apart(question_word, line_word, MIN_TYPO_LENGTH):
         return True
     left, right = _spelling_form(question_word), _spelling_form(line_word)
@@ -106,6 +108,8 @@ def _strength(question_word: str, words_on_line: list[str]) -> tuple[float, bool
     if any(spelled_alike(question_word, w) for w in words_on_line):
         return 1.0, True
     if _same_concept(question_word, words_on_line):
+        return CONCEPT_STRENGTH, False
+    if any(changed_one_letter(question_word, w, MIN_TYPO_LENGTH) for w in words_on_line):
         return CONCEPT_STRENGTH, False
     return 0.0, False
 

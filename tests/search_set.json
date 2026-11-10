@@ -505,18 +505,18 @@
     },
     {
       "q": "marco bears",
-      "expect": "nothing",
-      "trap": true
+      "expect": "related",
+      "find": "size 42"
     },
     {
       "q": "sam lee chest",
-      "expect": "nothing",
-      "trap": true
+      "expect": "related",
+      "find": "chess"
     },
     {
       "q": "priya loves",
-      "expect": "nothing",
-      "trap": true
+      "expect": "related",
+      "find": "Queenstown"
     },
     {
       "q": "prya allergic",

@@ -75,3 +75,10 @@ def one_edit_apart(left: str, right: str, min_longer: int = 0) -> bool:
         and left[start + 1] == right[start]
         and left[start + 2 :] == right[start + 2 :]
     )
+
+
+def changed_one_letter(left: str, right: str, min_length: int = 0) -> bool:
+    """True when two same-length words differ in exactly one position, like bears and wears."""
+    if len(left) != len(right) or len(left) < min_length:
+        return False
+    return sum(1 for a, b in zip(left, right) if a != b) == 1

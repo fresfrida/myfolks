@@ -68,7 +68,7 @@ def test_question_set_prints_score(loaded):
     wrong_direct = [(item, reply) for item, reply in misses if item["expect"] in ("nothing", "not_direct") and not body_of(reply).startswith(RELATED) and body_of(reply) != NOTHING]
     for item, reply in wrong_direct:
         print(f"WRONG ANSWER LABELED DIRECT: {item['q']!r} -> {reply.splitlines()[0]!r}")
-    assert not [item for item, _reply in wrong_direct if not item.get("trap")], "a question with no answer returned a direct answer"
+    assert not wrong_direct, "a question with no answer returned a direct answer"
 
 
 @pytest.mark.parametrize("question", ["priya allergy", "priya alergic"])
@@ -145,3 +145,15 @@ def test_exact_match_ranks_before_typo(ask_run):
 def test_typo_never_makes_partial_match_direct(ask_run):
     ask_run("save Marco passport renewal due")
     assert ask_run("marco passprot visa") in (NOTHING,) or ask_run("marco passprot visa").startswith(RELATED)
+
+
+@pytest.mark.parametrize("question,find", [("marco bears", "size 42"), ("sam lee chest", "chess"), ("priya loves", "Queenstown")])
+def test_changed_letter_is_only_related(loaded, question, find):
+    reply = loaded(question)
+    assert reply.startswith(RELATED) and find in reply
+
+
+def test_changed_letter_helper(mod):
+    changed = mod("text").changed_one_letter
+    assert changed("bears", "wears", 5) and changed("chest", "chess", 5)
+    assert not changed("penuts", "peanuts", 5) and not changed("wears", "wears", 5) and not changed("cat", "car", 5)
