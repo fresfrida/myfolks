@@ -84,7 +84,7 @@ def _lookup(vault: Vault, question: str) -> str:
         wanted = search.important_words(resolved.words)
         if not wanted:
             return _reply(status="need_detail", matches=[], hint="Ask for something specific about this person.")
-        results = search.rank(cards.active_lines(connection, resolved.card["id"]), wanted)
+        results = search.rank(cards.active_lines(connection, resolved.card["id"], include_private=False), wanted)
         found = [_match(resolved.card, l, "direct") for l in results.direct] or [_match(resolved.card, l, "related, not sure") for l in results.related]
         return _reply(status="found" if found else "nothing", notice=DATA_NOTICE, matches=found)
 

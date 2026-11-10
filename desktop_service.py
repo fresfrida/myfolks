@@ -53,7 +53,7 @@ def _summary(card: sqlite3.Row) -> dict:
 
 
 def _line(line: sqlite3.Row, number: Optional[int] = None) -> dict:
-    return {"number": number, "text": line["text"], "receipt": messages.receipt(line["saved_at"], line["source"])}
+    return {"number": number, "text": line["text"], "receipt": messages.receipt(line["saved_at"], line["source"]), "private": bool(line["private"])}
 
 
 def _matching_cards(connection: sqlite3.Connection, query: str) -> tuple[list, int]:

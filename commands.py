@@ -22,6 +22,7 @@ _TYPO_VERBS = ("save", "link", "history", "correct", "undo", "review")
 _VERBS = set(_TYPO_VERBS)
 _MAX_QUESTIONS = 4
 _NEW_FLAG = "--new"
+_PRIVATE_FLAG = "--private"
 _MAX_NAME_TOKENS = 3
 
 
@@ -43,10 +44,11 @@ class Context:
     terminal: bool
     pick: Callable
     answers: dict
+    show_private: bool = True
 
 
 def _hint(connection: sqlite3.Connection, card: sqlite3.Row) -> str:
-    lines = cards.active_lines(connection, card["id"])
+    lines = cards.active_lines(connection, card["id"], include_private=False)
     return lines[0]["text"][:40] if lines else ""
 
 
@@ -131,7 +133,8 @@ def _dispatch(raw: str, vault: Vault, label: str, terminal: bool, ask: Optional[
 
 
 def _context(connection: sqlite3.Connection, label: str, terminal: bool, answers: dict) -> Context:
-    return Context(connection, label, terminal, _picker(connection, answers), answers)
+    show_private = label in owner.LOCAL_SURFACES.values()
+    return Context(connection, label, terminal, _picker(connection, answers), answers, show_private)
 
 
 def _closest_verb(word: str) -> Optional[str]:
@@ -212,10 +215,12 @@ def _match_suffix(context: Context, parts: list[Token], limit: int) -> tuple[int
     return 0, []
 
 
-def _strip_new_flag(parts: list[Token]) -> tuple[list[Token], bool]:
-    if parts and parts[0].text.casefold() == _NEW_FLAG:
-        return parts[1:], True
-    return parts, False
+def _strip_flags(parts: list[Token]) -> tuple[list[Token], set[str]]:
+    flags: set[str] = set()
+    while parts and parts[0].text.casefold() in (_NEW_FLAG, _PRIVATE_FLAG):
+        flags.add(parts[0].text.casefold())
+        parts = parts[1:]
+    return parts, flags
 
 
 def _display_token(name: str) -> str:
@@ -247,7 +252,9 @@ def _confirm_close_name(context: Context, typed: str, close: list, command_for: 
 
 
 def _save(context: Context, raw: str, parts: list[Token]) -> str:
-    parts, force_new = _strip_new_flag(parts)
+    parts, flags = _strip_flags(parts)
+    force_new = _NEW_FLAG in flags
+    private = _PRIVATE_FLAG in flags
     if len(parts) < 2:
         return messages.USAGE_SAVE
     used, matches = _match_prefix(context, parts, len(parts) - 1)
@@ -259,10 +266,11 @@ def _save(context: Context, raw: str, parts: list[Token]) -> str:
         if close:
             typed = " ".join(p.text for p in parts[:close_used])
             text = raw[parts[close_used].start:].strip()
+            private_flag = f"{_PRIVATE_FLAG} " if private else ""
             card = _confirm_close_name(
                 context, typed, close,
-                lambda name: f"/contacts save {name} {text}",
-                f"/contacts save {_NEW_FLAG} {_display_token(typed)} {text}",
+                lambda name: f"/contacts save {private_flag}{name} {text}",
+                f"/contacts save {private_flag}{_NEW_FLAG} {_display_token(typed)} {text}",
             )
             used = close_used
     if card is None and not used:
@@ -277,7 +285,7 @@ def _save(context: Context, raw: str, parts: list[Token]) -> str:
         card_id = cards.add_card(change, name, context.source_label)
     else:
         card_id, name = card["id"], card["name"]
-    cards.add_detail(change, card_id, text, context.source_label)
+    cards.add_detail(change, card_id, text, context.source_label, private=private)
     change.finish(f"saved to {name}")
     reply = messages.new_card(name) if is_new else messages.saved(name)
     return _with_terminal_warning(context, reply)
@@ -307,7 +315,8 @@ def _card_for_link(context: Context, change: db.Change, name: str, matches: list
 
 
 def _link(context: Context, _raw: str, parts: list[Token]) -> str:
-    parts, force_new = _strip_new_flag(parts)
+    parts, flags = _strip_flags(parts)
+    force_new = _NEW_FLAG in flags
     if len(parts) < 3:
         return messages.USAGE_LINK
     left_used, left_matches = _match_prefix(context, parts, len(parts) - 2)
@@ -391,7 +400,7 @@ def _correct(context: Context, raw: str, parts: list[Token]) -> str:
         card = _confirm_close_for_correct(context, typed, close, f"{parts[position].text} {text}")
         if card is None:
             return messages.CANCELLED
-    lines = cards.active_lines(context.connection, card["id"])
+    lines = cards.active_lines(context.connection, card["id"], context.show_private)
     number = int(parts[position].text)
     if not 1 <= number <= len(lines):
         return messages.NO_SUCH_LINE
@@ -451,14 +460,14 @@ def _history(context: Context, _raw: str, parts: list[Token]) -> str:
     if not matches:
         return messages.NOTHING
     card = context.pick(matches, parts[0].text)
-    lines = cards.all_lines(context.connection, card["id"])
+    lines = cards.all_lines(context.connection, card["id"], context.show_private)
     body = [messages.history_line(l["text"], l["saved_at"], l["source"], l["closed_at"]) for l in lines]
     reply = "\n".join([messages.history_title(card["name"]), *(body or [messages.NO_LINES])])
     return messages.showing(card["name"], reply) if corrected else reply
 
 
 def _card_view(context: Context, card: sqlite3.Row) -> str:
-    lines = cards.active_lines(context.connection, card["id"])
+    lines = cards.active_lines(context.connection, card["id"], context.show_private)
     out = [card["name"]]
     out += [messages.card_line(i, l["text"], l["saved_at"], l["source"]) for i, l in enumerate(lines, 1)]
     if not lines:
@@ -487,7 +496,9 @@ def _query(context: Context, raw: str) -> str:
         return messages.NOTHING
     wanted = search.important_words(resolved.words)
     if wanted:
-        reply = _format_results(resolved.card, search.rank(cards.active_lines(context.connection, resolved.card["id"]), wanted))
+        results = search.rank(cards.active_lines(context.connection, resolved.card["id"]), wanted)
+        hidden = not context.show_private and any(line["private"] for line in [*results.direct, *results.related])
+        reply = messages.PRIVATE_LINE if hidden else _format_results(resolved.card, results)
     else:
         reply = _card_view(context, resolved.card)
     return messages.showing(resolved.card["name"], reply) if resolved.corrected else reply

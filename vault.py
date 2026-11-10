@@ -265,9 +265,10 @@ class Vault:
         with self._locked():
             connection, data_key, header = self._open()
             try:
+                before = connection.total_changes
                 yield connection
                 connection.commit()
-                if connection.total_changes > 0:
+                if connection.total_changes > before:
                     self._save(connection, data_key, header)
             finally:
                 connection.close()

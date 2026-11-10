@@ -1,6 +1,6 @@
 // MyFolks Desktop page. Contact data stays in component memory: never in browser storage.
 import {
-  Button, EmptyState, ErrorState, ListRow, ROUTES_AREA, ScrollArea, SearchField, SegmentedControl, Separator,
+  Badge, Button, EmptyState, ErrorState, ListRow, ROUTES_AREA, ScrollArea, SearchField, SegmentedControl, Separator,
   SIDEBAR_NAV_AREA, Skeleton, Textarea, host, useValue
 } from '@hermes/plugin-sdk'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -34,6 +34,7 @@ const COPY = {
   choose: 'More than one match. Choose one:',
   moreThanShown: (shown, total) => `Showing ${shown} of ${total}. Search to narrow it down.`,
   noLines: 'No lines saved yet.',
+  privateTag: 'Private',
   linked: 'Linked',
   linkTo: (relation, name, outgoing) => (outgoing ? `${relation}: ${name}` : `${relation} of: ${name}`),
   addLine: 'Add a line',
@@ -109,7 +110,10 @@ function Receipt({ line }) {
     className: 'flex flex-col gap-1 py-2',
     children: [
       jsx('div', { className: 'text-sm', children: `${line.number ? `${line.number}. ` : ''}“${line.text}”` }),
-      jsx(Muted, { children: line.receipt })
+      jsxs('div', {
+        className: 'flex items-center gap-2',
+        children: [jsx(Muted, { children: line.receipt }), line.private ? jsx(Badge, { children: COPY.privateTag }) : null]
+      })
     ]
   })
 }

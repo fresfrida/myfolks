@@ -6,7 +6,7 @@ import json
 import sqlite3
 from datetime import datetime, timezone
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 _SCHEMA = """
 CREATE TABLE cards(
@@ -42,7 +42,8 @@ CREATE TABLE details(
   saved_at TEXT NOT NULL,
   source TEXT NOT NULL,
   closed_at TEXT,
-  replaces_id INTEGER REFERENCES details(id)
+  replaces_id INTEGER REFERENCES details(id),
+  private INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX details_card ON details(card_id, closed_at);
 CREATE INDEX details_norm ON details(field, norm_value);
@@ -102,9 +103,15 @@ def create_schema(connection: sqlite3.Connection) -> None:
 
 
 def check_schema(connection: sqlite3.Connection) -> None:
+    """Bring an older store up to date in memory, or refuse one this version can't read."""
     from .vault import Refused
 
     version = connection.execute("PRAGMA user_version").fetchone()[0]
+    if version == 1:
+        connection.execute("ALTER TABLE details ADD COLUMN private INTEGER NOT NULL DEFAULT 0")
+        connection.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
+        connection.commit()
+        version = SCHEMA_VERSION
     if version != SCHEMA_VERSION:
         raise Refused("store version is not supported")
 

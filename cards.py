@@ -59,30 +59,32 @@ def add_alias(change: db.Change, card_id: int, alias: str, automatic: bool = Fal
         change.insert("aliases", card_id=card_id, alias=alias, norm_alias=norm, automatic=int(automatic), created_at=db.now())
 
 
-def active_lines(connection: sqlite3.Connection, card_id: int) -> list[sqlite3.Row]:
+def active_lines(connection: sqlite3.Connection, card_id: int, include_private: bool = True) -> list[sqlite3.Row]:
     """A card's current lines. Line numbers shown to the user are positions in this list."""
-    return connection.execute(
+    rows = connection.execute(
         "SELECT * FROM details WHERE card_id=? AND closed_at IS NULL ORDER BY saved_at, id", (card_id,)
     ).fetchall()
+    return [row for row in rows if include_private or not row["private"]]
 
 
-def all_lines(connection: sqlite3.Connection, card_id: int) -> list[sqlite3.Row]:
-    return connection.execute("SELECT * FROM details WHERE card_id=? ORDER BY saved_at, id", (card_id,)).fetchall()
+def all_lines(connection: sqlite3.Connection, card_id: int, include_private: bool = True) -> list[sqlite3.Row]:
+    rows = connection.execute("SELECT * FROM details WHERE card_id=? ORDER BY saved_at, id", (card_id,)).fetchall()
+    return [row for row in rows if include_private or not row["private"]]
 
 
-def add_detail(change: db.Change, card_id: int, text: str, source: str, replaces_id: Optional[int] = None) -> int:
+def add_detail(change: db.Change, card_id: int, text: str, source: str, replaces_id: Optional[int] = None, private: bool = False) -> int:
     parsed = fields.parse_detail(text)
     return change.insert(
         "details", card_id=card_id, field=parsed.field, text=text, norm_value=parsed.norm_value,
         birth_year=parsed.birth_year, birth_month=parsed.birth_month, birth_day=parsed.birth_day,
-        saved_at=db.now(), source=source, replaces_id=replaces_id,
+        saved_at=db.now(), source=source, replaces_id=replaces_id, private=int(private),
     )
 
 
 def correct_detail(change: db.Change, detail: sqlite3.Row, new_text: str, source: str) -> None:
     """Close the old value and add the new one. The old value is kept for history."""
     change.update("details", detail["id"], closed_at=db.now())
-    add_detail(change, detail["card_id"], new_text, source, replaces_id=detail["id"])
+    add_detail(change, detail["card_id"], new_text, source, replaces_id=detail["id"], private=bool(detail["private"]))
 
 
 def relation_key(relation: str) -> str:

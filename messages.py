@@ -150,6 +150,7 @@ def new_card_choice(name: str) -> str:
     return f"New card for {name}"
 
 
+PRIVATE_LINE = "Private. See it on your computer."
 CANCEL_CHOICE = "Cancel"
 CANCELLED = "Nothing was changed."
 
