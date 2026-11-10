@@ -1,0 +1,7 @@
+admin/
+plan/
+.env
+*.vcf
+*.enc
+.DS_Store
+__pycache__/

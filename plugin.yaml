@@ -1,0 +1,6 @@
+name: myfolks
+version: 0.0.1
+description: Pre-flight hello-world for MyFolks for Hermes. Throwaway; proves Hermes behaviors before real features exist.
+requires_hermes: ">=0.23.1"
+provides_hooks:
+  - pre_tool_call
