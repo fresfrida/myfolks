@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
+from typing import Callable, Optional
 
 
 def _display_date(iso_timestamp: str) -> str:
@@ -14,11 +16,48 @@ def receipt(iso_timestamp: str, source: str) -> str:
     return f"Saved {_display_date(iso_timestamp)} from {source}"
 
 
-def answer_line(name: str, saved_words: str, iso_timestamp: str, source: str) -> str:
-    return f'{name}: "{saved_words}"\n{receipt(iso_timestamp, source)}'
+_MONTHS = ("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December")
+_SEPARATOR = " · "
+_NOT_SURE = "not sure"
+# Hermes turns replies into Telegram formatting. Saved words holding any of these could be changed by that.
+_TELEGRAM_FORMATTING = re.compile(r"[*_`~|\[\]#>\\$\n]")
 
 
-RELATED = "Related, not sure:"
+def date_label(iso_timestamp: str, now: Optional[datetime] = None) -> str:
+    """How long ago, in the user's local time."""
+    saved = datetime.fromisoformat(iso_timestamp).astimezone()
+    current = now or datetime.now().astimezone()
+    if saved.date() >= current.date():
+        return "today"
+    if saved.year == current.year:
+        return f"{_MONTHS[saved.month - 1]} this year"
+    if saved.year == current.year - 1:
+        return "last year"
+    return "more than a year ago"
+
+
+def telegram_words(text: str) -> str:
+    """Bold saved words on Telegram. Words with formatting characters go in a code span instead, so they show exactly."""
+    if not _TELEGRAM_FORMATTING.search(text):
+        return f"**{text}**"
+    if "`" in text or "\n" in text:
+        return f"```\n{text}\n```"
+    return f"`{text}`"
+
+
+def _with_tail(rendered: str, tail: str) -> str:
+    return f"{rendered}\n{tail}" if rendered.endswith("```") else f"{rendered}{_SEPARATOR}{tail}"
+
+
+def answer(name: str, lines: list[tuple[str, str, str]], unsure: bool, render: Callable[[str], str], now: Optional[datetime] = None) -> str:
+    """An answer readable at a glance. *lines* are (saved words, saved at, source)."""
+    head = f"{name}{_SEPARATOR}{_NOT_SURE}" if unsure else name
+    receipts = [f"{date_label(saved_at, now)}{_SEPARATOR}{source}" for _text, saved_at, source in lines]
+    if len(set(receipts)) == 1:
+        return "\n".join([head, *(render(text) for text, _saved, _source in lines), receipts[0]])
+    return "\n".join([head, *(_with_tail(render(line[0]), tail) for line, tail in zip(lines, receipts))])
+
+
 NOTHING = "Nothing saved about that."
 REFUSED = "MyFolks isn't available here."
 TERMINAL_WARNING = "Heads up: Hermes keeps a plain-text history of what you type in this terminal, including this command."

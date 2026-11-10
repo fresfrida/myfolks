@@ -55,7 +55,7 @@ def test_messaging_private_match_hides_public_matches_too(phone):
 
 
 def test_messaging_public_match_is_normal(phone):
-    assert 'Priya: "likes tea"' in phone("priya tea")
+    assert phone("priya tea") == "Priya\n**likes tea**\ntoday · terminal"
 
 
 def test_messaging_card_view_omits_private_and_renumbers(phone):

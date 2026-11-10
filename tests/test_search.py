@@ -4,7 +4,6 @@ from pathlib import Path
 import pytest
 
 SET = json.loads((Path(__file__).parent / "search_set.json").read_text())
-RELATED = "Related, not sure:"
 NOTHING = "Nothing saved about that."
 
 
@@ -31,6 +30,10 @@ def loaded(ask_run):
     return ask_run
 
 
+def is_unsure(reply):
+    return reply.split("\n")[0].endswith(" · not sure")
+
+
 def body_of(reply):
     return reply
 
@@ -42,13 +45,13 @@ def outcome(item, reply):
     if expect == "ask":
         return reply.startswith(find) and '"' not in reply.split("To see it")[0]
     if expect == "direct":
-        return not reply.startswith(RELATED) and find in reply and reply != NOTHING
+        return not is_unsure(reply) and find in reply and reply != NOTHING
     if expect == "related":
-        return reply.startswith(RELATED) and find in reply
+        return is_unsure(reply) and find in reply
     if expect == "nothing":
         return reply == NOTHING
     if expect == "not_direct":
-        return reply.startswith(RELATED) or reply == NOTHING
+        return is_unsure(reply) or reply == NOTHING
     if expect == "card":
         return find in reply.split("\n")[0]
     raise AssertionError(expect)
@@ -65,7 +68,7 @@ def test_question_set_prints_score(loaded):
     print(f"\nSEARCH SCORE: {total - len(misses)}/{total} correct, {len(misses)} misses")
     for item, reply in misses:
         print(f"MISS [{item['expect']}] {item['q']!r}" + (f" choose={item['choose']}" if "choose" in item else "") + f" -> {reply.splitlines()[0]!r}" + (f" | {reply.splitlines()[1]!r}" if len(reply.splitlines()) > 1 else ""))
-    wrong_direct = [(item, reply) for item, reply in misses if item["expect"] in ("nothing", "not_direct") and not body_of(reply).startswith(RELATED) and body_of(reply) != NOTHING]
+    wrong_direct = [(item, reply) for item, reply in misses if item["expect"] in ("nothing", "not_direct") and not is_unsure(reply) and body_of(reply) != NOTHING]
     for item, reply in wrong_direct:
         print(f"WRONG ANSWER LABELED DIRECT: {item['q']!r} -> {reply.splitlines()[0]!r}")
     assert not wrong_direct, "a question with no answer returned a direct answer"
@@ -78,7 +81,7 @@ def test_known_case_allergy_finds_line(loaded, question):
 
 def test_known_case_favorite_food_is_not_direct(loaded):
     reply = loaded("priya favorite food")
-    assert reply.startswith(RELATED) or reply == NOTHING
+    assert is_unsure(reply) or reply == NOTHING
 
 
 def test_known_case_shoe_size_is_nothing(loaded):
@@ -87,7 +90,7 @@ def test_known_case_shoe_size_is_nothing(loaded):
 
 def test_answer_prints_stored_words_exactly(ask_run):
     ask_run("save Priya Is ALLERGIC, to Peanuts!!")
-    assert 'Priya: "Is ALLERGIC, to Peanuts!!"' in ask_run("priya allergic")
+    assert 'Priya\nIs ALLERGIC, to Peanuts!!' in ask_run("priya allergic")
 
 
 def test_closed_lines_are_not_searched(ask_run):
@@ -104,7 +107,7 @@ def test_search_stays_on_one_person(ask_run):
 
 def test_concept_list_never_direct(ask_run):
     ask_run("save Marco owes me money")
-    assert ask_run("marco debt").startswith(RELATED)
+    assert is_unsure(ask_run("marco debt"))
 
 
 def test_no_network_or_model_imports():
@@ -120,7 +123,7 @@ def test_no_network_or_model_imports():
 @pytest.mark.parametrize("question,find", [("priya penuts", "allergic to peanuts"), ("marco passprot", "renewal"), ("marco sugr", "no sugar")])
 def test_named_typos_found(loaded, question, find):
     reply = loaded(question)
-    assert find in reply and not reply.startswith(RELATED)
+    assert find in reply and not is_unsure(reply)
 
 
 def test_no_typo_rule_under_five_letters(mod):
@@ -139,18 +142,18 @@ def test_one_edit_rules(mod):
 def test_exact_match_ranks_before_typo(ask_run):
     ask_run("save Asha lives in Chennai")
     ask_run("save Asha loves tulips")
-    assert ask_run("asha loves").split("\n")[0] == 'Asha: "loves tulips"'
+    assert ask_run("asha loves").split("\n")[1] == "loves tulips"
 
 
 def test_typo_never_makes_partial_match_direct(ask_run):
     ask_run("save Marco passport renewal due")
-    assert ask_run("marco passprot visa") in (NOTHING,) or ask_run("marco passprot visa").startswith(RELATED)
+    assert ask_run("marco passprot visa") in (NOTHING,) or is_unsure(ask_run("marco passprot visa"))
 
 
 @pytest.mark.parametrize("question,find", [("marco bears", "size 42"), ("sam lee chest", "chess"), ("priya loves", "Queenstown")])
 def test_changed_letter_is_only_related(loaded, question, find):
     reply = loaded(question)
-    assert reply.startswith(RELATED) and find in reply
+    assert is_unsure(reply) and find in reply
 
 
 def test_changed_letter_helper(mod):

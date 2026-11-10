@@ -51,7 +51,7 @@ def test_sole_allowed_user_is_owner(seeded, allow, send):
 def test_source_label_is_platform(seeded, allow, send):
     allow("111")
     send("save Priya likes cake", sender())
-    assert "from Telegram" in send("priya cake", sender())
+    assert "· Telegram" in send("priya cake", sender())
 
 
 def test_other_user_refused_when_one_allowed(seeded, allow, send):

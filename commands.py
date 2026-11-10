@@ -21,6 +21,7 @@ _ALIAS_WORDS = {"alias", "aka", "nickname"}
 _TYPO_VERBS = ("save", "link", "history", "correct", "undo", "review")
 _VERBS = set(_TYPO_VERBS)
 _MAX_QUESTIONS = 4
+_BOLD_SURFACE = "Telegram"
 _NEW_FLAG = "--new"
 _PRIVATE_FLAG = "--private"
 _MAX_NAME_TOKENS = 3
@@ -481,15 +482,13 @@ def _card_view(context: Context, card: sqlite3.Row) -> str:
     return "\n".join(out)
 
 
-def _format_results(card: sqlite3.Row, results: search.Results) -> str:
-    def answer(line) -> str:
-        return messages.answer_line(card["name"], line["text"], line["saved_at"], line["source"])
-
-    if results.direct:
-        return "\n".join(answer(line) for line in results.direct)
-    if results.related:
-        return "\n".join([messages.RELATED, *(answer(line) for line in results.related)])
-    return messages.NOTHING
+def _format_results(context: Context, card: sqlite3.Row, results: search.Results) -> str:
+    render = messages.telegram_words if context.source_label == _BOLD_SURFACE else str
+    chosen = results.direct or results.related
+    if not chosen:
+        return messages.NOTHING
+    lines = [(line["text"], line["saved_at"], line["source"]) for line in chosen]
+    return messages.answer(card["name"], lines, unsure=not results.direct, render=render)
 
 
 def _chosen_close_card(context: Context, words: list[str]) -> Optional[tuple[sqlite3.Row, list[str]]]:
@@ -524,4 +523,4 @@ def _query(context: Context, raw: str) -> str:
     results = search.rank(cards.active_lines(context.connection, card["id"]), wanted)
     if not context.show_private and any(line["private"] for line in [*results.direct, *results.related]):
         return messages.PRIVATE_LINE
-    return _format_results(card, results)
+    return _format_results(context, card, results)

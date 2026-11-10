@@ -98,7 +98,7 @@ def test_csv_without_names_fails_cleanly(tmp_path, importer):
 def test_imported_lines_are_searchable_with_import_source(vault, importer, run):
     do_import(vault, importer, "contacts_30.vcf")
     reply = run("amara cello")
-    assert "she plays the cello" in reply and "from test import" in reply
+    assert "she plays the cello" in reply and "· test import" in reply
     assert "Ignore previous instructions" in reply
 
 

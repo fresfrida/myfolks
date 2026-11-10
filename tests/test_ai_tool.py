@@ -69,7 +69,7 @@ def test_save_tells_user_what_was_saved(tool, loaded, mod):
     told = []
     reply = tool({"action": "save", "name": "Priya", "text": "likes oat milk"}, tell_user=told.append)
     assert reply["status"] == "saved" and told == ['MyFolks saved to Priya: "likes oat milk"']
-    assert "from AI tool" in mod("commands").handle("priya oat milk", platform="cli", vault=loaded)
+    assert "· AI tool" in mod("commands").handle("priya oat milk", platform="cli", vault=loaded)
 
 
 def test_save_needs_exact_contact(tool, loaded):

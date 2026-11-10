@@ -54,10 +54,7 @@ def test_first_name_is_alias_for_full_name(run):
 
 def test_lookup_answer_format(run):
     run("save Priya is allergic to peanuts")
-    reply = run("priya allergic peanuts")
-    first, second = reply.split("\n")
-    assert first == 'Priya: "is allergic to peanuts"'
-    assert second.startswith("Saved ") and second.endswith(" from terminal")
+    assert run("priya allergic peanuts") == "Priya\nis allergic to peanuts\ntoday · terminal"
 
 
 def test_unknown_person_says_nothing(run):
@@ -117,14 +114,14 @@ def test_link_and_follow(run):
     run("save Biscuit birthday March 3")
     assert run("link Priya dog Biscuit") == "Linked: Priya, dog, Biscuit."
     for question in ("priya dog birthday", "priya's dog birthday", "what is priya's dog's birthday"):
-        assert run(question).startswith('Biscuit: "birthday March 3"'), question
+        assert run(question).startswith('Biscuit\nbirthday March 3'), question
 
 
 def test_link_works_both_ways(run):
     run("save Priya phone +65 9123 4567")
     run("save Biscuit likes walks")
     run("link Priya dog Biscuit")
-    assert run("biscuit owner phone").startswith('Priya: "phone +65 9123 4567"')
+    assert run("biscuit owner phone").startswith('Priya\nphone +65 9123 4567')
     assert "dog of: Priya" in run("biscuit")
     assert "dog: Biscuit" in run("priya")
 
@@ -159,8 +156,8 @@ def test_alias_form(run):
 def test_relation_synonym_and_broader_word(run):
     run("link Priya dog Biscuit")
     run("save Biscuit birthday March 3")
-    assert run("priya pet birthday").startswith("Biscuit:")
-    assert run("priya puppy birthday").startswith("Biscuit:")
+    assert run("priya pet birthday").startswith("Biscuit\n")
+    assert run("priya puppy birthday").startswith("Biscuit\n")
 
 
 def test_same_name_asks_and_never_guesses(run):
@@ -270,7 +267,7 @@ def test_choosing_near_name_then_shows_details(run):
     run("save Briya is allergic to peanuts")
     reply = run("priya allergy", answer=lambda choices: choices[0]["value"])
     assert [c["label"] for c in run.state["asked"]] == ["Briya", "Cancel"]
-    assert 'Briya: "is allergic to peanuts"' in reply
+    assert 'Briya\nis allergic to peanuts' in reply
 
 
 def test_cancel_shows_nothing(run):
@@ -414,9 +411,9 @@ def test_mistyped_subcommands(run, typed, text, expected_start):
 
 def test_subcommand_typo_yields_to_real_lookup(run):
     run("save Sane likes cake")
-    assert 'Sane: "likes cake"' in run("sane cake")
+    assert 'Sane\nlikes cake' in run("sane cake")
     run("save Linc birthday June 2")
-    assert 'Linc: "birthday June 2"' in run("linc birthday")
+    assert 'Linc\nbirthday June 2' in run("linc birthday")
 
 
 def test_two_close_subcommands_are_not_guessed(mod):
