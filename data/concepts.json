@@ -1,27 +1,339 @@
 {
-  "_about": "Words that mean roughly the same thing. A match through this list is always shown as 'Related, not sure'. Readable data only; add languages as new groups.",
+  "_about": "Word lists for search. Readable data only. A match through 'synonyms' counts the same as the word itself and can be a direct answer. A match through 'topics' is always shown as not sure. Add languages as new groups.",
   "language": "en",
-  "groups": {
-    "allergy": ["allergy", "allergies", "allergic", "intolerance", "intolerant", "anaphylaxis"],
-    "food": ["food", "foods", "eat", "eats", "eating", "meal", "meals", "cuisine", "dish", "dishes", "snack", "peanut", "peanuts", "restaurant"],
-    "diet": ["diet", "vegetarian", "vegan", "halal", "kosher", "meat", "pescatarian"],
-    "drink": ["drink", "drinks", "coffee", "tea", "latte", "lattes", "espresso", "beverage", "cappuccino"],
-    "phone": ["phone", "mobile", "cell", "number", "telephone", "tel", "whatsapp", "call"],
-    "email": ["email", "mail", "e-mail", "inbox"],
-    "birthday": ["birthday", "bday", "born", "birthdate", "dob"],
-    "work": ["work", "works", "job", "employer", "occupation", "career", "profession", "office", "engineer", "company"],
-    "home": ["home", "address", "lives", "live", "living", "stays", "house", "apartment", "flat"],
-    "school": ["school", "class", "teacher", "university", "college"],
-    "health": ["health", "surgery", "operation", "hospital", "doctor", "illness", "sick", "medical", "medication", "medicine", "vet"],
-    "fear": ["fear", "scared", "afraid", "frightened", "phobia", "terrified"],
-    "flower": ["flower", "flowers", "tulip", "tulips", "rose", "roses", "lily", "orchid", "daisy"],
-    "color": ["color", "colour", "colors", "colours", "green", "blue", "red", "yellow", "purple", "pink", "orange", "black", "white"],
-    "pet_breed": ["breed", "retriever", "labrador", "poodle", "beagle", "terrier", "bulldog", "tabby", "persian"],
-    "money": ["money", "owes", "owe", "debt", "loan", "lent", "dollars", "dollar", "paid", "pay", "payment", "cash"],
-    "travel_document": ["passport", "visa", "documents", "renewal"],
-    "family": ["family", "wife", "husband", "spouse", "partner", "mother", "mom", "father", "dad", "son", "daughter", "brother", "sister", "kids", "children"],
-    "celebration": ["anniversary", "wedding", "celebration", "party"],
-    "leader": ["ceo", "boss", "founder", "leader", "chief", "head", "director", "manager"],
-    "hobby": ["hobby", "hobbies", "plays", "play", "sport", "sports", "chess", "tennis", "golf"]
+  "synonyms": {
+    "like": [
+      "like",
+      "likes",
+      "love",
+      "loves",
+      "enjoy",
+      "enjoys",
+      "favourite",
+      "favorite",
+      "prefer",
+      "prefers"
+    ],
+    "allergy": [
+      "allergy",
+      "allergies",
+      "allergic"
+    ],
+    "phone": [
+      "phone",
+      "mobile",
+      "cell",
+      "telephone",
+      "tel"
+    ],
+    "email": [
+      "email",
+      "e-mail"
+    ],
+    "birthday": [
+      "birthday",
+      "bday",
+      "birthdate",
+      "dob",
+      "born"
+    ],
+    "job": [
+      "job",
+      "work",
+      "works",
+      "occupation",
+      "career",
+      "profession"
+    ],
+    "employer": [
+      "employer",
+      "company"
+    ],
+    "lives": [
+      "live",
+      "lives",
+      "living",
+      "stays",
+      "reside",
+      "resides"
+    ],
+    "home": [
+      "home",
+      "house"
+    ],
+    "surgery": [
+      "surgery",
+      "operation"
+    ],
+    "fear": [
+      "fear",
+      "scared",
+      "afraid",
+      "frightened",
+      "terrified",
+      "phobia"
+    ],
+    "color": [
+      "color",
+      "colour",
+      "colors",
+      "colours"
+    ],
+    "owes": [
+      "owe",
+      "owes"
+    ],
+    "money": [
+      "money",
+      "cash"
+    ],
+    "mother": [
+      "mother",
+      "mom",
+      "mum"
+    ],
+    "father": [
+      "father",
+      "dad"
+    ],
+    "kids": [
+      "kids",
+      "children"
+    ],
+    "doctor": [
+      "doctor",
+      "physician"
+    ],
+    "hobby": [
+      "hobby",
+      "hobbies"
+    ],
+    "boss": [
+      "boss",
+      "manager"
+    ]
+  },
+  "topics": {
+    "allergy": [
+      "allergy",
+      "allergies",
+      "allergic",
+      "intolerance",
+      "intolerant",
+      "anaphylaxis"
+    ],
+    "food": [
+      "food",
+      "foods",
+      "eat",
+      "eats",
+      "eating",
+      "meal",
+      "meals",
+      "cuisine",
+      "dish",
+      "dishes",
+      "snack",
+      "peanut",
+      "peanuts",
+      "restaurant",
+      "allergy",
+      "allergic"
+    ],
+    "diet": [
+      "diet",
+      "vegetarian",
+      "vegan",
+      "halal",
+      "kosher",
+      "meat",
+      "pescatarian"
+    ],
+    "drink": [
+      "drink",
+      "drinks",
+      "coffee",
+      "tea",
+      "latte",
+      "lattes",
+      "espresso",
+      "beverage",
+      "cappuccino"
+    ],
+    "phone": [
+      "phone",
+      "mobile",
+      "cell",
+      "number",
+      "telephone",
+      "tel",
+      "whatsapp",
+      "call"
+    ],
+    "email": [
+      "email",
+      "mail",
+      "e-mail",
+      "inbox"
+    ],
+    "birthday": [
+      "birthday",
+      "bday",
+      "born",
+      "birthdate",
+      "dob"
+    ],
+    "work": [
+      "work",
+      "works",
+      "job",
+      "employer",
+      "occupation",
+      "career",
+      "profession",
+      "office",
+      "engineer",
+      "company"
+    ],
+    "home": [
+      "home",
+      "address",
+      "lives",
+      "live",
+      "living",
+      "stays",
+      "house",
+      "apartment",
+      "flat"
+    ],
+    "school": [
+      "school",
+      "class",
+      "teacher",
+      "university",
+      "college"
+    ],
+    "health": [
+      "health",
+      "surgery",
+      "operation",
+      "hospital",
+      "doctor",
+      "illness",
+      "sick",
+      "medical",
+      "medication",
+      "medicine",
+      "vet"
+    ],
+    "fear": [
+      "fear",
+      "scared",
+      "afraid",
+      "frightened",
+      "phobia",
+      "terrified"
+    ],
+    "flower": [
+      "flower",
+      "flowers",
+      "tulip",
+      "tulips",
+      "rose",
+      "roses",
+      "lily",
+      "orchid",
+      "daisy"
+    ],
+    "color": [
+      "color",
+      "colour",
+      "colors",
+      "colours",
+      "green",
+      "blue",
+      "red",
+      "yellow",
+      "purple",
+      "pink",
+      "orange",
+      "black",
+      "white"
+    ],
+    "pet_breed": [
+      "breed",
+      "retriever",
+      "labrador",
+      "poodle",
+      "beagle",
+      "terrier",
+      "bulldog",
+      "tabby",
+      "persian"
+    ],
+    "money": [
+      "money",
+      "owes",
+      "owe",
+      "debt",
+      "loan",
+      "lent",
+      "dollars",
+      "dollar",
+      "paid",
+      "pay",
+      "payment",
+      "cash"
+    ],
+    "travel_document": [
+      "passport",
+      "visa",
+      "documents",
+      "renewal"
+    ],
+    "family": [
+      "family",
+      "wife",
+      "husband",
+      "spouse",
+      "partner",
+      "mother",
+      "mom",
+      "father",
+      "dad",
+      "son",
+      "daughter",
+      "brother",
+      "sister",
+      "kids",
+      "children"
+    ],
+    "celebration": [
+      "anniversary",
+      "wedding",
+      "celebration",
+      "party"
+    ],
+    "leader": [
+      "ceo",
+      "boss",
+      "founder",
+      "leader",
+      "chief",
+      "head",
+      "director",
+      "manager"
+    ],
+    "hobby": [
+      "hobby",
+      "hobbies",
+      "plays",
+      "play",
+      "sport",
+      "sports",
+      "chess",
+      "tennis",
+      "golf"
+    ]
   }
 }

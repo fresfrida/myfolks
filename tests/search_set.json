@@ -32,7 +32,9 @@
     "save Acme office in Singapore",
     "save Acme CEO is Lina",
     "save Marla likes hiking",
-    "save --new Maria likes painting"
+    "save --new Maria likes painting",
+    "save Priya likes ginger tea",
+    "save Priya prefers aisle seats"
   ],
   "questions": [
     {
@@ -118,7 +120,7 @@
     },
     {
       "q": "priya mobile",
-      "expect": "related",
+      "expect": "direct",
       "find": "+65 9123 4567"
     },
     {
@@ -133,7 +135,7 @@
     },
     {
       "q": "priya job",
-      "expect": "related",
+      "expect": "direct",
       "find": "Acme Robotics"
     },
     {
@@ -223,7 +225,7 @@
     },
     {
       "q": "priya dog scared",
-      "expect": "related",
+      "expect": "direct",
       "find": "thunderstorms"
     },
     {
@@ -247,7 +249,7 @@
     },
     {
       "q": "biscuit bday",
-      "expect": "related",
+      "expect": "direct",
       "find": "March 3"
     },
     {
@@ -302,7 +304,7 @@
     },
     {
       "q": "asha operation",
-      "expect": "related",
+      "expect": "direct",
       "find": "hip surgery"
     },
     {
@@ -515,8 +517,8 @@
     },
     {
       "q": "priya loves",
-      "expect": "related",
-      "find": "Queenstown"
+      "expect": "direct",
+      "find": "favourite colour"
     },
     {
       "q": "prya allergic",
@@ -532,6 +534,16 @@
       "q": "marca",
       "expect": "ask",
       "find": "Did you mean"
+    },
+    {
+      "q": "priya likes",
+      "expect": "direct",
+      "find": "ginger tea"
+    },
+    {
+      "q": "what can priya eat",
+      "expect": "related",
+      "find": "allergic to peanuts"
     }
   ]
 }

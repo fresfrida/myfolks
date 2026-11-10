@@ -1,8 +1,8 @@
 """Finding lines on one card, with no model.
 
 Each word becomes a vector of its 3-letter chunks. A line is a direct answer only when every
-important question word matches a word on the line by spelling. Anything else above the cutoff,
-including any match through the concept list, is shown as related. Below the cutoff is nothing.
+important question word matches a word on the line by spelling or as a true synonym. Anything else
+above the cutoff, including any match through a looser topic list, is shown as related. Below the cutoff is nothing.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from .text import STOPWORDS, changed_one_letter, load_data, one_edit_apart, tokens, word
 
 SPELLING_THRESHOLD = 0.66
-CONCEPT_STRENGTH = 0.8
+TOPIC_STRENGTH = 0.8
 RELATED_CUTOFF = 0.5
 LAST_WORD_WEIGHT = 2
 MIN_PREFIX = 4
@@ -26,7 +26,9 @@ MAX_RELATED = 3
 _SUFFIXES = ("ies", "ied", "ing", "ed", "es", "s", "ic", "y")
 _MIN_STEM = 4
 _MIN_PLURAL_STEM = 3
-_CONCEPT_GROUPS = [frozenset(terms) for terms in load_data("concepts.json")["groups"].values()]
+_WORD_LISTS = load_data("concepts.json")
+_SYNONYM_GROUPS = [frozenset(terms) for terms in _WORD_LISTS["synonyms"].values()]
+_TOPIC_GROUPS = [frozenset(terms) for terms in _WORD_LISTS["topics"].values()]
 
 
 @dataclass(frozen=True)
@@ -86,13 +88,9 @@ def spelled_alike(question_word: str, line_word: str) -> bool:
     return cosine(chunk_vector(left), chunk_vector(right)) >= SPELLING_THRESHOLD
 
 
-def _concept_groups_for(value: str) -> list[frozenset]:
-    return [group for group in _CONCEPT_GROUPS if any(spelled_alike(value, term) for term in group)]
-
-
-def _same_concept(question_word: str, line_words: list[str]) -> bool:
-    groups = _concept_groups_for(question_word)
-    return any(line_word in group for group in groups for line_word in line_words)
+def _shares_group(groups: list[frozenset], question_word: str, line_words_: list[str]) -> bool:
+    matching = [group for group in groups if any(spelled_alike(question_word, term) for term in group)]
+    return any(line_word in group for group in matching for line_word in line_words_)
 
 
 def line_words(text: str) -> list[str]:
@@ -105,12 +103,12 @@ def _exact_count(wanted: list[str], words_on_line: list[str]) -> int:
 
 
 def _strength(question_word: str, words_on_line: list[str]) -> tuple[float, bool]:
-    if any(spelled_alike(question_word, w) for w in words_on_line):
+    if any(spelled_alike(question_word, w) for w in words_on_line) or _shares_group(_SYNONYM_GROUPS, question_word, words_on_line):
         return 1.0, True
-    if _same_concept(question_word, words_on_line):
-        return CONCEPT_STRENGTH, False
+    if _shares_group(_TOPIC_GROUPS, question_word, words_on_line):
+        return TOPIC_STRENGTH, False
     if any(changed_one_letter(question_word, w, MIN_TYPO_LENGTH) for w in words_on_line):
-        return CONCEPT_STRENGTH, False
+        return TOPIC_STRENGTH, False
     return 0.0, False
 
 

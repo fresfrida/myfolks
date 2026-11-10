@@ -150,7 +150,7 @@ def test_typo_never_makes_partial_match_direct(ask_run):
     assert ask_run("marco passprot visa") in (NOTHING,) or is_unsure(ask_run("marco passprot visa"))
 
 
-@pytest.mark.parametrize("question,find", [("marco bears", "size 42"), ("sam lee chest", "chess"), ("priya loves", "Queenstown")])
+@pytest.mark.parametrize("question,find", [("marco bears", "size 42"), ("sam lee chest", "chess"), ("priya lines", "Queenstown")])
 def test_changed_letter_is_only_related(loaded, question, find):
     reply = loaded(question)
     assert is_unsure(reply) and find in reply
@@ -160,3 +160,48 @@ def test_changed_letter_helper(mod):
     changed = mod("text").changed_one_letter
     assert changed("bears", "wears", 5) and changed("chest", "chess", 5)
     assert not changed("penuts", "peanuts", 5) and not changed("wears", "wears", 5) and not changed("cat", "car", 5)
+
+
+def test_priya_likes_finds_all_synonyms_as_direct(ask_run):
+    ask_run("save Priya likes tea")
+    ask_run("save Priya favourite colour is green")
+    ask_run("save Priya prefers window seats")
+    ask_run("save Priya loves hiking")
+    ask_run("save Priya enjoys chess")
+    reply = ask_run("priya likes")
+    assert not is_unsure(reply)
+    for words in ("likes tea", "favourite colour is green", "prefers window seats", "loves hiking", "enjoys chess"):
+        assert words in reply
+
+
+def test_every_important_word_must_still_match(ask_run):
+    ask_run("save Priya likes tea")
+    reply = ask_run("priya likes hiking")
+    assert not reply.startswith("Priya\nlikes tea") or is_unsure(reply)
+
+
+def test_what_can_she_eat_stays_not_sure(ask_run):
+    ask_run("save Priya is allergic to peanuts")
+    reply = ask_run("what can priya eat")
+    assert is_unsure(reply) and "allergic to peanuts" in reply
+
+
+@pytest.mark.parametrize("question", ["priya allergy", "priya allergies", "priya allergic"])
+def test_allergy_words_are_synonyms(ask_run, question):
+    ask_run("save Priya is allergic to peanuts")
+    assert not is_unsure(ask_run(question)) and "peanuts" in ask_run(question)
+
+
+def test_food_finding_allergic_is_only_a_topic_link(ask_run):
+    ask_run("save Priya is allergic to shellfish")
+    assert is_unsure(ask_run("priya food"))
+
+
+def test_a_topic_never_counts_as_direct(ask_run):
+    ask_run("save Marco owes me money")
+    assert is_unsure(ask_run("marco debt"))
+
+
+def test_synonym_and_topic_lists_are_separate(mod):
+    data = mod("text").load_data("concepts.json")
+    assert set(data) >= {"synonyms", "topics"} and "groups" not in data
