@@ -4,5 +4,12 @@ description: Exact, private recall of your people through /contacts, with no AI 
 requires_hermes: ">=0.23.1"
 python_dependencies:
   - "cryptography>=3.4.8,<51"
+provides_tools:
+  - myfolks_contacts
 provides_hooks:
   - pre_tool_call
+config_schema:
+  ai_tool:
+    type: bool
+    default: false
+    description: Let Hermes's AI look up matching lines and save new ones. Off by default.

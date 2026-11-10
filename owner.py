@@ -95,6 +95,21 @@ def is_paired_owner(connection: sqlite3.Connection, platform: str, user_id: str)
     return bool(connection.execute("SELECT 1 FROM owners WHERE platform=? AND user_id=?", (platform, str(user_id))).fetchone())
 
 
+def is_messaging_owner(vault, platform: str, source) -> bool:
+    """True only for the owner's private chat. Any doubt is a no."""
+    from .vault import VaultError
+
+    if not is_private_sender(source):
+        return False
+    if sole_allowed_user(platform) == str(source.user_id):
+        return True
+    try:
+        with vault.read() as connection:
+            return is_paired_owner(connection, platform, str(source.user_id))
+    except VaultError:
+        return False
+
+
 def _digest(code: str) -> str:
     return hashlib.sha256(code.encode("utf-8")).hexdigest()
 

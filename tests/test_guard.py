@@ -145,7 +145,7 @@ def test_register_declares_what_manifest_says():
     registered = yaml_free.registered()
     manifest = yaml_free.manifest(Path(__file__).parent.parent / "plugin.yaml")
     assert sorted(registered["hooks"]) == sorted(manifest["provides_hooks"])
-    assert registered["tools"] == [] and manifest.get("provides_tools", []) == []
+    assert sorted(registered["tools"]) == sorted(manifest["provides_tools"])
     assert registered["commands"] == ["contacts"]
     assert registered["cli"] == ["myfolks"]
     assert sys.modules["myfolks"] is not None

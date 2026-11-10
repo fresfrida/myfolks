@@ -156,3 +156,7 @@ CANCELLED = "Nothing was changed."
 
 def did_you_mean_fallback(question: str, commands: list[str]) -> str:
     return "\n".join([question, "Nothing was saved. To go ahead, send one of these:", *commands])
+
+
+def ai_saved(name: str, text: str) -> str:
+    return f'MyFolks saved to {name}: "{text}"'

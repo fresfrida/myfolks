@@ -76,19 +76,6 @@ def _is_pair_request(raw: str) -> Optional[str]:
     return None
 
 
-def _messaging_owner(vault: Vault, platform: str, source) -> bool:
-    """True only for the owner's private chat. Any doubt is a no."""
-    if not owner.is_private_sender(source):
-        return False
-    if owner.sole_allowed_user(platform) == str(source.user_id):
-        return True
-    try:
-        with vault.read() as connection:
-            return owner.is_paired_owner(connection, platform, str(source.user_id))
-    except VaultError:
-        return False
-
-
 def _pair(vault: Vault, platform: str, source, code: str) -> str:
     if not owner.is_private_sender(source):
         return messages.REFUSED
@@ -111,7 +98,7 @@ def handle(raw_args: str, *, platform: Optional[str] = None, source=None, ask: O
             code = _is_pair_request(raw)
             if code is not None:
                 return _pair(store, platform.strip().lower(), source, code)
-            if not _messaging_owner(store, platform.strip().lower(), source):
+            if not owner.is_messaging_owner(store, platform.strip().lower(), source):
                 return messages.REFUSED
             label = owner.messaging_label(platform)
         return _dispatch(raw, store, label, label == "terminal", ask)

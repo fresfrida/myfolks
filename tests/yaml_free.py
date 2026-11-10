@@ -23,6 +23,12 @@ class FakeContext:
     def ask_choice(self, _question, _choices):
         return None
 
+    def get_config(self, _key, default=None):
+        return default
+
+    def post_message(self, _text):
+        return None
+
 
 def registered():
     context = FakeContext()

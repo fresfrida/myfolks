@@ -232,7 +232,16 @@ def test_handler_needs_no_import_after_register(monkeypatch):
         def register_cli_command(self, *_args):
             pass
 
+        def register_tool(self, *_args, **_kwargs):
+            pass
+
+        def get_config(self, _key, default=None):
+            return default
+
         def ask_choice(self, *_args):
+            return None
+
+        def post_message(self, _text):
             return None
 
     package.register(Context())
