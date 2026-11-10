@@ -8,14 +8,13 @@ import sqlite3
 from dataclasses import dataclass
 from typing import Callable, Optional
 
-from . import cards, db, lookup, messages, search
+from . import cards, db, lookup, messages, owner, search
 from .text import Token, normalize, query_words, tokens
-from .vault import Busy, NotSetUp, Refused, Vault
+from .vault import Busy, NotSetUp, Refused, Vault, VaultError
 
 logger = logging.getLogger(__name__)
 
 MAX_TEXT = 2000
-_OWNER_SURFACES = {"cli": "terminal", "tui": "terminal", "local": "terminal", "desktop": "Desktop"}
 _SELF_WORDS = {"me", "my", "i", "myself"}
 _ALIAS_WORDS = {"alias", "aka", "nickname"}
 
@@ -58,19 +57,52 @@ def _picker(connection: sqlite3.Connection, ask: Optional[Callable]) -> Callable
     return pick
 
 
-def _surface_label(platform: Optional[str]) -> tuple[Optional[str], bool]:
-    name = (platform or "").strip().lower()
-    if name in _OWNER_SURFACES:
-        return _OWNER_SURFACES[name], _OWNER_SURFACES[name] == "terminal"
-    return None, False
+def _is_pair_request(raw: str) -> Optional[str]:
+    parts = tokens(raw)
+    if len(parts) == 2 and parts[0].text.casefold() == "pair":
+        return parts[1].text
+    return None
+
+
+def _messaging_owner(vault: Vault, platform: str, source) -> bool:
+    """True only for the owner's private chat. Any doubt is a no."""
+    if not owner.is_private_sender(source):
+        return False
+    if owner.sole_allowed_user(platform) == str(source.user_id):
+        return True
+    try:
+        with vault.read() as connection:
+            return owner.is_paired_owner(connection, platform, str(source.user_id))
+    except VaultError:
+        return False
+
+
+def _pair(vault: Vault, platform: str, source, code: str) -> str:
+    if not owner.is_private_sender(source):
+        return messages.REFUSED
+    try:
+        with vault.write() as connection:
+            paired = owner.try_pair(connection, platform, str(source.user_id), code)
+    except VaultError:
+        return messages.REFUSED
+    return messages.PAIRED if paired else messages.REFUSED
 
 
 def handle(raw_args: str, *, platform: Optional[str] = None, source=None, ask: Optional[Callable] = None, vault: Optional[Vault] = None) -> str:
-    label, terminal = _surface_label(platform)
-    if label is None:
-        return messages.REFUSED
+    raw = raw_args or ""
+    store = vault or Vault()
+    label = owner.local_surface(platform)
     try:
-        return _dispatch(raw_args or "", vault or Vault(), label, terminal, ask)
+        if label is None:
+            if not platform:
+                return messages.REFUSED
+            code = _is_pair_request(raw)
+            if code is not None:
+                return _pair(store, platform.strip().lower(), source, code)
+            if not _messaging_owner(store, platform.strip().lower(), source):
+                return messages.REFUSED
+            label = owner.messaging_label(platform)
+        return _dispatch(raw, store, label, label == "terminal", ask)
     except NeedsChoice as choice:
         return choice.reply
     except NotSetUp:

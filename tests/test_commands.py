@@ -191,8 +191,12 @@ def test_structured_values_recognized(run, vault):
     assert rows[4][0] is None
 
 
-def test_refuses_unknown_surface(run):
+def test_refuses_messaging_without_a_source(run):
     assert run("", platform="telegram") == "MyFolks isn't available here."
+
+
+def test_refuses_when_platform_missing(run):
+    assert run("", platform=None) == "MyFolks isn't available here."
 
 
 def test_not_set_up_message(tmp_path, mod):

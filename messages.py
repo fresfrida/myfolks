@@ -51,6 +51,8 @@ NOTHING_TO_UNDO = "Nothing to undo."
 ALREADY_LINKED = "Already linked."
 ERROR = "Something went wrong. Nothing was changed."
 NO_LINES = "No lines saved yet."
+PAIRED = "Linked. This chat is now yours."
+PAIR_CODE_INTRO = "Send this in a private chat with your Hermes bot within 10 minutes:"
 
 
 def overview(count: int) -> str:
@@ -99,3 +101,7 @@ def history_line(text: str, iso_timestamp: str, source: str, closed_iso: str | N
 
 def history_title(name: str) -> str:
     return f"{name}: history"
+
+
+def pair_instruction(code: str) -> str:
+    return f"/contacts pair {code}"
