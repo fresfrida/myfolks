@@ -214,3 +214,29 @@ def test_refuses_when_platform_missing(run):
 def test_not_set_up_message(tmp_path, mod):
     instance = mod("vault").Vault(tmp_path, keys=mod("device_key").DeviceKeys(tmp_path, use_keychain=False))
     assert "hermes myfolks setup" in mod("commands").handle("", platform="cli", vault=instance)
+
+
+def test_handler_needs_no_import_after_register(monkeypatch):
+    import sys
+
+    package = sys.modules["myfolks"]
+    captured = {}
+
+    class Context:
+        def register_command(self, name, handler, **_kwargs):
+            captured[name] = handler
+
+        def register_hook(self, *_args):
+            pass
+
+        def register_cli_command(self, *_args):
+            pass
+
+        def ask_choice(self, *_args):
+            return None
+
+    package.register(Context())
+    monkeypatch.setattr(package, "__path__", [])
+    monkeypatch.delitem(sys.modules, "myfolks.commands")
+    monkeypatch.delattr(package, "commands", raising=False)
+    assert isinstance(captured["contacts"]("", platform="telegram"), str)
