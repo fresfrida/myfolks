@@ -51,6 +51,11 @@ NOTHING_TO_UNDO = "Nothing to undo."
 ALREADY_LINKED = "Already linked."
 ERROR = "Something went wrong. Nothing was changed."
 NO_LINES = "No lines saved yet."
+REVIEW_EMPTY = "Nothing to review."
+REVIEW_HOW = "Use /contacts review merge <number> [card number] or /contacts review keep <number>."
+REVIEW_NOT_FOUND = "That item isn't on the review list."
+REVIEW_WHICH_CARD = "Which card? Add its number, like /contacts review merge 3 #12."
+IMPORT_FAILED = "That file couldn't be imported. Nothing was changed."
 PAIRED = "Linked. This chat is now yours."
 PAIR_CODE_INTRO = "Send this in a private chat with your Hermes bot within 10 minutes:"
 
@@ -105,3 +110,22 @@ def history_title(name: str) -> str:
 
 def pair_instruction(code: str) -> str:
     return f"/contacts pair {code}"
+
+
+def done(summary: str) -> str:
+    return f"Done: {summary}."
+
+
+def review_title(count: int) -> str:
+    return f"To review: {count}"
+
+
+def review_entry(item: int, name: str, lines: list[str], candidates: list[tuple[int, str]]) -> str:
+    matches = ", ".join(f"{card_name} (#{card_id})" for card_id, card_name in candidates)
+    shown = "; ".join(lines)
+    return f"{item}. {name}" + (f" [{shown}]" if shown else "") + f" could be: {matches}"
+
+
+def import_summary(new: int, merged: int, review: int, unchanged: int, skipped: int, trimmed: int) -> str:
+    text = f"Imported. New: {new}. Merged: {merged}. To review: {review}. Unchanged: {unchanged}. Skipped: {skipped}."
+    return text + (f" Shortened to fit: {trimmed}." if trimmed else "")

@@ -58,7 +58,7 @@ def chunk_vector(value: str) -> Counter:
     return Counter(padded[i : i + 3] for i in range(len(padded) - 2))
 
 
-def _cosine(left: Counter, right: Counter) -> float:
+def cosine(left: Counter, right: Counter) -> float:
     shared = sum(left[key] * right[key] for key in left.keys() & right.keys())
     if not shared:
         return 0.0
@@ -78,7 +78,7 @@ def spelled_alike(question_word: str, line_word: str) -> bool:
         return True
     if min(len(left), len(right)) < MIN_PREFIX:
         return False
-    return _cosine(chunk_vector(left), chunk_vector(right)) >= SPELLING_THRESHOLD
+    return cosine(chunk_vector(left), chunk_vector(right)) >= SPELLING_THRESHOLD
 
 
 def _concept_groups_for(value: str) -> list[frozenset]:

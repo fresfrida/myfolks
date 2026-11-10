@@ -13,6 +13,7 @@ _MONTHS = {name: i + 1 for i, name in enumerate(
     "january february march april may june july august september october november december".split())}
 _MONTHS.update({name[:3]: number for name, number in list(_MONTHS.items())})
 _MONTHS["sept"] = 9
+_EARLIEST_REAL_YEAR = 1800  # exports write placeholder years such as 1604 when the year is unknown
 
 
 @dataclass(frozen=True)
@@ -53,7 +54,7 @@ def parse_birthday(value: str) -> Optional[tuple[Optional[int], int, int]]:
     match = re.fullmatch(r"(\d{4})-?(\d{2})-?(\d{2})", text)
     if match:
         year, month, day = int(match[1]), int(match[2]), int(match[3])
-        return (year, month, day) if _valid(month, day) else None
+        return (year if year >= _EARLIEST_REAL_YEAR else None, month, day) if _valid(month, day) else None
     match = re.fullmatch(r"--(\d{2})-?(\d{2})", text)
     if match:
         month, day = int(match[1]), int(match[2])

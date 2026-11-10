@@ -8,7 +8,7 @@ import sqlite3
 from dataclasses import dataclass
 from typing import Callable, Optional
 
-from . import cards, db, lookup, messages, owner, search
+from . import cards, db, importer, lookup, messages, owner, search
 from .text import Token, normalize, query_words, tokens
 from .vault import Busy, NotSetUp, Refused, Vault, VaultError
 
@@ -119,7 +119,7 @@ def handle(raw_args: str, *, platform: Optional[str] = None, source=None, ask: O
 def _dispatch(raw: str, vault: Vault, label: str, terminal: bool, ask: Optional[Callable]) -> str:
     parts = tokens(raw)
     verb = parts[0].text.casefold() if parts and not parts[0].quoted else ""
-    writers = {"save": _save, "link": _link, "correct": _correct, "undo": _undo}
+    writers = {"save": _save, "link": _link, "correct": _correct, "undo": _undo, "review": _review}
     if verb in writers:
         with vault.write() as connection:
             return writers[verb](Context(connection, label, terminal, _picker(connection, ask)), raw, parts[1:])
@@ -236,6 +236,39 @@ def _correct(context: Context, raw: str, parts: list[Token]) -> str:
     cards.correct_detail(change, lines[number - 1], text, context.source_label)
     change.finish(f"corrected a line on {card['name']}")
     return messages.saved(card["name"])
+
+
+def _review_list(context: Context) -> str:
+    rows = importer.pending_reviews(context.connection)
+    if not rows:
+        return messages.REVIEW_EMPTY
+    entries = []
+    for row in rows[:10]:
+        contact, candidates = importer.review_contact(row)
+        names = [(card_id, cards.card_by_id(context.connection, card_id)["name"]) for card_id in candidates]
+        entries.append(messages.review_entry(row["id"], contact.name, contact.lines()[:2], names))
+    return "\n".join([messages.review_title(len(rows)), *entries, messages.REVIEW_HOW])
+
+
+def _review(context: Context, _raw: str, parts: list[Token]) -> str:
+    if not parts:
+        return _review_list(context)
+    action = parts[0].text.casefold()
+    if action not in ("merge", "keep") or len(parts) < 2 or not parts[1].text.isdigit():
+        return messages.REVIEW_HOW
+    row = context.connection.execute("SELECT * FROM review WHERE id=? AND status='pending'", (int(parts[1].text),)).fetchone()
+    if row is None:
+        return messages.REVIEW_NOT_FOUND
+    card_id = None
+    if action == "merge":
+        _contact, candidates = importer.review_contact(row)
+        if len(parts) >= 3 and parts[2].text.lstrip("#").isdigit():
+            card_id = int(parts[2].text.lstrip("#"))
+        elif len(candidates) == 1:
+            card_id = candidates[0]
+        if card_id not in candidates:
+            return messages.REVIEW_WHICH_CARD
+    return messages.done(importer.resolve_review(context.connection, row, action, card_id, context.source_label))
 
 
 def _undo(context: Context, _raw: str, _parts: list[Token]) -> str:

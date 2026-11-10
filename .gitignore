@@ -2,6 +2,7 @@ admin/
 plan/
 .env
 *.vcf
+!tests/fixtures/*.vcf
 *.enc
 .DS_Store
 __pycache__/
