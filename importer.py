@@ -203,6 +203,9 @@ def _row_name(row: dict[str, str]) -> str:
 
 def _csv_contact(row: dict[str, str]) -> Incoming:
     contact = Incoming(name=_clean(_row_name(row)))
+    if len(contact.name) > MAX_FIELD_CHARS:
+        contact.name = contact.name[:MAX_FIELD_CHARS]
+        contact.trimmed += 1
     if row.get("nickname"):
         _add(contact.aliases, row["nickname"], contact)
     for key, value in row.items():
@@ -233,14 +236,23 @@ def _csv_contact(row: dict[str, str]) -> Incoming:
 
 
 def parse_csv(text: str) -> list[Incoming]:
+    """Fields up to the whole file's size are read, then long ones are shortened like long notes.
+    Anything the csv module still refuses becomes ImportFailed with the plain message."""
     first_line = text.split("\n", 1)[0]
     delimiter = max(",;\t", key=first_line.count)
-    reader = csv.DictReader(io.StringIO(text), delimiter=delimiter)
-    columns = {_key(column) for column in reader.fieldnames or [] if column}
-    recognized = {"name", "first name", "given name", "last name", "family name", "company"}
-    if not columns & recognized:
-        raise ImportFailed("no name columns")
-    return [_csv_contact({_key(k): (v or "").strip() for k, v in row.items() if k}) for row in reader]
+    previous = csv.field_size_limit()
+    csv.field_size_limit(max(previous, MAX_FILE_BYTES))
+    try:
+        reader = csv.DictReader(io.StringIO(text), delimiter=delimiter)
+        columns = {_key(column) for column in reader.fieldnames or [] if column}
+        recognized = {"name", "first name", "given name", "last name", "family name", "company"}
+        if not columns & recognized:
+            raise ImportFailed("no name columns")
+        return [_csv_contact({_key(k): (v or "").strip() for k, v in row.items() if k}) for row in reader]
+    except csv.Error as exc:
+        raise ImportFailed("not a readable CSV file") from exc
+    finally:
+        csv.field_size_limit(previous)
 
 
 def parse_file(path: Path) -> list[Incoming]:

@@ -236,3 +236,42 @@ def test_import_refuses_without_a_terminal(vault, mod, capsys):
     assert mod("cli").cmd_import(args, vault=vault, stdin=Terminal(), stdout=io.StringIO()) == 1
     assert "Run this directly in your own terminal." in capsys.readouterr().err
     assert vault.store_path.read_bytes() == before
+
+
+def test_huge_csv_field_is_shortened_and_counted(vault, mod, tmp_path):
+    big = tmp_path / "big.csv"
+    big.write_text('Name,Phone,Notes\nPriya,+1 202 555 0101,"' + "x" * 200_000 + '"\n')
+    contacts = mod("importer").parse_file(big)
+    assert len(contacts) == 1 and len(contacts[0].details[0]) == 2000 and contacts[0].trimmed == 1
+    out = Terminal()
+    assert mod("cli").cmd_import(argparse.Namespace(path=str(big)), vault=vault, stdin=Terminal(), stdout=out) == 0
+    assert "Shortened to fit: 1." in out.getvalue()
+
+
+def test_huge_csv_name_is_shortened(mod, tmp_path):
+    big = tmp_path / "big.csv"
+    big.write_text('Name,Phone\n"' + "N" * 200_000 + '",+1 202 555 0101\n')
+    contact = mod("importer").parse_file(big)[0]
+    assert len(contact.name) == 2000 and contact.trimmed == 1
+
+
+def test_malformed_csv_is_a_plain_failure(vault, mod, tmp_path, monkeypatch):
+    import csv
+
+    bad = tmp_path / "bad.csv"
+    bad.write_text('Name,Notes\nPriya,"unterminated quote\n')
+
+    class Broken:
+        def __init__(self, *_args, **_kwargs):
+            self.fieldnames = ["Name", "Notes"]
+
+        def __iter__(self):
+            raise csv.Error("simulated malformed CSV")
+
+    monkeypatch.setattr(mod("importer").csv, "DictReader", Broken)
+    with pytest.raises(mod("importer").ImportFailed):
+        mod("importer").parse_file(bad)
+    out = Terminal()
+    assert mod("cli").cmd_import(argparse.Namespace(path=str(bad)), vault=vault, stdin=Terminal(), stdout=out) == 1
+    assert out.getvalue().strip() == "That file couldn't be imported. Nothing was changed."
+    assert csv.field_size_limit() == 131072
