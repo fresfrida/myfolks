@@ -53,6 +53,8 @@ class FakeHermes:
         failures = {
             "not_signed_in": ProviderNotSignedIn(f"Not signed in to google for plugin 'myfolks'. {SECRET}"),
             "revoked": ProviderNotSignedIn(f"The google sign-in for plugin 'myfolks' was revoked (invalid_grant). {SECRET}"),
+            # What Hermes 0.23.1 raises once a Testing app's 7-day refresh token runs out (checked with the real code):
+            "expired": ProviderNotSignedIn(f"The google sign-in for plugin 'myfolks' was revoked (invalid_grant). Run `hermes auth add myfolks:google` to sign in again. {SECRET}"),
             "network": ConnectionError(f"connect failed {SECRET}"),
             "timeout": TimeoutError(f"timed out {SECRET}"),
             "refused": PermissionError(f"Refusing to send the google sign-in {SECRET}"),
@@ -288,7 +290,7 @@ def test_unusual_exception_class_names_are_capped(mod):
 
 
 @pytest.mark.parametrize("fail, expected", [
-    ("not_signed_in", NO_SIGN_IN), ("revoked", NO_SIGN_IN),
+    ("not_signed_in", NO_SIGN_IN), ("revoked", NO_SIGN_IN), ("expired", NO_SIGN_IN),
     ("403-scope", NO_CONTACTS),
     ("403-disabled", API_OFF), ("403-legacy", API_OFF),
     ("403-other", UNREACHABLE), ("429-free-text", UNREACHABLE), ("401", UNREACHABLE), ("500", UNREACHABLE), ("302", UNREACHABLE),

@@ -167,9 +167,9 @@ Brings in the people in your Google Contacts, read-only: names, phone numbers, e
 
 Set it up once. MyFolks uses your own Google Cloud sign-in client, and Hermes keeps the sign-in:
 
-1. In the [Google Cloud console](https://console.cloud.google.com), create a project (**IAM & Admin** > **Create a Project**). Turn on the People API (**APIs & Services** > **Library**, then **People API** > **Enable**). Set up **Google Auth platform** for the project; if you choose **External** under **Audience**, add your own Google account under **Test users**. Then create the client: **Google Auth platform** > **Clients** > **Create Client**, with **Application type** set to **Desktop app**.
+1. In the [Google Cloud console](https://console.cloud.google.com), create a project (**IAM & Admin** > **Create a Project**). Turn on the People API (**APIs & Services** > **Library**, then **People API** > **Enable**). Set up **Google Auth platform** for the project. Then create the client: **Google Auth platform** > **Clients** > **Create Client**, with **Application type** set to **Desktop app**. Under Audience, choose External, then Publish app so it shows In production. You don't need test users. (Left in Testing, Google signs you out every 7 days.)
 2. Put its client ID and client secret in your Hermes `.env` (`~/.hermes/.env`, or your profile's own folder) as `MYFOLKS_GOOGLE_CLIENT_ID` and `MYFOLKS_GOOGLE_CLIENT_SECRET`.
-3. On the computer that runs Hermes, run `hermes auth add myfolks:google` and allow Contacts in the browser.
+3. On the computer that runs Hermes, run hermes auth add myfolks:google. Google says it hasn't verified this app, because it's your own: choose Advanced, then Go to <your app name>, and allow Contacts.
 4. Send `/myfolks sync`.
 
 The first sync turns sync on. After that, when you save or ask about someone MyFolks doesn't have yet, it checks Google first, at most every 10 minutes. Matching works like an import: an exact phone or email merges, a similar name waits in `/contacts review`, and `/contacts undo` reverses the last sync.
