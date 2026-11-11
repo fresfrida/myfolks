@@ -25,4 +25,4 @@ config_schema:
     type: str
     default: ""
     label: Share with
-    description: 'People who may use MyFolks in a private chat, separated by commas, as platform:sender-id:access. Access is read, or add to also save lines. Example: telegram:12345:read, telegram:67890:add'
+    description: 'People who may use MyFolks in a private chat, separated by commas, as platform:sender-id:access. Access is read, to look up people by name and never browse, or add to also save lines. Example: telegram:12345:read, telegram:67890:add'

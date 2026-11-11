@@ -139,7 +139,7 @@ It takes effect from your next session. Hermes can then look up only the lines t
 
 ## Sharing with someone
 
-Sharing is off by default. Add people as `platform:sender-id:access`, separated by commas. Access is `read`, or `add` to also save lines.
+Sharing is off by default. Add people as `platform:sender-id:access`, separated by commas. Access is `read` or `add`. `read` lets someone look up people by name and nothing else: they can't browse cards, open a card by number or see history. `add` also lets them save lines.
 
 ```yaml
 plugins:

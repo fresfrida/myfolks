@@ -56,7 +56,7 @@ def _hint(connection: sqlite3.Connection, card: sqlite3.Row) -> str:
     return lines[0]["text"][:40] if lines else ""
 
 
-def _picker(connection: sqlite3.Connection, answers: dict) -> Callable:
+def _picker(connection: sqlite3.Connection, answers: dict, is_owner: bool = True) -> Callable:
     def pick(matches: list, _context: str) -> sqlite3.Row:
         if len(matches) == 1:
             return matches[0]
@@ -64,6 +64,13 @@ def _picker(connection: sqlite3.Connection, answers: dict) -> Callable:
         for card in matches:
             if answers.get(key) == str(card["id"]):
                 return card
+        if not is_owner:  # people the owner shares with look up by name only: no card numbers, no hints
+            raise NeedsAnswer(
+                key,
+                messages.CHOOSE_QUESTION,
+                [{"value": str(card["id"]), "label": messages.choice_label(card["name"])} for card in matches],
+                messages.choose_names_fallback([card["name"] for card in matches]),
+            )
         options = [(card["id"], card["name"], _hint(connection, card)) for card in matches]
         raise NeedsAnswer(
             key,
@@ -157,7 +164,8 @@ def _offer_link(reply: str, offer: tuple[str, str, str], vault: Vault, label: st
 
 def _context(connection: sqlite3.Connection, label: str, terminal: bool, answers: dict, access: str = owner.FULL_ACCESS) -> Context:
     show_private = label in owner.LOCAL_SURFACES.values()
-    return Context(connection, label, terminal, _picker(connection, answers), answers, show_private, access == owner.FULL_ACCESS)
+    is_owner = access == owner.FULL_ACCESS
+    return Context(connection, label, terminal, _picker(connection, answers, is_owner), answers, show_private, is_owner)
 
 
 def _closest_verb(word: str) -> Optional[str]:
@@ -205,6 +213,8 @@ def _allowed_for(access: str, verb: str) -> bool:
 
 def _run(raw: str, vault: Vault, label: str, terminal: bool, answers: dict, access: str) -> str:
     parts = tokens(raw)
+    if access != owner.FULL_ACCESS and any(part.text.startswith("#") and len(part.text) > 1 for part in parts):
+        return messages.NOTHING  # only the owner opens cards by number; sharing is lookup by name, never browsing
     verb = _verb_for(vault, raw, parts, label, terminal, answers)
     if not _allowed_for(access, verb):
         return messages.REFUSED

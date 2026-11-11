@@ -295,3 +295,25 @@ def test_pair_replace_makes_a_code(seeded, mod):
     out = Terminal()
     assert mod("cli").cmd_pair(None, vault=seeded, read_secret=lambda _p: seeded.recovery_code, stdin=Terminal(), stdout=out, read_line=lambda _p: "REPLACE") == 0
     assert "Send this in a private chat" in out.getvalue()
+
+
+@pytest.mark.parametrize("access", ["read", "add"])
+def test_shared_person_cannot_open_cards_by_number(seeded, allow, send, mod, access):
+    allow("111")
+    shared = [f"telegram:222:{access}"]
+    for number in range(1, 6):
+        assert send(f"#{number}", sender("222"), shared=shared) == "Nothing saved about that."
+        assert send(f"#{number} tea", sender("222"), shared=shared) == "Nothing saved about that."
+    assert send("#1", sender("111")).startswith("Priya")
+
+
+def test_shared_person_ambiguity_lists_names_only(seeded, allow, send, mod):
+    allow("111")
+    with seeded.write() as connection:
+        change = mod("db").Change(connection, "save", "terminal")
+        mod("cards").add_card(change, "Priya", "terminal")
+        change.finish("second Priya")
+    reply = send("priya", sender("222"), shared=READ_ONLY)
+    assert reply == "More than one contact has that name: Priya, Priya."
+    assert "#" not in reply and "tea" not in reply
+    assert "#1" in send("priya", sender("111"))

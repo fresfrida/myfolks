@@ -167,6 +167,10 @@ def choose_fallback(options: list[tuple[int, str, str]]) -> str:
     return "More than one match. Use the number, like /contacts #" + str(options[0][0]) + ":\n" + "\n".join(lines)
 
 
+def choose_names_fallback(names: list[str]) -> str:
+    return "More than one contact has that name: " + ", ".join(value(name) for name in names) + "."
+
+
 def linked(left: str, relation: str, right: str, new_names: list[str]) -> str:
     created = "".join(f"\nNew card for {value(name)}." for name in new_names)
     return f"Linked: {value(left)}, {value(relation)}, {value(right)}.{created}"

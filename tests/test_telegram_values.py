@@ -33,6 +33,7 @@ TEMPLATES = {
     "more_line": lambda m: m.more_line(3, NAME),
     "answer": lambda m: m.answer(NAME, [("likes tea", "2026-01-01T00:00:00+00:00", RELATION)], True, m.telegram_words, more=2),
     "choose_fallback": lambda m: m.choose_fallback([(1, NAME, RELATION), (2, NAME, "")]),
+    "choose_names_fallback": lambda m: m.choose_names_fallback([NAME, NAME]),
     "linked": lambda m: m.linked(NAME, RELATION, NAME, [NAME]),
     "alias_added": lambda m: m.alias_added(NAME, RELATION),
     "undone": lambda m: m.undone(f"linked {NAME}, {RELATION}, Ollie"),
