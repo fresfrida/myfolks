@@ -8,6 +8,7 @@ import json
 import quopri
 import re
 import sqlite3
+import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Iterable, Optional
@@ -354,38 +355,90 @@ def _fallback_name(contact: Incoming) -> str:
     return contact.name or (contact.emails[0] if contact.emails else contact.phones[0] if contact.phones else "")
 
 
+def plan(contacts: list[Incoming]) -> list[Incoming]:
+    """Work done before the store is locked: names settled and cleaned."""
+    for contact in contacts:
+        contact.name = cards.clean_name(_fallback_name(contact))
+    return contacts
+
+
+def _apply_one(connection: sqlite3.Connection, change: db.Change, index: "_Index", contact: Incoming, source: str, summary: Summary) -> None:
+    summary.trimmed += contact.trimmed
+    if not contact.name:
+        summary.skipped += 1
+        return
+    by_value = index.by_contact_value(contact)
+    if len(by_value) == 1:
+        added = merge_into(change, next(iter(by_value)), contact, source, index)
+        if added:
+            summary.merged += 1
+        else:
+            summary.unchanged += 1
+    elif by_value:
+        _queue_review(change, contact, sorted(by_value), source)
+        summary.review += 1
+    else:
+        candidates = index.similar(normalize(contact.name))
+        if not candidates:
+            create_from(change, contact, source, index)
+            summary.new += 1
+        elif _same_lines_already_there(connection, candidates, contact):
+            summary.unchanged += 1
+        else:
+            _queue_review(change, contact, candidates, source)
+            summary.review += 1
+
+
 def apply_contacts(connection: sqlite3.Connection, contacts: list[Incoming], source: str) -> Summary:
+    """Apply every contact under one lock the caller holds."""
     summary = Summary()
     change = db.Change(connection, "import", source)
     index = _Index(connection)
-    for contact in contacts:
-        contact.name = _fallback_name(contact)
-        summary.trimmed += contact.trimmed
-        if not contact.name:
-            summary.skipped += 1
-            continue
-        by_value = index.by_contact_value(contact)
-        if len(by_value) == 1:
-            added = merge_into(change, next(iter(by_value)), contact, source, index)
-            if added:
-                summary.merged += 1
-            else:
-                summary.unchanged += 1
-        elif by_value:
-            _queue_review(change, contact, sorted(by_value), source)
-            summary.review += 1
-        else:
-            candidates = index.similar(normalize(contact.name))
-            if not candidates:
-                create_from(change, contact, source, index)
-                summary.new += 1
-            elif _same_lines_already_there(connection, candidates, contact):
-                summary.unchanged += 1
-            else:
-                _queue_review(change, contact, candidates, source)
-                summary.review += 1
+    for contact in plan(contacts):
+        _apply_one(connection, change, index, contact, source, summary)
     change.finish(f"imported from {source}")
     return summary
+
+
+BATCH_SIZE = 200
+
+
+@dataclass
+class BatchResult:
+    summary: Summary
+    applied: int
+    total: int
+    stopped: Optional[Exception] = None
+
+
+BATCH_PAUSE_SECONDS = 0.03  # longer than the store lock's 10 ms retry, so a waiting lookup gets its turn
+
+
+def import_in_batches(vault, contacts: list[Incoming], source: str, batch_size: int = BATCH_SIZE, pause: float = BATCH_PAUSE_SECONDS) -> BatchResult:
+    """Apply an import a batch at a time, each under its own short lock and atomic save, so other
+    users of the store wait for one batch at most. One undo reverses every batch."""
+    planned = plan(contacts)
+    result = BatchResult(Summary(), 0, len(planned))
+    change_id = None
+    for start in range(0, len(planned), batch_size):
+        if start:
+            time.sleep(pause)
+        part = planned[start:start + batch_size]
+        batch = Summary()
+        try:
+            with vault.write() as connection:
+                change = db.Change(connection, "import", source)
+                index = _Index(connection)
+                for contact in part:
+                    _apply_one(connection, change, index, contact, source, batch)
+                change_id = change.finish_into(f"imported from {source}", change_id)
+        except Exception as exc:  # the batch was not saved; earlier batches stay
+            result.stopped = exc
+            return result
+        for name in ("new", "merged", "review", "unchanged", "skipped", "trimmed"):
+            setattr(result.summary, name, getattr(result.summary, name) + getattr(batch, name))
+        result.applied += len(part)
+    return result
 
 
 # ---- Review list ------------------------------------------------------------------------------

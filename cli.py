@@ -111,19 +111,15 @@ def cmd_import(args, *, vault=None, stdin=None, stdout=None) -> int:
     except (OSError, importer.ImportFailed):
         print(messages.IMPORT_FAILED, file=out)
         return 1
-    try:
-        with vault.write() as connection:
-            summary = importer.apply_contacts(connection, contacts, f"{path.name} import")
-    except NotSetUp:
-        print(messages.NOT_SET_UP, file=out)
-        return 1
-    except Refused:
-        print(messages.LOCKED, file=out)
-        return 1
-    except Busy:
-        print(messages.BUSY, file=out)
+    result = importer.import_in_batches(vault, contacts, f"{path.name} import")
+    summary = result.summary
+    if result.stopped is not None and result.applied == 0:
+        print({NotSetUp: messages.NOT_SET_UP, Refused: messages.LOCKED, Busy: messages.BUSY}.get(type(result.stopped), messages.IMPORT_FAILED), file=out)
         return 1
     print(messages.import_summary(summary.new, summary.merged, summary.review, summary.unchanged, summary.skipped, summary.trimmed), file=out)
+    if result.stopped is not None:
+        print(messages.import_stopped(result.applied, result.total), file=out)
+        return 1
     return 0
 
 

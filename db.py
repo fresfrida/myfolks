@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Optional
+
 import json
 import sqlite3
 from datetime import datetime, timezone
@@ -157,6 +159,28 @@ class Change:
             "INSERT INTO changes(at,source,kind,summary,ops) VALUES(?,?,?,?,?)",
             (now(), self.source, self.kind, summary, json.dumps(self.ops, separators=(",", ":"))),
         )
+
+    def finish_into(self, summary: str, change_id: Optional[int]) -> Optional[int]:
+        """Add this batch to an earlier change, so one undo reverses every batch. Returns the change id."""
+        if change_id is None:
+            if not self.ops:
+                return None
+            cursor = self.connection.execute(
+                "INSERT INTO changes(at,source,kind,summary,ops) VALUES(?,?,?,?,?)",
+                (now(), self.source, self.kind, summary, json.dumps(self.ops, separators=(",", ":"))),
+            )
+            return cursor.lastrowid
+        row = self.connection.execute("SELECT ops, undone_at FROM changes WHERE id=?", (change_id,)).fetchone()
+        if row is None or row["undone_at"] is not None:
+            raise ChangeClosed("the earlier part was undone")
+        if self.ops:
+            ops = json.loads(row["ops"]) + self.ops
+            self.connection.execute("UPDATE changes SET ops=?, summary=? WHERE id=?", (json.dumps(ops, separators=(",", ":")), summary, change_id))
+        return change_id
+
+
+class ChangeClosed(Exception):
+    """A change can't be extended because it was undone."""
 
 
 def undo_latest(connection: sqlite3.Connection) -> str | None:
