@@ -72,8 +72,8 @@ RAW_BY_DESIGN = {
 }
 
 
-# Templates that take only numbers: no saved or typed value can reach them.
-NUMBERS_ONLY = {"sync_summary", "sync_first"}
+# Templates that take only numbers or fixed words: no saved or typed value can reach them.
+NUMBERS_ONLY = {"sync_summary", "sync_first", "help_text"}
 
 
 @pytest.mark.parametrize("template", sorted(TEMPLATES))

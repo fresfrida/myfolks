@@ -449,3 +449,9 @@ def deleted_line(number: int, name: str) -> str:
 
 def did_you_mean_delete_fallback(question: str, commands: list[str]) -> str:
     return "\n".join([question, "Nothing was deleted. To go ahead, send one of these:", *(value(command) for command in commands)])
+
+
+# Plain words. New wording, TENTATIVE.
+def help_text(access: str = "full") -> str:
+    """Help as jobs, in plain words. People the owner shared with see only what they may do."""
+    return "MyFolks help"

@@ -12,7 +12,6 @@ from . import messages, owner
 SETTING = "wake_word"
 DEFAULT_WAKE_WORD = "myfolks"
 AI_SETTING = "ai_tool"
-SAVE_WORDS = frozenset({"remember", "save", "keep", "note"})
 REFRESH_SECONDS = 10.0
 _AFTER_WORD = frozenset(" \t\n,:")
 
@@ -67,11 +66,7 @@ def rewrite(text: str, word: str) -> Optional[str]:
     rest = rest.lstrip(" \t\n")
     if rest[:1] in (",", ":"):
         rest = rest[1:]
-    rest = rest.strip()
-    first, _, remainder = rest.partition(" ")
-    if first.rstrip(",:").casefold() in SAVE_WORDS:
-        return f"/contacts save {remainder.strip()}".rstrip()
-    return f"/contacts {rest}".rstrip()
+    return f"/contacts {rest.strip()}".rstrip()  # plain words such as "remember" are read by commands.py
 
 
 COMMAND_NAMES = frozenset({"contacts", "myfolks"})

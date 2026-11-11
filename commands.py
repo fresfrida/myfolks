@@ -19,7 +19,17 @@ _WARNED_SETTING = "terminal_warning_shown"
 _SELF_WORDS = {"me", "my", "i", "myself"}
 _ALIAS_WORDS = {"alias", "aka", "nickname"}
 _TYPO_VERBS = ("save", "link", "history", "correct", "undo", "review")
-_VERBS = {*_TYPO_VERBS, "hide", "unhide", "sync", "delete"}
+# Plain words for every action, one list in one place: the first word after /myfolks, /contacts or the wake word.
+_VERB_WORDS = {
+    **dict.fromkeys(("remember", "save", "keep", "note", "add"), "save"),
+    **dict.fromkeys(("forget", "delete", "remove"), "delete"),
+    **dict.fromkeys(("fix", "change", "edit", "correct", "update"), "correct"),
+    **dict.fromkeys(("help", "commands", "?"), "help"),
+    **dict.fromkeys(("history", "changes"), "history"),
+    "undo": "undo", "sync": "sync", "link": "link", "review": "review", "hide": "hide", "unhide": "unhide",
+}
+_HELP_PHRASES = ("what can you do", "how do i")
+_VERBS = set(_VERB_WORDS.values())
 _MAX_QUESTIONS = 4
 _OFFER_KEY = "offer:link"
 _GOOGLE_CHECKED_KEY = "google:checked"
@@ -261,10 +271,17 @@ def _lookup_finds_something(context: Context, raw: str) -> bool:
 def _verb_for(vault: Vault, raw: str, parts: list[Token], label: str, terminal: bool, answers: dict) -> str:
     if not parts or parts[0].quoted:
         return ""
-    verb = parts[0].text.casefold()
-    if verb in _VERBS:
+    plain = " ".join(raw.split()).casefold()
+    if plain == "?" or any(plain == phrase or plain.startswith(phrase + " ") or plain.startswith(phrase + "?") for phrase in _HELP_PHRASES):
+        return "help"
+    word = parts[0].text.casefold().rstrip(",:")
+    verb = _VERB_WORDS.get(word)
+    if verb is not None:
+        with vault.read() as connection:
+            if cards.find_cards(connection, parts[0].text.rstrip(",:")):
+                return ""  # a saved person's exact name is a name, not a verb: "Will", "Mark", "Note"
         return verb
-    corrected = _closest_verb(verb)
+    corrected = _closest_verb(word)
     if corrected is None:
         return verb
     with vault.read() as connection:
@@ -277,6 +294,8 @@ def _allowed_for(access: str, verb: str) -> bool:
         return True
     if verb == "save":
         return access == "add"
+    if verb == "help":
+        return True
     return verb not in _VERBS
 
 
@@ -289,6 +308,8 @@ def _run(raw: str, vault: Vault, label: str, terminal: bool, answers: dict, acce
         return messages.REFUSED
     if verb == "sync":
         return _sync_command(vault, parts[1:])
+    if verb == "help":
+        return messages.help_text(access)
     writers = {"save": _save, "link": _link, "correct": _correct, "undo": _undo, "review": _review, "hide": _hide, "unhide": _unhide, "delete": _delete}
     if verb in writers:
         try:
