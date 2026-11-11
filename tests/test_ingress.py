@@ -38,6 +38,7 @@ def setup(vault, mod, monkeypatch):
     with vault.write() as connection:
         connection.execute("INSERT INTO owners(platform,user_id,created_at) VALUES('telegram','111','2026-01-01')")
     config = {"shared_people": "telegram:222:read"}
+    monkeypatch.setattr(mod("owner"), "profile_of_home", lambda: None)  # this test plugin is the default profile's
     package = __import__("sys").modules["myfolks"]
     hooks = {}
 
@@ -150,3 +151,34 @@ def test_shared_person_not_on_the_bot_allow_list_passes_through(setup, mod, monk
 def test_open_bot_lets_a_shared_person_through_ingress(setup, mod, monkeypatch):
     monkeypatch.setattr(mod("owner"), "allowed_users", lambda platform: (set(), True))
     assert setup.send("/myfolks priya allergy", user="222")["action"] == "skip"
+
+
+@pytest.mark.parametrize("routed", ["work", "states"])
+def test_message_for_another_profile_passes_through(setup, routed):
+    message = event("/myfolks priya allergy")
+    message.source.profile = routed
+    result = setup.hooks["pre_gateway_dispatch"](event=message, gateway=setup.gateway, session_store=None)
+    result = asyncio.run(result) if inspect.isawaitable(result) else result
+    assert result is None and setup.adapter.sent == []
+
+
+@pytest.mark.parametrize("routed", [None, "", "default"])
+def test_message_for_this_default_profile_is_answered(setup, routed):
+    message = event("/myfolks priya allergy")
+    message.source.profile = routed
+    result = asyncio.run(setup.hooks["pre_gateway_dispatch"](event=message, gateway=setup.gateway, session_store=None))
+    assert result["action"] == "skip"
+
+
+def test_profile_names(mod, monkeypatch, tmp_path):
+    import sys
+    import types
+
+    owner = mod("owner")
+    fake = types.ModuleType("hermes_constants")
+    monkeypatch.setitem(sys.modules, "hermes_constants", fake)
+    fake.get_hermes_home = lambda: tmp_path / ".hermes" / "profiles" / "work"
+    assert owner.profile_of_home() == "work"
+    fake.get_hermes_home = lambda: tmp_path / ".hermes"
+    assert owner.profile_of_home() is None
+    assert owner.routed_profile(SimpleNamespace(profile="default")) is None and owner.routed_profile(SimpleNamespace(profile="work")) == "work"

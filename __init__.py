@@ -39,6 +39,7 @@ def register(ctx) -> None:
         args_hint="<query>",
     )
     settings = wake.Settings(ctx.get_config)
+    my_profile = owner.profile_of_home()
 
     async def answer_at_ingress(event, gateway, args: str) -> bool:
         """Answer /contacts, /myfolks and the wake word before Hermes's session, through the gateway's
@@ -46,6 +47,8 @@ def register(ctx) -> None:
         import asyncio
 
         source = getattr(event, "source", None)
+        if my_profile is False or owner.routed_profile(source) != my_profile:
+            return False  # another profile's bot: its own MyFolks answers it, from its own store
         platform = getattr(getattr(source, "platform", None), "value", None)
         adapters = getattr(gateway, "adapters", None)
         adapter = adapters.get(source.platform) if isinstance(adapters, dict) and source is not None else None

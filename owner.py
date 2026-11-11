@@ -89,6 +89,26 @@ def allowed_users(platform: str) -> tuple[set[str], bool]:
     return users, open_to_all or "*" in users
 
 
+def profile_of_home():
+    """This plugin's Hermes profile: None for the default profile, its name for a named one,
+    False if it can't be told (then MyFolks never answers at ingress)."""
+    try:
+        from pathlib import Path
+
+        from hermes_constants import get_hermes_home
+
+        home = Path(get_hermes_home())
+        return home.name if home.parent.name == "profiles" else None
+    except Exception:
+        return False
+
+
+def routed_profile(source):
+    """The profile a gateway message routes to: None for the default one."""
+    name = (getattr(source, "profile", None) or "").strip()
+    return None if name in ("", "default") else name
+
+
 def hermes_allows(platform: str, user_id) -> bool:
     """Whether Hermes itself lets this sender in on this platform: on its allow list, or open to all."""
     if user_id is None:
