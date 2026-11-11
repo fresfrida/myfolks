@@ -21,6 +21,7 @@ _ALIAS_WORDS = {"alias", "aka", "nickname"}
 _TYPO_VERBS = ("save", "link", "history", "correct", "undo", "review")
 _VERBS = {*_TYPO_VERBS, "hide", "unhide"}
 _MAX_QUESTIONS = 4
+_OFFER_KEY = "offer:link"
 _BOLD_SURFACE = "Telegram"
 _POSSESSIVE = re.compile(r"(?:['\u2019][sS]|['\u2019])$")
 _NEW_FLAG = "--new"
@@ -126,13 +127,31 @@ def _dispatch(raw: str, vault: Vault, label: str, terminal: bool, ask: Optional[
     answers: dict = {}
     for _attempt in range(_MAX_QUESTIONS):
         try:
-            return _run(raw, vault, label, terminal, answers, access)
+            reply = _run(raw, vault, label, terminal, answers, access)
         except NeedsAnswer as need:
             answer = ask(need.question, need.choices) if ask is not None else None
             if answer is None:
                 return need.fallback
             answers[need.key] = answer
+            continue
+        offer = answers.get(_OFFER_KEY)
+        if offer is None or not _allowed_for(access, "link"):
+            return reply
+        return _offer_link(reply, offer, vault, label, terminal, ask, access)
     return messages.ERROR
+
+
+def _offer_link(reply: str, offer: tuple[str, str, str], vault: Vault, label: str, terminal: bool, ask: Optional[Callable], access: str) -> str:
+    """After a save that names someone's dog, mom and so on: ask to link them, outside the lock."""
+    left, relation, right = offer
+    command = f"link {_display_token(left)} {relation} {_display_token(right)}"
+    choices = [{"value": "link", "label": messages.LINK_CHOICE}, {"value": "not-now", "label": messages.NOT_NOW_CHOICE}]
+    answer = ask(messages.link_offer(right, left, relation), choices) if ask is not None else None
+    if answer is None:
+        return f"{reply}\n{messages.link_offer_command('/contacts ' + command)}"
+    if answer != "link":
+        return reply
+    return f"{reply}\n{_dispatch(command, vault, label, terminal, ask, access)}"
 
 
 def _context(connection: sqlite3.Connection, label: str, terminal: bool, answers: dict, access: str = owner.FULL_ACCESS) -> Context:
@@ -310,6 +329,9 @@ def _save(context: Context, raw: str, parts: list[Token]) -> str:
         card_id, name = card["id"], card["name"]
     cards.add_detail(change, card_id, text, context.source_label)
     change.finish(f"saved to {name}")
+    offer = cards.link_offer_in(text)
+    if offer and normalize(offer[1]) != normalize(name) and not cards.has_link(context.connection, card_id, *offer):
+        context.answers[_OFFER_KEY] = (name, offer[0], offer[1])
     reply = messages.new_card(name) if is_new else messages.saved(name)
     return _with_terminal_warning(context, reply)
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import sqlite3
 from typing import Optional
 
@@ -11,6 +12,18 @@ from .text import load_data, normalize, one_edit_apart
 _RELATIONS = load_data("relations.json")
 _EQUIVALENT = {word: set(group) for group in _RELATIONS["equivalent"] for word in group}
 _KIND_OF = {word: kind for kind, words in _RELATIONS["kinds"].items() for word in words}
+RELATION_WORDS = frozenset(
+    {word for group in _RELATIONS["equivalent"] for word in group}
+    | set(_RELATIONS["broader"]) | {word for words in _RELATIONS["broader"].values() for word in words}
+    | set(_RELATIONS["inverse"]) | set(_KIND_OF)
+)
+_NAME_WORD = r"[A-Z][\w\u2019'-]*"
+_OFFER = re.compile(
+    r"(?<![\w'\u2019])(?i:(" + "|".join(sorted(map(re.escape, RELATION_WORDS), key=len, reverse=True)) + r"))"
+    r"(?:['\u2019]s)?\s+(?i:name\s+is|name|is\s+called|is\s+named|is|named|called)\s+"
+    r"(" + _NAME_WORD + r"(?:\s+" + _NAME_WORD + r"){0,2})"
+)
+_TRAILING_POSSESSIVE = re.compile(r"(?:['\u2019][sS]|['\u2019])$")
 
 
 def find_cards(connection: sqlite3.Connection, name: str) -> list[sqlite3.Row]:
@@ -108,6 +121,27 @@ def add_link(change: db.Change, from_card: int, relation: str, to_card: int, sou
         return False
     change.insert("links", from_card=from_card, relation=relation, norm_relation=key, to_card=to_card, created_at=db.now(), source=source)
     return True
+
+
+def has_link(connection: sqlite3.Connection, from_card: int, relation: str, to_name: str) -> bool:
+    """Whether *from_card* already has an open link of this relation to a card called *to_name*."""
+    norm = normalize(to_name)
+    return connection.execute(
+        """SELECT 1 FROM links JOIN cards ON cards.id=links.to_card LEFT JOIN aliases ON aliases.card_id=cards.id
+           WHERE links.from_card=? AND links.norm_relation=? AND links.closed_at IS NULL
+           AND (cards.norm_name=? OR aliases.norm_alias=?)""",
+        (from_card, relation_key(relation), norm, norm),
+    ).fetchone() is not None
+
+
+def link_offer_in(text: str) -> Optional[tuple[str, str]]:
+    """A relation followed by a capitalized name in saved words, such as "dog's name Ollie" or
+    "dog is Ollie": (relation, name). Plain text matching, no model."""
+    found = _OFFER.search(text)
+    if not found:
+        return None
+    name = _TRAILING_POSSESSIVE.sub("", found.group(2)).strip()
+    return (found.group(1).casefold(), name) if name else None
 
 
 def open_links(connection: sqlite3.Connection, card_id: int) -> list[sqlite3.Row]:

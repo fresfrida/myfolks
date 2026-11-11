@@ -208,6 +208,18 @@ def new_card_choice(name: str) -> str:
     return f"New card for {name}"
 
 
+def link_offer(right: str, left: str, relation: str) -> str:
+    return f"Also link {right} as {left}'s {relation}?"
+
+
+LINK_CHOICE = "Link"
+NOT_NOW_CHOICE = "Not now"
+
+
+def link_offer_command(command: str) -> str:
+    return f"To link them too: {command}"
+
+
 BACKUP_PROMPT = "Backup passphrase: "
 BACKUP_PROMPT_AGAIN = "Type it again: "
 BACKUP_MISMATCH = "Those didn't match. Nothing was written."
