@@ -50,18 +50,18 @@ def test_detail_word_makes_no_card_and_asks_who(run, vault, text, word):
 
 @pytest.mark.parametrize("text, name", [("save Melisa's dog's name is Ollie", "Melisa"), ("save rositah is vegetarian", "rositah")])
 def test_normal_new_names_still_make_a_card(run, vault, text, name):
-    assert run(text) == f"New card for {name}. Saved."
+    assert run(text) == f"New card for {name}. Saved. Undo: /myfolks undo"
     assert card_names(vault) == [name]
 
 
 def test_new_flag_still_makes_a_detail_word_card(run, vault):
-    assert run('save --new "address" Sis Nel lives here') == "New card for address. Saved."
+    assert run('save --new "address" Sis Nel lives here') == "New card for address. Saved. Undo: /myfolks undo"
     assert card_names(vault) == ["address"]
 
 
 def test_existing_card_named_address_still_saves_to_it(run, vault):
     run("save --new address first line")
-    assert run("save address second line") == "Saved to address."
+    assert run("save address second line") == "Saved to address. Undo: /myfolks undo"
     assert card_names(vault) == ["address"]
 
 
@@ -77,14 +77,14 @@ def test_wake_word_save_replies_once_without_a_stray_line(setup, mod, before):
     for text in before:
         mod("commands").handle(text, platform="cli", vault=setup.vault)
     assert setup.send("myfolks save rositah is vegetarian") == {"action": "skip", "reason": "answered by MyFolks"}
-    assert setup.adapter.sent == [("c1", "New card for rositah. Saved.")]
+    assert setup.adapter.sent == [("c1", "New card for rositah. Saved. Undo: myfolks undo")]
 
 
 # 3. No link tip after a save where MyFolks can't ask.
 
 def test_telegram_save_naming_a_dog_is_the_save_reply_alone(setup):
     setup.send("myfolks save Melisa's dog's name is Ollie")
-    assert setup.adapter.sent == [("c1", "New card for Melisa. Saved.")]
+    assert setup.adapter.sent == [("c1", "New card for Melisa. Saved. Undo: myfolks undo")]
 
 
 # 4. No new person on a guess once contacts are imported.
@@ -98,7 +98,7 @@ def test_imported_store_on_telegram_saves_nothing_and_gives_the_command(setup, m
 
 def test_imported_store_asks_once_and_new_person_makes_the_card(run, vault, mod):
     do_import(vault, mod, "Melisa Tan")
-    assert run("save Rositah is vegetarian", answer="new") == "New card for Rositah. Saved."
+    assert run("save Rositah is vegetarian", answer="new") == "New card for Rositah. Saved. Undo: /myfolks undo"
     assert run.asked == [("Rositah isn't in your contacts yet.", ["New person: Rositah", "Cancel"])]
     assert "Rositah" in card_names(vault)
 
@@ -111,13 +111,13 @@ def test_imported_store_cancel_saves_nothing(run, vault, mod):
 
 def test_imported_store_new_flag_still_creates(run, vault, mod):
     do_import(vault, mod, "Melisa Tan")
-    assert run("save --new Rositah is vegetarian") == "New card for Rositah. Saved."
+    assert run("save --new Rositah is vegetarian") == "New card for Rositah. Saved. Undo: /myfolks undo"
     assert run.asked == []
 
 
 def test_imported_exact_name_saves_directly(run, vault, mod):
     do_import(vault, mod, "Rositah")
-    assert run("save rositah is vegetarian") == "Saved to Rositah."
+    assert run("save rositah is vegetarian") == "Saved to Rositah. Undo: /myfolks undo"
     assert run.asked == []
 
 
@@ -129,12 +129,12 @@ def test_imported_store_detail_word_still_asks_who(run, vault, mod):
 
 def test_no_import_makes_the_card_as_before(run, vault):
     run("save Melisa likes tea")
-    assert run("save Rositah is vegetarian") == "New card for Rositah. Saved."
+    assert run("save Rositah is vegetarian") == "New card for Rositah. Saved. Undo: /myfolks undo"
     assert run.asked == []
 
 
 def test_undone_import_counts_as_no_import(run, vault, mod):
     do_import(vault, mod, "Melisa Tan")
     assert run("undo").startswith("Undone:")
-    assert run("save Rositah is vegetarian") == "New card for Rositah. Saved."
+    assert run("save Rositah is vegetarian") == "New card for Rositah. Saved. Undo: /myfolks undo"
     assert run.asked == []

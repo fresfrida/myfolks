@@ -97,3 +97,47 @@ def test_shared_people_may_ask_for_help_but_not_delete(vault, mod, monkeypatch):
     assert send("help") == mod("messages").help_text("read")
     assert send("forget Priya") == "MyFolks isn't available here."
     assert live_names(vault) == ["Priya"]
+
+
+# 2. Every reply teaches the next step, in the surface's own prefix.
+
+@pytest.fixture
+def phone(vault, mod, monkeypatch):
+    monkeypatch.setattr(mod("owner"), "allowed_users", lambda platform: ({"111"}, False))
+    with vault.write() as connection:
+        connection.execute("INSERT INTO owners(platform,user_id,created_at) VALUES('telegram','111','2026-01-01')")
+    source = SimpleNamespace(user_id="111", chat_type="dm", is_bot=False)
+
+    def send(text, wake_word="myfolks"):
+        return mod("commands").handle(text, platform="telegram", source=source, vault=vault, wake_word=wake_word)
+
+    return send
+
+
+def test_next_step_lines_in_a_chat_app_use_the_wake_word(phone):
+    assert phone("remember Melisa likes tea") == "New card for Melisa. Saved. Undo: myfolks undo"
+    assert phone("remember Melisa has a dog") == "Saved to Melisa. Undo: myfolks undo"
+    assert phone("fix Melisa 1 likes green tea") == "Changed. Undo: myfolks undo"
+    assert phone("melisa").splitlines()[-1] == "Change a line: myfolks fix Melisa    Delete: myfolks forget Melisa"
+    assert phone("forget Melisa 2") == "Deleted line 2 from Melisa. Undo: myfolks undo"
+    assert phone("forget Melisa") == "Deleted Melisa. Undo: myfolks undo"
+
+
+def test_a_custom_wake_word_is_the_prefix(phone):
+    assert phone("remember Melisa likes tea", wake_word="folks") == "New card for Melisa. Saved. Undo: folks undo"
+
+
+def test_wake_word_off_and_the_terminal_use_slash_myfolks(phone, vault, mod):
+    assert phone("remember Melisa likes tea", wake_word="") == "New card for Melisa. Saved. Undo: /myfolks undo"
+    assert mod("commands").handle("remember Melisa has a dog", platform="desktop", vault=vault, wake_word="myfolks") == "Saved to Melisa. Undo: /myfolks undo"
+
+
+def test_shared_people_see_no_change_or_delete_line(vault, mod, monkeypatch):
+    monkeypatch.setattr(mod("owner"), "allowed_users", lambda platform: ({"111", "222"}, False))
+    with vault.write() as connection:
+        connection.execute("INSERT INTO owners(platform,user_id,created_at) VALUES('telegram','111','2026-01-01')")
+    mod("commands").handle("save Priya likes tea", platform="cli", vault=vault)
+    source = SimpleNamespace(user_id="222", chat_type="dm", is_bot=False)
+    view = mod("commands").handle("priya", platform="telegram", source=source, vault=vault, shared="telegram:222:read", wake_word="myfolks")
+    assert "forget" not in view and "fix" not in view
+

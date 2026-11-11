@@ -33,14 +33,14 @@ def links(vault):
 def test_plain_forms_link_without_asking(run, vault, words):
     reply = run(f"save Mel {words}")
     target = "Ollie Moon" if "Moon" in words else "Ollie"
-    assert reply == f"Saved to Mel.\nLinked {target} as Mel's dog. Undo: /contacts undo"
+    assert reply == f"Saved to Mel.\nLinked {target} as Mel's dog. Undo: /myfolks undo"
     assert run.asked == []
     assert links(vault) == [("Mel", "dog", target)]
 
 
 def test_links_to_an_existing_exact_card(run, vault):
     run("save Ollie is a beagle")
-    assert run("save Mel dog is Ollie").endswith("Linked Ollie as Mel's dog. Undo: /contacts undo")
+    assert run("save Mel dog is Ollie").endswith("Linked Ollie as Mel's dog. Undo: /myfolks undo")
     with vault.read() as connection:
         assert connection.execute("SELECT count(*) FROM cards WHERE name='Ollie'").fetchone()[0] == 1
 
@@ -70,7 +70,7 @@ def test_unclear_sentences_never_link_on_their_own(run, vault, words):
 
 def test_new_person_asks_instead(run, vault):
     reply = run("save Zed dog is Ollie")
-    assert reply.startswith("New card for Zed. Saved.") and "Linked" not in reply
+    assert reply.startswith("New card for Zed. Saved. Undo: /myfolks undo") and "Linked" not in reply
     assert run.asked == ["Also link Ollie as Zed's dog?"]
 
 
@@ -98,7 +98,7 @@ def test_wake_word_and_myfolks_link_the_same_way(vault, mod, monkeypatch):
     command = hook(event=SimpleNamespace(text="myfolks remember Mel's dog's name Ollie"))["text"]
     source = SimpleNamespace(user_id="111", chat_type="dm", is_bot=False)
     reply = mod("commands").handle(command[len("/contacts"):].strip(), platform="telegram", source=source, vault=vault)
-    assert reply == "Saved to Mel.\nLinked Ollie as Mel's dog. Undo: /contacts undo"
+    assert reply == "Saved to Mel.\nLinked Ollie as Mel's dog. Undo: /myfolks undo"
 
 
 def test_ai_tool_links_the_same_way(vault, mod):
@@ -106,7 +106,7 @@ def test_ai_tool_links_the_same_way(vault, mod):
     told = []
     reply = json.loads(mod("ai_tool").handle({"action": "save", "name": "Mel", "text": "dog is Ollie"}, vault=vault, tell_user=told.append, session=("cli", None)))
     assert reply["status"] == "saved"
-    assert told == ['MyFolks saved to Mel: "dog is Ollie"\nLinked Ollie as Mel\'s dog. Undo: /contacts undo']
+    assert told == ['MyFolks saved to Mel: "dog is Ollie"\nLinked Ollie as Mel\'s dog. Undo: /myfolks undo']
     assert links(vault) == [("Mel", "dog", "Ollie")]
     told.clear()
     json.loads(mod("ai_tool").handle({"action": "save", "name": "Mel", "text": "cat is called Tom"}, vault=vault, tell_user=told.append, session=("cli", None)))
@@ -129,7 +129,7 @@ def test_a_nickname_the_user_added_counts(vault, mod):
     handle('save "Joanne Lim" is a coworker', platform="cli", vault=vault)
     handle('link "Joanne Lim" aka Jo', platform="cli", vault=vault)
     reply = handle('save "Sam Ong" wife is Jo', platform="cli", vault=vault)
-    assert "Linked Joanne Lim as Sam Ong's wife. Undo: /contacts undo" in reply
+    assert "Linked Joanne Lim as Sam Ong's wife. Undo: /myfolks undo" in reply
 
 
 def test_full_name_counts(vault, mod):

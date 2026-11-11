@@ -82,7 +82,7 @@ def test_card_missing(loaded, service):
 
 
 def test_save_line_uses_desktop_source(loaded, service):
-    assert service.save_line(1, "likes tea", loaded)["message"] == "Saved to Priya."
+    assert service.save_line(1, "likes tea", loaded)["message"] == "Saved to Priya. Undo: /myfolks undo"
     assert service.card_detail(1, loaded)["lines"][1]["receipt"].endswith(" from Desktop")
 
 

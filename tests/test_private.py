@@ -42,12 +42,12 @@ def test_old_flags_save_nothing(mod, seeded, flag, place, platform):
 
 
 def test_every_note_saves_normally_from_chat(mod, seeded, phone):
-    assert phone("save Priya likes figs") == "Saved to Priya."
+    assert phone("save Priya likes figs") == "Saved to Priya. Undo: /myfolks undo"
     assert "likes figs" in phone("priya figs")
 
 
 def test_quoted_flag_words_are_ordinary_text(desk):
-    assert desk('save Priya "--private" is a word she uses') == "Saved to Priya."
+    assert desk('save Priya "--private" is a word she uses') == "Saved to Priya. Undo: /myfolks undo"
 
 
 @pytest.mark.parametrize("command", ["hide Priya 1", "unhide Priya 2", "hide Priya"])
@@ -143,12 +143,12 @@ def test_card_without_private_says_nothing_saved(mod, seeded):
 
 
 def test_card_view_counts_private_notes(phone):
-    assert phone("priya").split("\n")[-1] == "1 hidden from chat"
+    assert phone("priya").split("\n")[-2] == "1 hidden from chat"
 
 
 def test_card_view_counts_several_private_notes(mod, seeded, phone):
     save_hidden(seeded, "Priya second secret")
-    assert phone("priya").split("\n")[-1] == "2 hidden from chat"
+    assert phone("priya").split("\n")[-2] == "2 hidden from chat"
     assert "second secret" not in phone("priya")
 
 
@@ -183,7 +183,7 @@ def test_messaging_history_omits_private(phone):
 
 
 def test_messaging_correct_cannot_reach_private_line(phone, desk):
-    assert phone("correct Priya 2 plays golf") == "Saved to Priya."
+    assert phone("correct Priya 2 plays golf") == "Changed. Undo: /myfolks undo"
     assert "therapist" in desk("priya") and "plays golf" in desk("priya")
 
 
@@ -233,7 +233,7 @@ def test_choice_hint_never_shows_private_line(seeded, mod):
 
 
 def test_new_flag_still_works(desk):
-    assert desk("save --new Quentin likes chess").startswith("New card for Quentin. Saved.")
+    assert desk("save --new Quentin likes chess").startswith("New card for Quentin. Saved. Undo: /myfolks undo")
 
 
 def test_undo_private_save(desk, seeded):

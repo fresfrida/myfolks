@@ -11,13 +11,13 @@ def run(vault, mod):
 
 
 def test_name_with_a_number(run):
-    assert run("correct Studio 54 2 has a blue door") == "Saved to Studio 54."
+    assert run("correct Studio 54 2 has a blue door") == "Changed. Undo: /myfolks undo"
     assert "has a blue door" in run('"studio 54" door')
     assert "rents by the hour" in run("loft hour")
 
 
 def test_plain_name_still_works(run):
-    assert run("correct Loft 1 rents by the day") == "Saved to Loft."
+    assert run("correct Loft 1 rents by the day") == "Changed. Undo: /myfolks undo"
     assert "rents by the day" in run("loft day")
 
 

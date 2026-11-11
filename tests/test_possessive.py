@@ -46,7 +46,7 @@ def test_possessive_on_a_full_name(run, vault):
 
 
 def test_new_person_from_possessive_gets_the_plain_name(run, vault):
-    assert run("save Mel's dog's name Ollie").startswith("New card for Mel. Saved.")
+    assert run("save Mel's dog's name Ollie").startswith("New card for Mel. Saved. Undo: /myfolks undo")
     assert card_names(vault)[0] == "Mel" and "Mel's" not in card_names(vault)
     assert "dog's name Ollie" in run("mel dog name")
 
@@ -54,13 +54,13 @@ def test_new_person_from_possessive_gets_the_plain_name(run, vault):
 def test_real_name_ending_in_s_wins_when_exact(run, vault):
     run('save "Mel\'s" is a diner on Fifth')
     run("save Mel likes tea")
-    assert run("save Mel's serves pancakes").split("\n")[0] == "Saved to Mel's."
+    assert run("save Mel's serves pancakes").split("\n")[0] == "Saved to Mel's. Undo: /myfolks undo"
     assert card_names(vault) == ["Mel's", "Mel"]
     assert "serves pancakes" not in run("mel")
 
 
 def test_quoted_possessive_is_taken_as_written(run, vault):
-    assert run('save "Mel\'s" serves pancakes').startswith("New card for Mel's. Saved.")
+    assert run('save "Mel\'s" serves pancakes').startswith("New card for Mel's. Saved. Undo: /myfolks undo")
     assert card_names(vault) == ["Mel's"]
 
 

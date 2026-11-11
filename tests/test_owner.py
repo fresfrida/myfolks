@@ -201,7 +201,7 @@ def test_shared_read_cannot_change_or_see_history(seeded, allow, send, command):
 
 def test_shared_add_can_save(seeded, allow, send):
     allow("111")
-    assert send("save Priya likes cake", sender("222"), shared=CAN_ADD) == "Saved to Priya."
+    assert send("save Priya likes cake", sender("222"), shared=CAN_ADD) == "Saved to Priya. Undo: /myfolks undo"
     assert "likes cake" in send("priya cake", sender("222"), shared=CAN_ADD)
 
 
@@ -240,7 +240,7 @@ def test_default_is_empty(seeded, allow, send):
 
 def test_owner_keeps_full_access_with_sharing_on(seeded, allow, send):
     allow("111")
-    assert send("save Priya likes cake", sender("111"), shared=READ_ONLY) == "Saved to Priya."
+    assert send("save Priya likes cake", sender("111"), shared=READ_ONLY) == "Saved to Priya. Undo: /myfolks undo"
 
 
 def test_shared_setting_accepts_comma_text(seeded, allow, send):

@@ -45,7 +45,7 @@ def test_v2_store_is_upgraded_with_its_data_unchanged(tmp_path, mod):
 
 def test_delete_then_undo(run, vault):
     run('save "Sis Nel" lives on Elm Street')
-    assert run('delete Sis Nel') == "Deleted Sis Nel from MyFolks. Undo: /myfolks undo"
+    assert run('delete Sis Nel') == "Deleted Sis Nel. Undo: /myfolks undo"
     assert live_names(vault) == []
     assert run("undo") == "Undone: deleted Sis Nel."
     assert live_names(vault) == ["Sis Nel"]
@@ -70,7 +70,7 @@ def test_deleted_person_is_gone_from_every_read(run, vault, mod):
     run("delete Sis Nel")
     assert run("sis nel") == "Nothing saved about that."
     assert run("nel") == "No one called nel yet."
-    assert run("priya") == "Priya\nlikes tea\n1 note · last saved today"  # the link to a deleted person is left out
+    assert run("priya") == "Priya\nlikes tea\n1 note · last saved today\nChange a line: /myfolks fix Priya    Delete: /myfolks forget Priya"  # the link to a deleted person is left out
     assert run("priya sister") == "Nothing saved about that."
     assert run(f"#{deleted_id}") == "Nothing saved about that."
     assert run("sis nell") == "Nothing saved about that."  # no "Did you mean" for a deleted person
@@ -91,7 +91,7 @@ def test_deleted_person_is_gone_from_every_read(run, vault, mod):
 def test_saving_to_a_deleted_name_is_an_unknown_name(run, vault):
     run('save "Sis Nel" lives on Elm Street')
     run("delete Sis Nel")
-    assert run('save "Sis Nel" likes figs') == "New card for Sis Nel. Saved."
+    assert run('save "Sis Nel" likes figs') == "New card for Sis Nel. Saved. Undo: /myfolks undo"
     assert live_names(vault) == ["Sis Nel"]
     with vault.read() as connection:
         assert connection.execute("SELECT count(*) FROM cards WHERE name='Sis Nel'").fetchone()[0] == 2
@@ -231,7 +231,7 @@ def test_delete_line_number_out_of_range(run, vault):
 
 def test_name_ending_in_a_number_is_still_a_name(run, vault):
     run('save "Studio 54" opens at nine')
-    assert run("delete Studio 54") == "Deleted Studio 54 from MyFolks. Undo: /myfolks undo"
+    assert run("delete Studio 54") == "Deleted Studio 54. Undo: /myfolks undo"
 
 
 def test_telegram_line_numbers_match_correct(vault, mod, monkeypatch):
@@ -289,7 +289,7 @@ def test_toast_undo_refuses_after_a_telegram_save_in_between(vault, mod, monkeyp
     service = mod("desktop_service")
     deleted = service.delete_person(card_id(vault, "Sis Nel"), vault=vault)
     source = SimpleNamespace(user_id="111", chat_type="dm", is_bot=False)
-    assert handle("save Priya likes tea", platform="telegram", source=source, vault=vault) == "New card for Priya. Saved."
+    assert handle("save Priya likes tea", platform="telegram", source=source, vault=vault) == "New card for Priya. Saved. Undo: /myfolks undo"
     assert service.undo(deleted["change_id"], vault=vault) == {"state": "changed", "message": "Can't undo that: something changed since. See History."}
     assert live_names(vault) == ["Priya"]  # Priya's save stays, and Sis Nel stays deleted
 

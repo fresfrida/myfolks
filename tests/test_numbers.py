@@ -39,7 +39,7 @@ def test_card_number(run, odd):
 
 def test_ascii_numbers_still_work(run):
     assert run("hide priya 1").startswith("Hidden from chat.")
-    assert run("correct priya 2 likes marmalade") == "Saved to Priya."
+    assert run("correct priya 2 likes marmalade") == "Changed. Undo: /myfolks undo"
     assert run("#1").startswith("Priya")
 
 

@@ -167,7 +167,7 @@ def test_save_to_an_imported_card_before_the_last_batch_keeps_undo_working(vault
     def save_to_alice_before_last_batch():
         calls["n"] += 1
         if calls["n"] == 2:
-            assert commands.handle('save "Alice Moon" likes tea', platform="cli", vault=vault).startswith("Saved to Alice Moon.")
+            assert commands.handle('save "Alice Moon" likes tea', platform="cli", vault=vault).startswith("Saved to Alice Moon. Undo: /myfolks undo")
         return original()
 
     monkeypatch.setattr(vault, "write", save_to_alice_before_last_batch)

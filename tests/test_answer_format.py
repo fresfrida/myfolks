@@ -148,7 +148,7 @@ def phone(vault, mod, monkeypatch):
 
 
 def test_end_to_end_telegram_bold(phone):
-    assert phone("save Priya likes tea") == "New card for Priya. Saved."
+    assert phone("save Priya likes tea") == "New card for Priya. Saved. Undo: /myfolks undo"
     assert phone("priya tea") == "Priya\n**likes tea**\ntoday · Telegram"
 
 
@@ -210,8 +210,8 @@ def test_card_view_exact_format(vault, mod):
     handle("save Priya phone +1 202 555 0147", platform="cli", vault=vault)
     handle("save Biscuit likes walks", platform="cli", vault=vault)
     handle("link Priya dog Biscuit", platform="cli", vault=vault)
-    assert handle("priya", platform="cli", vault=vault) == "Priya\nlikes tea\nphone +1 202 555 0147\nDog: Biscuit\n2 notes · last saved today"
-    assert handle("biscuit", platform="cli", vault=vault) == "Biscuit\nlikes walks\nDog of Priya\n1 note · last saved today"
+    assert handle("priya", platform="cli", vault=vault) == "Priya\nlikes tea\nphone +1 202 555 0147\nDog: Biscuit\n2 notes · last saved today\nChange a line: /myfolks fix Priya    Delete: /myfolks forget Priya"
+    assert handle("biscuit", platform="cli", vault=vault) == "Biscuit\nlikes walks\nDog of Priya\n1 note · last saved today\nChange a line: /myfolks fix Biscuit    Delete: /myfolks forget Biscuit"
 
 
 def test_card_uses_latest_date_label(vault, mod):
@@ -219,18 +219,18 @@ def test_card_uses_latest_date_label(vault, mod):
     handle("save Priya likes tea", platform="cli", vault=vault)
     handle("save Priya likes cake", platform="cli", vault=vault)
     seed_dates(vault, [(1, at(2020, 1, 1).isoformat(), "terminal"), (2, at(2021, 1, 1).isoformat(), "terminal")])
-    assert handle("priya", platform="cli", vault=vault).split("\n")[-1] == "2 notes · last saved more than a year ago"
+    assert handle("priya", platform="cli", vault=vault).split("\n")[-2] == "2 notes · last saved more than a year ago"
 
 
 def test_card_on_telegram_has_private_line_after_notes(phone, vault, mod):
     mod("commands").handle("save Priya likes tea", platform="cli", vault=vault)
     save_hidden(vault, "Priya sees a therapist")
-    assert phone("priya") == "Priya\nlikes tea\n1 note · last saved today\n1 hidden from chat"
+    assert phone("priya") == "Priya\nlikes tea\n1 note · last saved today\n1 hidden from chat\nChange a line: /myfolks fix Priya    Delete: /myfolks forget Priya"
 
 
 def test_card_with_only_private_notes_on_telegram(phone, vault, mod):
     save_hidden(vault, "Priya secret line")
-    assert phone("priya") == "Priya\n1 hidden from chat"
+    assert phone("priya") == "Priya\n1 hidden from chat\nChange a line: /myfolks fix Priya    Delete: /myfolks forget Priya"
 
 
 def test_card_keeps_formatting_characters_exact_on_telegram(phone, vault, mod):

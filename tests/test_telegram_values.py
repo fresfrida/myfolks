@@ -21,8 +21,8 @@ def shows_literally(reply: str) -> bool:
 
 
 def test_checker_catches_raw_values():
-    assert not shows_literally(f"Saved to {NAME}.")
-    assert shows_literally(f"Saved to `{NAME}`.")
+    assert not shows_literally(f"Saved to {NAME}. Undo: /myfolks undo")
+    assert shows_literally(f"Saved to `{NAME}`. Undo: /myfolks undo")
 
 
 # Every template that puts a value into a reply. A new one must be added here or to RAW_BY_DESIGN.
@@ -45,6 +45,7 @@ TEMPLATES = {
     "review_entry": lambda m: m.review_entry(1, NAME, [f"phone {RELATION}"], [(2, NAME)]),
     "who_is_this_for": lambda m: m.who_is_this_for(NAME),
     "deleted_person": lambda m: m.deleted_person(NAME),
+    "card_next_steps": lambda m: m.card_next_steps(NAME),
     "deleted_line": lambda m: m.deleted_line(2, NAME),
     "did_you_mean_delete_fallback": lambda m: m.did_you_mean_delete_fallback(m.did_you_mean(NAME), [f"/myfolks delete {NAME}"]),
     "not_in_contacts": lambda m: m.not_in_contacts(NAME),
@@ -73,7 +74,7 @@ RAW_BY_DESIGN = {
 
 
 # Templates that take only numbers or fixed words: no saved or typed value can reach them.
-NUMBERS_ONLY = {"sync_summary", "sync_first", "help_text"}
+NUMBERS_ONLY = {"sync_summary", "sync_first", "help_text", "command", "changed"}
 
 
 @pytest.mark.parametrize("template", sorted(TEMPLATES))
@@ -93,7 +94,7 @@ def test_every_value_template_is_covered(mod):
 
 def test_terminal_values_stay_plain(mod):
     messages = mod("messages")
-    assert messages.saved(NAME) == f"Saved to {NAME}."
+    assert messages.saved(NAME) == f"Saved to {NAME}. Undo: /myfolks undo"
 
 
 @pytest.fixture

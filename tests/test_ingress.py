@@ -71,7 +71,7 @@ def test_owner_is_answered_and_message_is_skipped(setup, text):
 
 def test_owner_save_by_wake_word_is_answered_once(setup, mod):
     assert setup.send("myfolks remember Priya likes jam")["action"] == "skip"
-    assert setup.adapter.sent[0][1] == "Saved to Priya."
+    assert setup.adapter.sent[0][1] == "Saved to Priya. Undo: myfolks undo"
     with setup.vault.read() as connection:
         assert connection.execute("SELECT count(*) FROM details WHERE text='likes jam'").fetchone()[0] == 1
 

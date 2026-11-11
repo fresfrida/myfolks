@@ -392,7 +392,7 @@ def test_person_added_in_google_is_found_on_the_next_save(google, run, vault, mo
     run("sync")
     google.fake.people.append(person("Rositah", "555 0102"))
     _due(vault, mod)
-    assert run("save rositah is vegetarian") == "Saved to Rositah."
+    assert run("save rositah is vegetarian") == "Saved to Rositah. Undo: /myfolks undo"
     assert card_names(vault) == ["Ana Ruiz", "Rositah"]
 
 
@@ -436,7 +436,7 @@ def test_failed_live_check_carries_on_with_one_line(google, run, vault, mod):
     google.fake.fail = "timeout"
     assert run("zed") == "No one called zed yet.\nCouldn't check Google contacts just now."
     _due(vault, mod)
-    assert run("save Zed is new", answer="new") == "New card for Zed. Saved.\nCouldn't check Google contacts just now."
+    assert run("save Zed is new", answer="new") == "New card for Zed. Saved. Undo: /myfolks undo\nCouldn't check Google contacts just now."
 
 
 def test_live_check_has_a_fifteen_second_cap(google, run, vault, mod, monkeypatch):

@@ -31,8 +31,8 @@ def test_empty_shows_help_and_count(run):
 
 def test_save_new_then_existing_card(run):
     run("save Warmup likes tea")
-    assert run("save Priya is allergic to peanuts") == "New card for Priya. Saved."
-    assert run("save priya likes tea") == "Saved to Priya."
+    assert run("save Priya is allergic to peanuts") == "New card for Priya. Saved. Undo: /myfolks undo"
+    assert run("save priya likes tea") == "Saved to Priya. Undo: /myfolks undo"
 
 
 def test_save_keeps_words_exactly(run):
@@ -46,8 +46,8 @@ def test_save_needs_text(run):
 
 def test_save_multiword_name_with_quotes(run):
     run("save Warmup likes tea")
-    assert run('save "Priya Sharma" likes tea') == "New card for Priya Sharma. Saved."
-    assert run("save priya sharma drinks water") == "Saved to Priya Sharma."
+    assert run('save "Priya Sharma" likes tea') == "New card for Priya Sharma. Saved. Undo: /myfolks undo"
+    assert run("save priya sharma drinks water") == "Saved to Priya Sharma. Undo: /myfolks undo"
     assert "likes tea" in run("priya sharma")
 
 
@@ -73,7 +73,7 @@ def test_card_view_has_no_numbers(run):
 
 def test_terminal_warning_shown_once(run):
     warning = "Heads up: Hermes keeps a plain-text history of what you type in this terminal, including this command."
-    assert run("save Priya likes tea") == f"New card for Priya. Saved.\n{warning}"
+    assert run("save Priya likes tea") == f"New card for Priya. Saved. Undo: /myfolks undo\n{warning}"
     assert warning not in run("save Priya likes cake")
 
 
@@ -83,7 +83,7 @@ def test_terminal_warning_not_shown_on_desktop(run):
 
 def test_correct_closes_old_and_history_keeps_it(run):
     run("save Priya lives in Oslo")
-    assert run("correct Priya 1 lives in Bergen") == "Saved to Priya."
+    assert run("correct Priya 1 lives in Bergen") == "Changed. Undo: /myfolks undo"
     view = run("priya")
     assert "lives in Bergen" in view and "lives in Oslo" not in view
     history = run("history priya")
@@ -339,20 +339,20 @@ def test_mistyped_name_on_save_asks_before_writing(run, vault):
 def test_mistyped_save_choose_existing(run):
     run("save Priya likes cake")
     reply = run("save Prya likes tea", answer=lambda choices: choices[0]["value"])
-    assert reply == "Saved to Priya."
+    assert reply == "Saved to Priya. Undo: /myfolks undo"
     assert [c["label"] for c in run.state["asked"]] == ["Priya", "New card for Prya"]
     assert "likes tea" in run("priya")
 
 
 def test_mistyped_save_choose_new(run):
     run("save Priya likes cake")
-    assert run("save Prya likes tea", answer=lambda choices: "new") == "New card for Prya. Saved."
+    assert run("save Prya likes tea", answer=lambda choices: "new") == "New card for Prya. Saved. Undo: /myfolks undo"
     assert "likes tea" in run("prya") and "likes tea" not in run("priya")
 
 
 def test_new_flag_skips_the_question(run):
     run("save Priya likes cake")
-    assert run("save --new Prya likes tea") == "New card for Prya. Saved."
+    assert run("save --new Prya likes tea") == "New card for Prya. Saved. Undo: /myfolks undo"
 
 
 def test_question_is_asked_with_store_unlocked(run, vault, mod):
@@ -367,7 +367,7 @@ def test_question_is_asked_with_store_unlocked(run, vault, mod):
     assert mod("commands").handle(
         "save Prya likes tea", platform="cli", vault=other,
         ask=lambda _q, choices: answer(choices),
-    ) == "Saved to Priya."
+    ) == "Saved to Priya. Undo: /myfolks undo"
 
 
 def test_mistyped_name_on_link_asks(run, vault):
@@ -392,17 +392,17 @@ def test_correct_with_close_name_asks(run):
     run("save Priya lives in Oslo")
     assert run("correct Prya 1 lives in Bergen", answer=None).split("\n")[0] == "Did you mean Priya?"
     assert "lives in Oslo" in run("priya")
-    assert run("correct Prya 1 lives in Bergen", answer=lambda choices: choices[0]["value"]) == "Saved to Priya."
+    assert run("correct Prya 1 lives in Bergen", answer=lambda choices: choices[0]["value"]) == "Changed. Undo: /myfolks undo"
 
 
 @pytest.mark.parametrize("typed,text,expected_start", [
-    ("sav", "Priya likes cake", "Saved to Priya."),
-    ("svae", "Priya likes cake", "Saved to Priya."),
+    ("sav", "Priya likes cake", "Saved to Priya. Undo: /myfolks undo"),
+    ("svae", "Priya likes cake", "Saved to Priya. Undo: /myfolks undo"),
     ("hisory", "Priya", "Priya: history"),
     ("undoo", "", "Undone:"),
     ("reviw", "", "Nothing to review."),
     ("lnik", "Priya dog Biscuit", "Linked: Priya, dog, Biscuit."),
-    ("corect", "Priya 1 likes pie", "Saved to Priya."),
+    ("corect", "Priya 1 likes pie", "Changed. Undo: /myfolks undo"),
 ])
 def test_mistyped_subcommands(run, typed, text, expected_start):
     run("save Priya likes tea")

@@ -134,7 +134,7 @@ def answers_at_ingress(raw_args: str, *, platform: str, source, shared=None, vau
         return False
 
 
-def handle(raw_args: str, *, platform: Optional[str] = None, source=None, ask: Optional[Callable] = None, vault: Optional[Vault] = None, shared=None) -> str:
+def handle(raw_args: str, *, platform: Optional[str] = None, source=None, ask: Optional[Callable] = None, vault: Optional[Vault] = None, shared=None, wake_word: Optional[str] = None) -> str:
     raw = raw_args or ""
     access = owner.FULL_ACCESS
     label = owner.local_surface(platform)
@@ -152,7 +152,8 @@ def handle(raw_args: str, *, platform: Optional[str] = None, source=None, ask: O
                 if access is None:
                     return messages.REFUSED
             label = owner.messaging_label(platform)
-        with messages.replies_for(label):
+        chat_app = label not in owner.LOCAL_SURFACES.values()
+        with messages.replies_for(label, wake_word if chat_app and wake_word else messages.DEFAULT_PREFIX):
             reply = _dispatch(raw, store, label, label == "terminal", ask, access)
         if label in owner.LOCAL_SURFACES.values() and guard.take_failure_notice(store.directory):
             return f"{messages.GUARD_FAILED}\n{reply}"
@@ -237,7 +238,10 @@ def _offer_link(reply: str, offer: tuple[str, str, str], vault: Vault, label: st
     answer = ask(messages.link_offer(right, left, relation), choices) if ask is not None else None
     if answer != "link":  # no way to ask, no answer, or not now: the save reply alone
         return reply
-    return f"{reply}\n{_dispatch(command, vault, label, terminal, ask, access)}"
+    # The link is now the latest change, so the save's own Undo hint would point at the wrong thing.
+    first, newline, rest = reply.partition("\n")
+    first = first.removesuffix(f" Undo: {messages.command('undo')}")
+    return f"{first}{newline}{rest}\n{_dispatch(command, vault, label, terminal, ask, access)}"
 
 
 def _context(connection: sqlite3.Connection, label: str, terminal: bool, answers: dict, access: str = owner.FULL_ACCESS) -> Context:
@@ -468,10 +472,11 @@ def _save(context: Context, raw: str, parts: list[Token]) -> str:
         card_id, name = card["id"], card["name"]
     cards.add_detail(change, card_id, text, context.source_label)
     change.finish(f"saved to {name}")
-    reply = messages.new_card(name) if is_new else messages.saved(name)
     linked = None
     if exact and not is_new and _allowed_link(context):
         linked = cards.link_if_certain(context.connection, cards.card_by_id(context.connection, card_id), text, context.source_label)
+    # With a link made too, the link's own Undo line is the next step: undo removes the link first.
+    reply = messages.new_card(name, undo=not linked) if is_new else messages.saved(name, undo=not linked)
     if linked:
         reply = f"{reply}\n{messages.auto_linked(linked[0], name, linked[1])}"
     else:
@@ -682,7 +687,7 @@ def _correct(context: Context, raw: str, parts: list[Token]) -> str:
     change = db.Change(context.connection, "correct", context.source_label)
     cards.correct_detail(change, lines[number - 1], text, context.source_label)
     change.finish(f"corrected a line on {card['name']}")
-    return messages.saved(card["name"])
+    return messages.changed()
 
 
 def _review_list(context: Context) -> str:
@@ -805,6 +810,8 @@ def _card_view(context: Context, card: sqlite3.Row) -> str:
         out.append(messages.NO_LINES)
     if hidden:
         out.append(messages.hidden_count_line(hidden))
+    if context.is_owner:
+        out.append(messages.card_next_steps(card["name"]))
     return "\n".join(out)
 
 

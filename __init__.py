@@ -14,7 +14,7 @@ def register(ctx) -> None:
 
     def handle_contacts(raw_args: str, source=None, platform=None, **_context) -> str:
         shared = ctx.get_config(owner.SHARED_SETTING, [])
-        return commands.handle(raw_args, platform=platform, source=source, ask=ctx.ask_choice, shared=shared)
+        return commands.handle(raw_args, platform=platform, source=source, ask=ctx.ask_choice, shared=shared, wake_word=settings.current().word)
 
     def guard_tool_call(tool_name: str, args: dict, task_id: str = "", **context):
         return guard.pre_tool_call(tool_name, args, task_id, **context)
@@ -57,7 +57,7 @@ def register(ctx) -> None:
         shared = ctx.get_config(owner.SHARED_SETTING, [])
         if not await asyncio.to_thread(commands.answers_at_ingress, args, platform=platform, source=source, shared=shared):
             return False
-        reply = await asyncio.to_thread(commands.handle, args, platform=platform, source=source, ask=None, shared=shared)
+        reply = await asyncio.to_thread(commands.handle, args, platform=platform, source=source, ask=None, shared=shared, wake_word=settings.current().word)
         try:
             await adapter.send(source.chat_id, reply)
         except Exception as exc:

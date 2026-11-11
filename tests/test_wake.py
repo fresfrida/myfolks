@@ -147,7 +147,7 @@ def chat(vault, mod, monkeypatch):
 def test_wake_word_end_to_end(chat):
     chat("myfolks save Mel likes tea")
     reply = chat("myfolks remember Mel's dog's name Ollie")
-    assert reply == "Saved to Mel.\nLinked Ollie as Mel's dog. Undo: /contacts undo"
+    assert reply == "Saved to Mel.\nLinked Ollie as Mel's dog. Undo: /myfolks undo"
     assert chat("Myfolks, mel dog").startswith("Ollie\nDog of Mel")
     assert "dog's name Ollie" in chat("Myfolks, mel dog name")
     assert chat("I installed myfolks yesterday") == "TO THE AI: I installed myfolks yesterday"

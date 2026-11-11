@@ -61,14 +61,26 @@ def value(text) -> str:
     return _VALUE_RENDER.get()(str(text))
 
 
+DEFAULT_PREFIX = "/myfolks"
+_PREFIX: ContextVar[str] = ContextVar("myfolks_prefix", default=DEFAULT_PREFIX)
+
+
 @contextmanager
-def replies_for(surface_label: str) -> Iterator[None]:
-    """Render every value in replies made inside this block for *surface_label*."""
+def replies_for(surface_label: str, prefix: str = DEFAULT_PREFIX) -> Iterator[None]:
+    """Render every value in replies made inside this block for *surface_label*, and start every
+    suggested command with *prefix*: the wake word in chat apps, /myfolks everywhere else."""
     token = _VALUE_RENDER.set(telegram_plain if surface_label == TELEGRAM else str)
+    prefix_token = _PREFIX.set(prefix or DEFAULT_PREFIX)
     try:
         yield
     finally:
+        _PREFIX.reset(prefix_token)
         _VALUE_RENDER.reset(token)
+
+
+def command(words: str) -> str:
+    """A command to send, in this surface's own prefix, such as "myfolks undo" or "/myfolks undo"."""
+    return f"{_PREFIX.get()} {words}"
 
 
 def card_heading(name: str) -> str:
@@ -113,12 +125,20 @@ REFUSED = "MyFolks isn't available here."
 TERMINAL_WARNING = "Heads up: Hermes keeps a plain-text history of what you type in this terminal, including this command."
 
 
-def saved(name: str) -> str:
-    return f"Saved to {value(name)}."
+def saved(name: str, undo: bool = True) -> str:
+    return f"Saved to {value(name)}." + (f" Undo: {command('undo')}" if undo else "")
 
 
-def new_card(name: str) -> str:
-    return f"New card for {value(name)}. Saved."
+def new_card(name: str, undo: bool = True) -> str:
+    return f"New card for {value(name)}. Saved." + (f" Undo: {command('undo')}" if undo else "")
+
+
+def changed() -> str:
+    return f"Changed. Undo: {command('undo')}"
+
+
+def card_next_steps(name: str) -> str:
+    return f"Change a line: {command('fix')} {value(name)}    Delete: {command('forget')} {value(name)}"
 
 
 NOT_SET_UP = "Run hermes myfolks setup in your own terminal."
@@ -326,7 +346,7 @@ NOT_NOW_CHOICE = "Not now"
 
 
 def auto_linked(right: str, left: str, relation: str) -> str:
-    return f"Linked {value(right)} as {value(left)}'s {value(relation)}. Undo: /contacts undo"
+    return f"Linked {value(right)} as {value(left)}'s {value(relation)}. Undo: {command('undo')}"
 
 
 BACKUP_PROMPT = "Backup passphrase: "
@@ -440,11 +460,11 @@ USAGE_DELETE = "To delete someone: /myfolks delete <name>    One line: /myfolks 
 
 
 def deleted_person(name: str) -> str:
-    return f"Deleted {value(name)} from MyFolks. Undo: /myfolks undo"
+    return f"Deleted {value(name)}. Undo: {command('undo')}"
 
 
 def deleted_line(number: int, name: str) -> str:
-    return f"Deleted line {number} from {value(name)}. Undo: /myfolks undo"
+    return f"Deleted line {number} from {value(name)}. Undo: {command('undo')}"
 
 
 def did_you_mean_delete_fallback(question: str, commands: list[str]) -> str:
