@@ -58,9 +58,9 @@ Run this in your own terminal, or use the setup screen on the MyFolks page in He
 hermes myfolks setup
 ```
 
-Either shows a recovery code **once**. No chat ever shows it, not even the terminal chat. `/myfolks` with nothing after it shows when and from where MyFolks was set up. Keep it somewhere safe. What you save in MyFolks is stored only on this device. Your address book is separate, and MyFolks never changes it. The recovery code unlocks MyFolks after you restore a Hermes backup, or if MyFolks stops opening. It is not a copy, so also make a backup.
+Either shows a recovery code **once**. No chat ever shows it, not even the terminal chat. `/myfolks` with nothing after it shows when and from where MyFolks was set up. Keep it somewhere safe. What you save in MyFolks is stored only on this device. Your address book is separate, and MyFolks never changes it. You need the recovery code if MyFolks stops opening, and to back up or export. It is not a copy, so also make a backup.
 
-If MyFolks stops opening, or after you restore a Hermes backup on a new device:
+If MyFolks stops opening:
 
 ```bash
 hermes myfolks recover
@@ -178,8 +178,8 @@ If more than one person is allowed on your bot, link your own account once with 
 
 What you save in MyFolks is stored only on this device. To keep it if you lose the device, make a backup and keep the file somewhere else.
 
-- **All of Hermes:** a full `hermes backup` includes MyFolks's encrypted store. `hermes backup --quick` does not. On a new device, restore it with `hermes import <file>`, then run `hermes myfolks recover` and enter your recovery code.
-- **Only MyFolks:** `hermes myfolks backup` saves `~/myfolks-backup-<date-time>.mfbk`, encrypted with a passphrase you choose. Add `-o` with a file or folder to save it elsewhere. Restore it with `hermes myfolks restore <file>`. Restoring into a new setup gives you a new recovery code.
+- **Only MyFolks:** `hermes myfolks backup` saves `~/myfolks-backup-<date-time>.mfbk`, locked with a passphrase you choose. Without the passphrase, the file can't be opened. Add `-o` with a file or folder to save it elsewhere. Restore it with `hermes myfolks restore <file>`. Restoring into a new setup gives you a new recovery code.
+- **All of Hermes:** a full `hermes backup` includes MyFolks and, on a default Hermes install, the key that opens it. Anyone with that file can read what you saved in MyFolks, so treat it like a password. `hermes backup --quick` leaves MyFolks out. On a new device, restore it with `hermes import <file>`. If MyFolks then can't open, run `hermes myfolks recover`.
 
 Restoring over existing contacts asks for your recovery code, then asks you to type `REPLACE`. MyFolks also keeps the last 7 encrypted versions of your store on this device.
 
@@ -206,13 +206,14 @@ On Desktop, use **Hide from chat** on any line. In the terminal, use `/contacts 
 - **The AI file block is a safety net.** A hook blocks AI tools that directly name the store, its key, its versions or your typed history. An indirect route, such as a wildcard in a shell command, can get past it.
 - **Typed history:** Hermes keeps a plain-text history of what you type in a terminal, including `/contacts` commands.
 - **Lost device or code:** lose this device without a backup and what you saved in MyFolks is gone. Your address book isn't affected. Lose the recovery code and MyFolks keeps working here, but you can't back up, restore, export or pair.
+- **Hermes backups:** on a default Hermes install, the MyFolks key is a file next to its encrypted store, so a full `hermes backup` holds both. Anyone with that backup can read what you saved in MyFolks.
 
 ## Disclosures
 
 - **Network:** the plugin makes no network calls. Replies sent over a messaging platform pass through that platform.
 - **AI:** `/contacts` uses no model. The optional AI tool is off by default. When on, the lines it returns go to your model provider.
 - **Files:** it reads and writes only its own data folder, plus files you name for import, backup, restore or export.
-- **Stored credentials:** a device key, in your OS keychain when one is available, otherwise a file only your user can read, in the plugin's data folder.
+- **Stored credentials:** a device key, in a file only your user can read, in the plugin's data folder. MyFolks uses the OS keychain instead only when Python's `keyring` package is available to Hermes, which a default Hermes install doesn't include.
 - **Hooks:** three.
   - `pre_tool_call` checks AI tool calls for direct access to its files. Tool arguments stay on your machine.
   - `pre_gateway_dispatch` answers your own `/myfolks`, `/contacts` and wake word messages in chat apps before Hermes's session sees them, then drops them, so they never reach the AI or the transcript.

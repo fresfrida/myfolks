@@ -22,12 +22,12 @@ const COPY = {
   setupDone: 'MyFolks is ready.',
   setupStoredHere: 'What you save in MyFolks is stored only on this device. Your address book is separate, and MyFolks never changes it.',
   setupCodeIntro: 'Your recovery code. It is shown once. Keep it somewhere safe:',
-  setupCodePurpose: 'It unlocks MyFolks after you restore a Hermes backup, or if MyFolks stops opening.',
+  setupCodePurpose: 'You need it if MyFolks stops opening, and to back up or export.',
   setupBackupIntro: 'To keep what you saved in MyFolks if you lose this device, back up and keep the file somewhere else:',
   setupBackupHermes: 'hermes backup',
-  setupBackupHermesNote: 'all of Hermes, MyFolks included',
+  setupBackupHermesNote: 'all of Hermes, MyFolks included. Treat the file like a password',
   setupBackupMyfolks: 'hermes myfolks backup',
-  setupBackupMyfolksNote: 'only MyFolks, with a passphrase you choose',
+  setupBackupMyfolksNote: 'only MyFolks, locked with a passphrase you choose',
   savedIt: 'I’ve saved it',
   lockedTitle: 'MyFolks can’t open its data',
   lockedBody: 'Nothing was changed. To unlock it with your recovery code, run this in your terminal.',
@@ -537,8 +537,8 @@ function SetupPanel({ ctx, onDone }) {
         ]),
         group([
           jsx(Note, { children: COPY.setupBackupIntro }),
-          row(COPY.setupBackupHermes, COPY.setupBackupHermesNote),
-          row(COPY.setupBackupMyfolks, COPY.setupBackupMyfolksNote)
+          row(COPY.setupBackupMyfolks, COPY.setupBackupMyfolksNote),
+          row(COPY.setupBackupHermes, COPY.setupBackupHermesNote)
         ]),
         jsx(Button, { onClick: onDone, size: 'sm', children: COPY.savedIt })
       ]

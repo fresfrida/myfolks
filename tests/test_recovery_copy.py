@@ -39,11 +39,11 @@ def test_terminal_setup_prints_exactly_the_approved_screen(fresh, mod):
         "\n"
         "Your recovery code. It is shown once. Keep it somewhere safe:\n"
         f"{code}\n"
-        "It unlocks MyFolks after you restore a Hermes backup, or if MyFolks stops opening.\n"
+        "You need it if MyFolks stops opening, and to back up or export.\n"
         "\n"
         "To keep what you saved in MyFolks if you lose this device, back up and keep the file somewhere else:\n"
-        "  hermes backup            all of Hermes, MyFolks included\n"
-        "  hermes myfolks backup    only MyFolks, with a passphrase you choose\n"
+        "  hermes myfolks backup    only MyFolks, locked with a passphrase you choose\n"
+        "  hermes backup            all of Hermes, MyFolks included. Treat the file like a password\n"
     )
 
 
@@ -52,12 +52,12 @@ def test_desktop_setup_screen_has_the_same_text():
         "setupDone: 'MyFolks is ready.',",
         "setupStoredHere: 'What you save in MyFolks is stored only on this device. Your address book is separate, and MyFolks never changes it.',",
         "setupCodeIntro: 'Your recovery code. It is shown once. Keep it somewhere safe:',",
-        "setupCodePurpose: 'It unlocks MyFolks after you restore a Hermes backup, or if MyFolks stops opening.',",
+        "setupCodePurpose: 'You need it if MyFolks stops opening, and to back up or export.',",
         "setupBackupIntro: 'To keep what you saved in MyFolks if you lose this device, back up and keep the file somewhere else:',",
         "setupBackupHermes: 'hermes backup',",
-        "setupBackupHermesNote: 'all of Hermes, MyFolks included',",
+        "setupBackupHermesNote: 'all of Hermes, MyFolks included. Treat the file like a password',",
         "setupBackupMyfolks: 'hermes myfolks backup',",
-        "setupBackupMyfolksNote: 'only MyFolks, with a passphrase you choose',",
+        "setupBackupMyfolksNote: 'only MyFolks, locked with a passphrase you choose',",
     ]:
         assert line in PLUGIN_JS
 
@@ -66,8 +66,8 @@ def test_desktop_setup_screen_keeps_the_terminal_order_and_ends_with_the_button(
     panel = PLUGIN_JS[PLUGIN_JS.index("function SetupPanel"):PLUGIN_JS.index("function Page(")]
     order = [
         "COPY.setupDone", "COPY.setupStoredHere", "COPY.setupCodeIntro", "RecoveryCode, { children: step.code }",
-        "COPY.setupCodePurpose", "COPY.setupBackupIntro", "row(COPY.setupBackupHermes, COPY.setupBackupHermesNote)",
-        "row(COPY.setupBackupMyfolks, COPY.setupBackupMyfolksNote)",
+        "COPY.setupCodePurpose", "COPY.setupBackupIntro", "row(COPY.setupBackupMyfolks, COPY.setupBackupMyfolksNote)",
+        "row(COPY.setupBackupHermes, COPY.setupBackupHermesNote)",
         "COPY.savedIt",
     ]
     positions = [panel.index(item) for item in order]
@@ -221,4 +221,11 @@ def test_restore_into_a_new_store_shows_the_code_with_what_it_is_for(vault, mod,
     assert mod("cli").cmd_restore(argparse.Namespace(path=str(target)), vault=fresh, read_secret=lambda _p: PASS, stdin=Terminal(), stdout=out) == 0
     lines = out.getvalue().splitlines()
     assert lines[1] == "Your recovery code. It is shown once. Keep it somewhere safe:" and CODE.fullmatch(lines[2])
-    assert lines[3] == "It unlocks MyFolks after you restore a Hermes backup, or if MyFolks stops opening."
+    assert lines[3] == "You need it if MyFolks stops opening, and to back up or export."
+    assert "after you restore a Hermes backup" not in out.getvalue()
+
+
+def test_no_setup_or_restore_text_promises_a_hermes_backup_needs_the_code(mod):
+    texts = [value for name, value in vars(mod("messages")).items() if isinstance(value, str) and name.isupper()]
+    assert not [text for text in texts if "after you restore a Hermes backup" in text]
+    assert "after you restore a Hermes backup" not in PLUGIN_JS

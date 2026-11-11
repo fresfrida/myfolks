@@ -63,7 +63,7 @@ def setup_lines(code: str) -> list[str]:
         *recovery_code_lines(code),
         "",
         messages.SETUP_BACKUP_INTRO,
-        *_aligned_rows([(messages.SETUP_BACKUP_HERMES, messages.SETUP_BACKUP_HERMES_NOTE), (messages.SETUP_BACKUP_MYFOLKS, messages.SETUP_BACKUP_MYFOLKS_NOTE)]),
+        *_aligned_rows([(messages.SETUP_BACKUP_MYFOLKS, messages.SETUP_BACKUP_MYFOLKS_NOTE), (messages.SETUP_BACKUP_HERMES, messages.SETUP_BACKUP_HERMES_NOTE)]),
     ]
 
 
