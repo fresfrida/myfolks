@@ -8,7 +8,7 @@ import sqlite3
 from dataclasses import dataclass
 from typing import Callable, Optional
 
-from . import cards, db, importer, lookup, messages, owner, search
+from . import cards, db, guard, importer, lookup, messages, owner, search
 from .text import STOPWORDS, Token, ascii_number, looks_numeric, normalize, one_edit_apart, query_words, tokens
 from .vault import Busy, NotSetUp, Refused, Vault, VaultError
 
@@ -119,7 +119,10 @@ def handle(raw_args: str, *, platform: Optional[str] = None, source=None, ask: O
                     return messages.REFUSED
             label = owner.messaging_label(platform)
         with messages.replies_for(label):
-            return _dispatch(raw, store, label, label == "terminal", ask, access)
+            reply = _dispatch(raw, store, label, label == "terminal", ask, access)
+        if label in owner.LOCAL_SURFACES.values() and guard.take_failure_notice(store.directory):
+            return f"{messages.GUARD_FAILED}\n{reply}"
+        return reply
     except NotSetUp:
         return messages.NOT_SET_UP
     except Refused:

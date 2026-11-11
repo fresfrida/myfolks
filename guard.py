@@ -116,6 +116,41 @@ def touches_protected(tool_name: str, args: dict, protected: tuple[Path, ...], h
     return False
 
 
+FAILURE_MARKER = "guard-failed"
+_FALLBACK_WORDS = ("myfolks", "plugin-data", "plugin_data", HISTORY_FILE)
+
+
+def _mentions_myfolks(tool_name, args) -> bool:
+    """The plain check used when the full guard errors: does the call's text name MyFolks or its data?"""
+    try:
+        text = f"{tool_name} {args!r}".lower()
+    except Exception:
+        return False
+    return any(word in text for word in _FALLBACK_WORDS)
+
+
+def _note_failure() -> None:
+    """Leave a marker so the owner is told once, next time they use /contacts on the computer."""
+    try:
+        from .vault import default_directory
+
+        (default_directory() / FAILURE_MARKER).touch()
+    except Exception:
+        pass
+
+
+def take_failure_notice(directory) -> bool:
+    """Whether the guard failed since the owner was last told. Clears the marker."""
+    try:
+        marker = directory / FAILURE_MARKER
+        if marker.exists():
+            marker.unlink()
+            return True
+    except Exception:
+        pass
+    return False
+
+
 def pre_tool_call(tool_name: str, args: dict, task_id: str = "", **_context):
     try:
         from hermes_constants import get_hermes_home
@@ -124,4 +159,7 @@ def pre_tool_call(tool_name: str, args: dict, task_id: str = "", **_context):
             return {"action": "block", "message": messages.AI_BLOCKED}
     except Exception as exc:
         logger.error("MyFolks guard failed: %s", type(exc).__name__)
+        _note_failure()
+        if _mentions_myfolks(tool_name, args):
+            return {"action": "block", "message": messages.AI_BLOCKED}
     return None

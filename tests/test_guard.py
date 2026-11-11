@@ -155,10 +155,38 @@ def test_known_limit_parent_folder_search_is_not_blocked(env, blocked):
     assert not blocked("search_files", {"pattern": "x", "path": str(env["home"])})
 
 
-def test_guard_error_never_breaks_tools(mod, monkeypatch):
+def test_guard_error_never_breaks_tools(mod, monkeypatch, tmp_path):
     guard = mod("guard")
     monkeypatch.setattr(guard, "protected_paths", lambda: 1 / 0)
+    monkeypatch.setattr(mod("vault"), "default_directory", lambda: tmp_path)
     assert guard.pre_tool_call("read_file", {"path": "/x"}) is None
+
+
+@pytest.mark.parametrize("args", [
+    {"path": "/home/u/.hermes/plugin-data/myfolks/store.enc"},
+    {"command": "cat ~/.hermes/plugin-data/x"},
+    {"command": "hermes MyFolks export /tmp/x"},
+    {"code": "open('.hermes_history').read()"},
+])
+def test_guard_error_still_blocks_calls_naming_myfolks(mod, monkeypatch, tmp_path, args):
+    guard = mod("guard")
+    monkeypatch.setattr(guard, "protected_paths", lambda: 1 / 0)
+    monkeypatch.setattr(mod("vault"), "default_directory", lambda: tmp_path)
+    assert guard.pre_tool_call("terminal", args)["action"] == "block"
+
+
+def test_guard_error_warns_the_owner_once(mod, monkeypatch, vault):
+    guard = mod("guard")
+    monkeypatch.setattr(guard, "protected_paths", lambda: 1 / 0)
+    monkeypatch.setattr(mod("vault"), "default_directory", lambda: vault.directory)
+    guard.pre_tool_call("read_file", {"path": "/x"})
+    handle = mod("commands").handle
+    first = handle("", platform="cli", vault=vault)
+    assert first.startswith("Heads up: MyFolks's check on AI tool calls hit an error.")
+    assert not handle("", platform="cli", vault=vault).startswith("Heads up")
+    guard.pre_tool_call("read_file", {"path": "/x"})
+    assert not handle("", platform="telegram", vault=vault).startswith("Heads up")
+    assert handle("", platform="desktop", vault=vault).startswith("Heads up")
 
 
 def test_no_boundary_claims_in_source():

@@ -144,6 +144,7 @@ REVIEW_HOW = "Use /contacts review merge <number> [card number] or /contacts rev
 REVIEW_NOT_FOUND = "That item isn't on the review list."
 REVIEW_WHICH_CARD = "Which card? Add its number, like /contacts review merge 3 #12."
 IMPORT_FAILED = "That file couldn't be imported. Nothing was changed."
+GUARD_FAILED = "Heads up: MyFolks's check on AI tool calls hit an error. Until it works again, it only blocks AI tool calls that name MyFolks or its data folder."
 AI_BLOCKED = "MyFolks blocked this: the contact store is not available to AI tools."
 PAIRED = "Linked. This chat is now yours."
 PAIR_CODE_INTRO = "Send this in a private chat with your Hermes bot within 10 minutes:"
