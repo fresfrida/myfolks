@@ -150,7 +150,7 @@ hermes myfolks backup <file>
 hermes myfolks restore <file>
 ```
 
-Backups are encrypted with a passphrase you type privately. Restoring over a store that already has contacts asks you to type `REPLACE`. MyFolks also keeps the last 7 encrypted versions of your store.
+Backups are encrypted with a passphrase you type privately. Restoring over existing contacts asks for your recovery code, then asks you to type `REPLACE`. MyFolks also keeps the last 7 encrypted versions of your store.
 
 `hermes myfolks export <file>` writes an **unencrypted** copy after you type `EXPORT`. Export, backup, restore and pair ask for your recovery code first, typed privately, and do nothing without it.
 
