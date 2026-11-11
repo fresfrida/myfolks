@@ -62,6 +62,10 @@ class PersonBody(BaseModel):
     choice: Optional[str] = None
 
 
+class NameBody(BaseModel):
+    name: str
+
+
 class UndoBody(BaseModel):
     change_id: int
 
@@ -114,6 +118,11 @@ def edit_line(line_id: int, body: LineBody):
 @router.post("/people")
 def new_person(body: PersonBody):
     return _call(lambda s: s.new_person(body.name, body.first_detail, body.choice))
+
+
+@router.post("/cards/{card_id}/rename")
+def rename_person(card_id: int, body: NameBody):
+    return _call(lambda s: s.rename_person(card_id, body.name))
 
 
 @router.post("/undo")

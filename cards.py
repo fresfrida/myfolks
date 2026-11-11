@@ -70,6 +70,17 @@ def count_cards(connection: sqlite3.Connection) -> int:
     return connection.execute("SELECT count(*) FROM cards WHERE closed_at IS NULL").fetchone()[0]
 
 
+def rename_card(change: db.Change, card: sqlite3.Row, new_name: str) -> None:
+    """Rename a person. The old name stays as a nickname, so searching for it still finds them."""
+    new_name = clean_name(new_name)
+    change.update("cards", card["id"], name=new_name, norm_name=normalize(new_name))
+    if normalize(card["name"]) != normalize(new_name):
+        add_alias(change, card["id"], card["name"])
+    words = new_name.split()
+    if card["kind"] == "person" and len(words) > 1:
+        add_alias(change, card["id"], words[0], automatic=True)
+
+
 def delete_line(change: db.Change, line: sqlite3.Row) -> None:
     """Delete one line: closed with no replacement, so history shows it as deleted and undo reopens it."""
     change.update("details", line["id"], closed_at=db.now())

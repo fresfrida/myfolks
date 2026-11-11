@@ -200,6 +200,27 @@ def new_person(name: str, first_detail: str = "", choice: Optional[str] = None, 
         return {"state": "ready", "change_id": change_id, "card": _summary(cards.card_by_id(connection, card_id))}
 
 
+def rename_person(card_id: int, name: str, vault: Optional[Vault] = None) -> dict:
+    """Rename from the card page. Refuses a name another person already has; the old name stays as a nickname."""
+    cleaned = cards.clean_name(name or "")
+    if not cleaned or len(cleaned) > MAX_TEXT:
+        return {"state": "invalid"}
+    if fields.is_detail_word(cleaned):
+        return {"state": "detail_word"}
+    with (vault or Vault()).write() as connection:
+        card = cards.card_by_id(connection, card_id)
+        if card is None:
+            return {"state": "missing"}
+        if cleaned == card["name"]:
+            return {"state": "unchanged"}
+        if any(other["id"] != card_id for other in cards.find_cards(connection, cleaned)):
+            return {"state": "taken", "name": cleaned}
+        change = db.Change(connection, "rename", SOURCE)
+        cards.rename_card(change, card, cleaned)
+        change_id = change.finish(f"renamed {card['name']} to {cleaned}")
+        return {"state": "ready", "change_id": change_id, "card": _summary(cards.card_by_id(connection, card_id))}
+
+
 def edit_line(line_id: int, text: str, vault: Optional[Vault] = None) -> dict:
     """Edit a line from the card page, the same way /myfolks correct does: the old text stays in history."""
     cleaned = (text or "").strip()

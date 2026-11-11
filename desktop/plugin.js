@@ -58,6 +58,9 @@ const COPY = {
   deletedLineToast: 'Deleted.',
   savedToast: 'Saved.',
   addedToast: name => `Added ${name}.`,
+  renamedToast: 'Renamed.',
+  rename: 'Rename',
+  nameTaken: name => `Someone called ${name} is already here.`,
   newPerson: 'New person',
   nameLabel: 'Name',
   firstDetailLabel: 'First detail (optional)',
@@ -483,12 +486,59 @@ function NewPerson({ ctx, onOpen, onAdded }) {
   })
 }
 
-function CardView({ ctx, trail, onCrumb, onFollow, onBack, onDeleted }) {
+// Rename in place. The backend refuses a name another person has and keeps the old name as a nickname.
+function RenamePerson({ ctx, card, onDone }) {
+  const [name, setName] = useState(card.name)
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState(null)
+  const save = () => {
+    setBusy(true)
+    setMessage(null)
+    ctx
+      .rest(`/cards/${card.id}/rename`, { body: { name }, method: 'POST' })
+      .then(result => {
+        if (result.state === 'ready' || result.state === 'unchanged') {
+          onDone(result)
+        } else if (result.state === 'taken') {
+          setMessage(COPY.nameTaken(result.name))
+        } else {
+          setMessage(result.state === 'detail_word' ? COPY.nameIsDetailWord : COPY.couldNotSave)
+        }
+      })
+      .catch(() => setMessage(COPY.couldNotSave))
+      .finally(() => setBusy(false))
+  }
+  return jsxs('div', {
+    className: 'flex flex-col gap-2',
+    children: [
+      jsx(Input, { 'aria-label': COPY.nameLabel, onChange: event => setName(event.target.value), value: name }),
+      message ? jsx(Muted, { children: message }) : null,
+      jsxs('div', {
+        className: 'flex gap-2 self-end',
+        children: [
+          jsx(Button, { onClick: () => onDone(null), size: 'sm', variant: 'ghost', children: COPY.cancel }),
+          jsx(Button, { disabled: busy || !name.trim(), onClick: save, size: 'sm', children: busy ? COPY.saving : COPY.save })
+        ]
+      })
+    ]
+  })
+}
+
+function CardView({ ctx, trail, onCrumb, onFollow, onBack, onDeleted, onRenamed }) {
   const current = trail[trail.length - 1]
   const detail = useApi(ctx, `/cards/${current.id}`)
   const data = detail.data
   const [confirming, setConfirming] = useState(false)
   const [editingId, setEditingId] = useState(null)
+  const [renaming, setRenaming] = useState(false)
+  const renamed = result => {
+    setRenaming(false)
+    if (result && result.state === 'ready') {
+      onRenamed(result.card)
+      detail.reload()
+      offerUndo(ctx, COPY.renamedToast, result.change_id, () => onRenamed(null))
+    }
+  }
   const edited = result => {
     setEditingId(null)
     if (result && result.state === 'ready') {
@@ -532,7 +582,15 @@ function CardView({ ctx, trail, onCrumb, onFollow, onBack, onDeleted }) {
     children: [
       onBack ? jsx(Button, { className: 'self-start', onClick: onBack, size: 'inline', variant: 'ghost', children: COPY.allContacts }) : null,
       jsx(Trail, { onCrumb, trail }),
-      jsx('h2', { className: 'text-lg font-medium', children: current.name }),
+      renaming
+        ? jsx(RenamePerson, { card: current, ctx, onDone: renamed })
+        : jsxs('div', {
+            className: 'flex items-center gap-2',
+            children: [
+              jsx('h2', { className: 'text-lg font-medium', children: current.name }),
+              data ? jsx(Button, { onClick: () => setRenaming(true), size: 'inline', variant: 'text', children: COPY.rename }) : null
+            ]
+          }),
       !data
         ? jsx(Skeleton, { className: 'h-16 w-full' })
         : jsxs('div', {
@@ -677,6 +735,15 @@ function Contacts({ ctx, narrow, tabs }) {
       found.reload()
     })
   }
+  // A renamed card keeps its place in the trail with its new name; after an undo (null) the list reloads.
+  const renamed = card => {
+    if (card) {
+      setTrail(previous => [...previous.slice(0, -1), card])
+    } else {
+      setTrail([])
+    }
+    found.reload()
+  }
   const deleted = result => {
     setTrail([])
     found.reload()
@@ -714,7 +781,7 @@ function Contacts({ ctx, narrow, tabs }) {
   const cardColumn = showCard
     ? jsx('div', {
         className: 'flex min-w-0 flex-1 flex-col',
-        children: jsx(CardView, { ctx, onBack: narrow ? () => setTrail([]) : null, onCrumb: crumb, onDeleted: deleted, onFollow: follow, trail })
+        children: jsx(CardView, { ctx, onBack: narrow ? () => setTrail([]) : null, onCrumb: crumb, onDeleted: deleted, onFollow: follow, onRenamed: renamed, trail })
       })
     : null
 

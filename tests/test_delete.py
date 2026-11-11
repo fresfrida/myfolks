@@ -394,3 +394,46 @@ def test_desktop_new_person_wiring():
     js = (Path(__file__).parent.parent / "desktop" / "plugin.js").read_text()
     assert "newPerson: 'New person'," in js and "addedToast: name => `Added ${name}.`," in js
     assert ".rest('/people', {" in js and "jsx(NewPerson, {" in js
+
+
+# 6. Rename a person in Desktop.
+
+def test_desktop_rename_keeps_the_old_name_findable_and_undoes(run, vault, mod):
+    run("save Nel lives on Elm Street")
+    service = mod("desktop_service")
+    nel = card_id(vault, "Nel")
+    result = service.rename_person(nel, "Sis Nel", vault=vault)
+    assert result["state"] == "ready" and result["card"]["name"] == "Sis Nel"
+    assert live_names(vault) == ["Sis Nel"]
+    assert run("nel").startswith("Sis Nel\n")  # the old name still finds her
+    assert run("sis nel").startswith("Sis Nel\n")
+    assert service.undo(result["change_id"], vault=vault) == {"state": "ready", "message": "Undone: renamed Nel to Sis Nel."}
+    assert live_names(vault) == ["Nel"]
+    with vault.read() as connection:
+        assert connection.execute("SELECT count(*) FROM aliases WHERE card_id=?", (nel,)).fetchone()[0] == 0
+
+
+def test_desktop_rename_refuses_a_name_someone_else_has(run, vault, mod):
+    run("save Priya likes tea")
+    run("save Nel likes figs")
+    service = mod("desktop_service")
+    assert service.rename_person(card_id(vault, "Nel"), "priya", vault=vault) == {"state": "taken", "name": "priya"}
+    assert service.rename_person(card_id(vault, "Nel"), "Nel", vault=vault) == {"state": "unchanged"}
+    assert service.rename_person(card_id(vault, "Nel"), "", vault=vault) == {"state": "invalid"}
+    assert service.rename_person(card_id(vault, "Nel"), "phone", vault=vault) == {"state": "detail_word"}
+    assert live_names(vault) == ["Nel", "Priya"]
+
+
+def test_desktop_rename_to_a_deleted_persons_name_is_allowed(run, vault, mod):
+    run("save Priya likes tea")
+    run("save Nel likes figs")
+    run("delete Priya")
+    assert mod("desktop_service").rename_person(card_id(vault, "Nel"), "Priya", vault=vault)["state"] == "ready"
+
+
+def test_desktop_rename_wiring():
+    from pathlib import Path
+
+    js = (Path(__file__).parent.parent / "desktop" / "plugin.js").read_text()
+    assert "rename: 'Rename'," in js and "renamedToast: 'Renamed.'," in js
+    assert "nameTaken: name => `Someone called ${name} is already here.`," in js and "`/cards/${card.id}/rename`" in js
