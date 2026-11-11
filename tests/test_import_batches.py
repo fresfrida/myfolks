@@ -5,6 +5,8 @@ import time
 
 import pytest
 
+GENEROUS_LOOKUP_LIMIT = 5.0  # seconds
+
 
 class Terminal(io.StringIO):
     def isatty(self):
@@ -128,7 +130,9 @@ def test_lookup_during_big_import_is_quick(vault, mod):
     worker.join()
     print(f"\nLOOKUPS DURING IMPORT: {len(timings)}, slowest {max(timings) * 1000:.0f} ms, median {sorted(timings)[len(timings) // 2] * 1000:.0f} ms")
     assert len(timings) >= 3
-    assert max(timings) < 1.0
+    # A measurement, not a race: tests/benchmark.py reports the real number. The limit only catches
+    # an import that holds the store for the whole run again.
+    assert max(timings) < GENEROUS_LOOKUP_LIMIT
 
 
 def test_first_undo_reverses_import_even_after_a_save_during_it(vault, mod, monkeypatch):

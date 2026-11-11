@@ -66,24 +66,41 @@ def test_right_code_lets_it_run(stored, mod, tmp_path, command):
     assert result == 0, out.getvalue()
 
 
-def _run_in_pty(args, answers, timeout=60):
+def _read_available(fd) -> bytes:
+    try:
+        return os.read(fd, 4096)
+    except OSError:  # the child closed its side
+        return b""
+
+
+def _run_in_pty(args, answers, timeout=120):
+    """Run the command in a pseudo-terminal, answer prompts, and read until the child has exited."""
     pid, fd = pty.fork()
     if pid == 0:
         os.execv(sys.executable, [sys.executable, str(HERE / "pty_cli.py"), *args])
-    output, pending, deadline = b"", list(answers), time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        ready, _, _ = select.select([fd], [], [], 0.2)
-        if ready:
-            try:
-                chunk = os.read(fd, 4096)
-            except OSError:
-                break
+    output, pending, deadline, status = b"", list(answers), time.monotonic() + timeout, None
+    try:
+        while status is None:
+            if time.monotonic() > deadline:
+                os.kill(pid, 9)
+                pytest.fail(f"command did not finish: {output.decode(errors='replace')}")
+            ready, _, _ = select.select([fd], [], [], 0.1)
+            if ready:
+                chunk = _read_available(fd)
+                output += chunk
+                if pending and output.rstrip().endswith(b":"):
+                    os.write(fd, (pending.pop(0) + "\n").encode())
+            done, raw = os.waitpid(pid, os.WNOHANG)
+            if done:
+                status = raw
+        while True:
+            ready, _, _ = select.select([fd], [], [], 0.1)
+            chunk = _read_available(fd) if ready else b""
             if not chunk:
                 break
             output += chunk
-            if pending and output.rstrip().endswith(b":"):
-                os.write(fd, (pending.pop(0) + "\n").encode())
-    _, status = os.waitpid(pid, 0)
+    finally:
+        os.close(fd)
     return os.waitstatus_to_exitcode(status), output.decode(errors="replace")
 
 
