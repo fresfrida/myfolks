@@ -158,12 +158,14 @@ def try_pair(connection: sqlite3.Connection, platform: str, user_id: str, code: 
     if clock() > record["expires"]:
         _clear_code(connection)
         return False
+    sender = f"{platform}:{user_id}"
+    tries = record.get("tries") or {}
+    if tries.get(sender, 0) >= MAX_ATTEMPTS:
+        return False  # this sender is out of tries; the code still works for the owner
     if not hmac.compare_digest(record["digest"], _digest(_clean_code(code))):
-        record["attempts"] += 1
-        if record["attempts"] >= MAX_ATTEMPTS:
-            _clear_code(connection)
-        else:
-            db.set_setting(connection, _CODE_SETTING, json.dumps(record))
+        tries[sender] = tries.get(sender, 0) + 1
+        record["tries"] = tries
+        db.set_setting(connection, _CODE_SETTING, json.dumps(record))
         return False
     _clear_code(connection)
     connection.execute("DELETE FROM owners WHERE platform=?", (platform,))

@@ -187,3 +187,41 @@ def test_export_refuses_existing_file(filled, cli, tmp_path):
     path.write_text("keep")
     assert cli.cmd_export(args(path), vault=filled, read_secret=with_code(filled, _fail), read_line=_fail, stdin=Terminal(), stdout=Terminal()) == 1
     assert path.read_text() == "keep"
+
+
+def test_backup_asking_for_huge_scrypt_cost_is_refused_quickly(filled, cli, tmp_path, mod):
+    import json as _json
+    import struct
+    import time
+
+    backup = mod("backup")
+    blob = backup.seal(filled.database_bytes(), PASS)
+    prefix = backup._PREFIX
+    magic, version, length = prefix.unpack_from(blob)
+    header = _json.loads(blob[prefix.size:prefix.size + length])
+    header["n"] = 2**20
+    raw = _json.dumps(header).encode()
+    forged = prefix.pack(magic, version, len(raw)) + raw + blob[prefix.size + length:]
+    started = time.perf_counter()
+    with pytest.raises(backup.BackupRefused):
+        backup.unseal(forged, PASS)
+    assert time.perf_counter() - started < 0.5
+
+
+def test_data_folder_is_private(tmp_path, mod):
+    import os
+    import stat
+
+    folder = tmp_path / "data"
+    folder.mkdir(mode=0o755)
+    os.chmod(folder, 0o755)
+    vault = mod("vault").Vault(folder, keys=mod("device_key").DeviceKeys(folder, use_keychain=False))
+    vault.setup()
+    assert stat.S_IMODE(folder.stat().st_mode) == 0o700
+
+
+def test_undo_refuses_unknown_tables(vault, mod):
+    mod("commands").handle("save Priya likes tea", platform="cli", vault=vault)
+    with vault.write() as connection:
+        connection.execute("UPDATE changes SET ops=? WHERE id=(SELECT max(id) FROM changes)", ('[["insert","sqlite_master",1]]',))
+    assert mod("commands").handle("undo", platform="cli", vault=vault).startswith("Can't undo")

@@ -21,7 +21,7 @@ _KEY_BYTES = 32
 _SCRYPT_N = 2**17
 _SCRYPT_R = 8
 _SCRYPT_P = 1
-_SCRYPT_MAX_N = 2**20
+_SCRYPT_MAX_N = 2**17  # checked before any expensive work: a backup can't make us spend 1 GiB
 MIN_PASSPHRASE = 8
 
 

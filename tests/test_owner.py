@@ -124,12 +124,13 @@ def test_pairing_refused_in_group(seeded, allow, send, mod):
     assert send(f"pair {code}", sender("222")) == "Linked. This chat is now yours."
 
 
-def test_wrong_codes_burn_the_code(seeded, allow, send, mod):
+def test_wrong_codes_lock_out_that_sender_only(seeded, allow, send, mod):
     allow("111", "222")
     code = code_from_cli(seeded, mod)
     for _attempt in range(5):
         assert send("pair WRONGCOD", sender("222")) == REFUSED
     assert send(f"pair {code}", sender("222")) == REFUSED
+    assert send(f"pair {code}", sender("111")) == "Linked. This chat is now yours."
 
 
 def test_expired_code_refused(seeded, mod):

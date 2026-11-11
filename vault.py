@@ -190,7 +190,9 @@ class Vault:
 
     @contextmanager
     def _locked(self) -> Iterator[None]:
-        self.directory.mkdir(parents=True, exist_ok=True)
+        self.directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+        if self.directory.stat().st_mode & 0o077:
+            os.chmod(self.directory, 0o700)  # the data folder is private to this user
         descriptor = os.open(self.directory / LOCK_NAME, os.O_RDWR | os.O_CREAT, 0o600)
         try:
             deadline = time.monotonic() + self.lock_timeout

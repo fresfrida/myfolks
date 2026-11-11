@@ -221,6 +221,9 @@ class ChangeClosed(Exception):
     """A change can't be extended because it was undone."""
 
 
+UNDO_TABLES = frozenset({"cards", "aliases", "details", "links", "review", "settings", "owners"})
+
+
 class UndoBlocked(Exception):
     """Undoing would break something a later change still relies on. Nothing was changed."""
 
@@ -235,9 +238,12 @@ def undo_latest(connection: sqlite3.Connection) -> str | None:
     row = connection.execute("SELECT id,summary,ops FROM changes WHERE undone_at IS NULL ORDER BY id DESC LIMIT 1").fetchone()
     if row is None:
         return None
+    ops = json.loads(row["ops"])
+    if any(op[1] not in UNDO_TABLES for op in ops):
+        raise UndoBlocked(row["summary"])  # names only MyFolks's own tables reach SQL
     connection.execute("SAVEPOINT myfolks_undo")
     try:
-        for op in reversed(json.loads(row["ops"])):
+        for op in reversed(ops):
             if op[0] == "insert":
                 connection.execute(f"DELETE FROM {op[1]} WHERE id=?", (op[2],))
             else:
