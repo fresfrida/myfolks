@@ -70,6 +70,11 @@ def count_cards(connection: sqlite3.Connection) -> int:
     return connection.execute("SELECT count(*) FROM cards WHERE closed_at IS NULL").fetchone()[0]
 
 
+def delete_line(change: db.Change, line: sqlite3.Row) -> None:
+    """Delete one line: closed with no replacement, so history shows it as deleted and undo reopens it."""
+    change.update("details", line["id"], closed_at=db.now())
+
+
 def delete_card(change: db.Change, card: sqlite3.Row) -> None:
     """Delete a person: everything stays, for history and undo; every read leaves the card out."""
     change.update("cards", card["id"], closed_at=db.now())

@@ -158,6 +158,19 @@ def delete_person(card_id: int, vault: Optional[Vault] = None) -> dict:
         return {"state": "ready", "change_id": change_id, "name": card["name"]}
 
 
+def delete_line(line_id: int, vault: Optional[Vault] = None) -> dict:
+    """Delete one line from the card page. Undo reopens it."""
+    with (vault or Vault()).write() as connection:
+        line = connection.execute("SELECT * FROM details WHERE id=? AND closed_at IS NULL", (line_id,)).fetchone()
+        card = cards.card_by_id(connection, line["card_id"]) if line is not None else None
+        if card is None:
+            return {"state": "missing"}
+        change = db.Change(connection, "delete", SOURCE)
+        cards.delete_line(change, line)
+        change_id = change.finish(f"deleted a line on {card['name']}")
+        return {"state": "ready", "change_id": change_id, "name": card["name"]}
+
+
 def set_hidden(line_id: int, hidden: bool, vault: Optional[Vault] = None) -> dict:
     with (vault or Vault()).write() as connection:
         line = connection.execute("SELECT * FROM details WHERE id=? AND closed_at IS NULL", (line_id,)).fetchone()

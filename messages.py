@@ -221,11 +221,13 @@ def numbered_line(number: int, rendered: str) -> str:
     return f"{number}. {rendered}"
 
 
-def history_line(text: str, iso_timestamp: str, source: str, closed_iso: str | None, render: Callable[[str], str] = str) -> str:
+def history_line(text: str, iso_timestamp: str, source: str, closed_iso: str | None, render: Callable[[str], str] = str, deleted: bool = False) -> str:
     shown = render(text)
     words = f'"{shown}"' if shown == text else shown
     line = f"{words}\nSaved {_display_date(iso_timestamp)} from {value(source)}"
-    return line + (f", replaced {_display_date(closed_iso)}" if closed_iso else "")
+    if not closed_iso:
+        return line
+    return line + (f", deleted {_display_date(closed_iso)}" if deleted else f", replaced {_display_date(closed_iso)}")
 
 
 def history_title(name: str) -> str:
@@ -433,11 +435,15 @@ def sync_first(added: int, matched: int, to_check: int) -> str:
 
 
 # Delete. New wording, TENTATIVE.
-USAGE_DELETE = "To delete someone: /myfolks delete <name>"
+USAGE_DELETE = "To delete someone: /myfolks delete <name>    One line: /myfolks delete <name> <line number>"
 
 
 def deleted_person(name: str) -> str:
     return f"Deleted {value(name)} from MyFolks. Undo: /myfolks undo"
+
+
+def deleted_line(number: int, name: str) -> str:
+    return f"Deleted line {number} from {value(name)}. Undo: /myfolks undo"
 
 
 def did_you_mean_delete_fallback(question: str, commands: list[str]) -> str:

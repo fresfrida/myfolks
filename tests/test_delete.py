@@ -117,7 +117,7 @@ def test_close_name_on_telegram_gives_the_commands(vault, mod, monkeypatch):
 
 def test_unknown_name_and_usage(run):
     assert run("delete Zed") == "No one called Zed yet."
-    assert run("delete") == "To delete someone: /myfolks delete <name>"
+    assert run("delete") == "To delete someone: /myfolks delete <name>    One line: /myfolks delete <name> <line number>"
 
 
 def test_shared_people_and_the_ai_can_never_delete(vault, mod, monkeypatch):
@@ -200,3 +200,71 @@ def test_google_sync_never_brings_a_deleted_person_back(run, vault, monkeypatch,
     run("delete Sis Nel")
     assert run("sync") == "Google contacts synced: nothing new."
     assert live_names(vault) == ["Dee"]
+
+
+# 2. Delete one line.
+
+def test_delete_one_line_then_undo(run, vault):
+    run("save Priya likes tea")
+    run("save Priya allergic to peanuts")
+    assert run("delete Priya 2") == "Deleted line 2 from Priya. Undo: /myfolks undo"
+    assert "peanuts" not in run("priya")
+    assert run("correct Priya").splitlines()[1:2] == ["1. likes tea"]
+    history = run("history priya")
+    assert "allergic to peanuts" in history and ", deleted " in history and ", replaced " not in history
+    assert run("undo") == "Undone: deleted a line on Priya."
+    assert "allergic to peanuts" in run("priya allergic")
+
+
+def test_corrected_line_still_reads_replaced_in_history(run):
+    run("save Priya likes tea")
+    run("correct Priya 1 likes green tea")
+    history = run("history priya")
+    assert ", replaced " in history and ", deleted " not in history
+
+
+def test_delete_line_number_out_of_range(run, vault):
+    run("save Priya likes tea")
+    assert run("delete Priya 5") == "That line number isn't on the card."
+    assert "likes tea" in run("priya")
+
+
+def test_name_ending_in_a_number_is_still_a_name(run, vault):
+    run('save "Studio 54" opens at nine')
+    assert run("delete Studio 54") == "Deleted Studio 54 from MyFolks. Undo: /myfolks undo"
+
+
+def test_telegram_line_numbers_match_correct(vault, mod, monkeypatch):
+    monkeypatch.setattr(mod("owner"), "allowed_users", lambda platform: ({"111"}, False))
+    with vault.write() as connection:
+        connection.execute("INSERT INTO owners(platform,user_id,created_at) VALUES('telegram','111','2026-01-01')")
+    handle = mod("commands").handle
+    handle("save Priya secret code 1234", platform="cli", vault=vault)
+    handle("hide Priya 1", platform="cli", vault=vault)
+    handle("save Priya likes tea", platform="cli", vault=vault)
+    source = SimpleNamespace(user_id="111", chat_type="dm", is_bot=False)
+    phone = lambda text: handle(text, platform="telegram", source=source, vault=vault)  # noqa: E731
+    assert phone("correct Priya").splitlines()[1] == "1. likes tea"
+    assert phone("delete Priya 1") == "Deleted line 1 from Priya. Undo: /myfolks undo"
+    with vault.read() as connection:
+        open_texts = [row[0] for row in connection.execute("SELECT text FROM details WHERE closed_at IS NULL")]
+    assert open_texts == ["secret code 1234"]
+
+
+def test_desktop_delete_line_and_undo(run, vault, mod):
+    run("save Priya likes tea")
+    service = mod("desktop_service")
+    line_id = service.card_detail(card_id(vault, "Priya"), vault=vault)["lines"][0]["id"]
+    result = service.delete_line(line_id, vault=vault)
+    assert result["state"] == "ready" and isinstance(result["change_id"], int)
+    assert service.card_detail(card_id(vault, "Priya"), vault=vault)["lines"] == []
+    assert service.delete_line(line_id, vault=vault) == {"state": "missing"}
+    assert run("undo") == "Undone: deleted a line on Priya."
+    assert len(service.card_detail(card_id(vault, "Priya"), vault=vault)["lines"]) == 1
+
+
+def test_desktop_line_delete_button():
+    from pathlib import Path
+
+    js = (Path(__file__).parent.parent / "desktop" / "plugin.js").read_text()
+    assert "deleteLine: 'Delete'," in js and "`/lines/${line.id}/delete`" in js

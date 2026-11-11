@@ -55,6 +55,7 @@ const COPY = {
     return outgoing ? `${word}: ${name}` : `${word} of ${name}`
   },
   deletePerson: 'Delete person',
+  deleteLine: 'Delete',
   deletePersonTitle: name => `Delete ${name}?`,
   deletePersonBody: 'They disappear from MyFolks. Their details stay in history, and Undo brings them back.',
   delete: 'Delete',
@@ -131,7 +132,7 @@ const Command = ({ children }) => jsx('code', { className: 'font-mono text-sm te
 const RecoveryCode = ({ children }) => jsx('code', { className: 'font-mono text-lg font-medium', children })
 
 // The signature element: the saved words first, then when and where they came from.
-function Receipt({ line, onToggleHidden }) {
+function Receipt({ line, onToggleHidden, onDelete }) {
   return jsxs('div', {
     className: 'flex flex-col gap-1 border-l-2 py-1 pl-3',
     style: { borderColor: 'var(--ui-accent)' },
@@ -150,7 +151,8 @@ function Receipt({ line, onToggleHidden }) {
           line.private ? jsx(Badge, { children: COPY.hiddenTag }) : null,
           onToggleHidden
             ? jsx(Button, { onClick: () => onToggleHidden(line), size: 'inline', variant: 'text', children: line.private ? COPY.showInChat : COPY.hideFromChat })
-            : null
+            : null,
+          onDelete ? jsx(Button, { onClick: () => onDelete(line), size: 'inline', variant: 'text', children: COPY.deleteLine }) : null
         ]
       })
     ]
@@ -349,6 +351,11 @@ function CardView({ ctx, trail, onCrumb, onFollow, onBack, onDeleted }) {
       .rest(`/lines/${line.id}/hidden`, { body: { hidden: !line.private }, method: 'POST' })
       .then(detail.reload)
       .catch(detail.reload)
+  const deleteLine = line =>
+    ctx
+      .rest(`/lines/${line.id}/delete`, { body: {}, method: 'POST' })
+      .then(detail.reload)
+      .catch(detail.reload)
 
   if (detail.failed) {
     return jsx(StatePanel, { onRetry: detail.reload, state: 'error' })
@@ -367,7 +374,7 @@ function CardView({ ctx, trail, onCrumb, onFollow, onBack, onDeleted }) {
         : jsxs('div', {
             className: 'flex flex-col',
             children: data.lines.length
-              ? data.lines.map(line => jsx(Receipt, { line, onToggleHidden: toggleHidden }, line.number))
+              ? data.lines.map(line => jsx(Receipt, { line, onDelete: deleteLine, onToggleHidden: toggleHidden }, line.number))
               : [jsx(Muted, { children: COPY.noLines }, 'none')]
           }),
       data && data.links.length

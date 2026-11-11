@@ -699,10 +699,16 @@ def _review(context: Context, _raw: str, parts: list[Token]) -> str:
 
 
 def _delete(context: Context, _raw: str, parts: list[Token]) -> str:
-    """`/myfolks delete <name>`: the person leaves MyFolks, everything kept for history and undo."""
+    """`/myfolks delete <name>`: the person leaves MyFolks. `/myfolks delete <name> <n>`: one line goes,
+    numbered as `/myfolks correct <name>` lists them. Everything is kept for history and undo."""
     typed = " ".join(p.text for p in parts)
     if not typed:
         return messages.USAGE_DELETE
+    number = None
+    if len(parts) > 1 and not lookup.cards_for_words(context.connection, [typed]):
+        number = ascii_number(parts[-1].text)  # a name that ends in a number, such as "Studio 54", stays a name
+        if number is not None:
+            typed = " ".join(p.text for p in parts[:-1])
     matches = lookup.cards_for_words(context.connection, [typed])
     if matches:
         card = context.pick(matches, typed)
@@ -710,13 +716,21 @@ def _delete(context: Context, _raw: str, parts: list[Token]) -> str:
         close = cards.find_close_cards(context.connection, typed)
         if not close:
             return messages.no_one_called(typed)
-        card = _confirm_or_cancel(context, typed, close, lambda name: f"/myfolks delete {name}", messages.did_you_mean_delete_fallback)
+        suffix = f" {number}" if number is not None else ""
+        card = _confirm_or_cancel(context, typed, close, lambda name: f"/myfolks delete {name}{suffix}", messages.did_you_mean_delete_fallback)
         if card is None:
             return messages.CANCELLED
     change = db.Change(context.connection, "delete", context.source_label)
-    cards.delete_card(change, card)
-    change.finish(f"deleted {card['name']}")
-    return messages.deleted_person(card["name"])
+    if number is None:
+        cards.delete_card(change, card)
+        change.finish(f"deleted {card['name']}")
+        return messages.deleted_person(card["name"])
+    lines = cards.active_lines(context.connection, card["id"], context.show_private)
+    if not 1 <= number <= len(lines):
+        return messages.NO_SUCH_LINE
+    cards.delete_line(change, lines[number - 1])
+    change.finish(f"deleted a line on {card['name']}")
+    return messages.deleted_line(number, card["name"])
 
 
 def _undo(context: Context, _raw: str, _parts: list[Token]) -> str:
@@ -739,8 +753,9 @@ def _history(context: Context, _raw: str, parts: list[Token]) -> str:
         if card is None:
             return messages.CANCELLED
     lines = cards.all_lines(context.connection, card["id"], context.show_private)
+    replaced = {l["replaces_id"] for l in lines if l["replaces_id"] is not None}
     render = _plain_render(context)
-    body = [messages.history_line(l["text"], l["saved_at"], l["source"], l["closed_at"], render) for l in lines]
+    body = [messages.history_line(l["text"], l["saved_at"], l["source"], l["closed_at"], render, deleted=l["id"] not in replaced) for l in lines]
     return "\n".join([messages.history_title(card["name"]), *(body or [messages.NO_LINES])])
 
 
