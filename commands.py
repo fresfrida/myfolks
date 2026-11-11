@@ -119,7 +119,17 @@ def handle(raw_args: str, *, platform: Optional[str] = None, source=None, ask: O
                     return messages.REFUSED
             label = owner.messaging_label(platform)
         with messages.replies_for(label):
-            reply = _dispatch(raw, store, label, label == "terminal", ask, access)
+            try:
+                reply = _dispatch(raw, store, label, label == "terminal", ask, access)
+            except NotSetUp:
+                if label != "terminal":
+                    raise
+                from .cli import first_use_setup
+
+                intro = first_use_setup(store)
+                if intro is None:
+                    raise
+                reply = f"{intro}\n\n{_dispatch(raw, store, label, True, ask, access)}"
         if label in owner.LOCAL_SURFACES.values() and guard.take_failure_notice(store.directory):
             return f"{messages.GUARD_FAILED}\n{reply}"
         return reply

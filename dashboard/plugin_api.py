@@ -66,6 +66,11 @@ def status():
     return _call(lambda s: s.status())
 
 
+@router.post("/setup")
+def setup():
+    return _call(lambda s: s.setup())
+
+
 @router.post("/find")
 def find(body: FindBody):
     return _call(lambda s: s.find(body.query))

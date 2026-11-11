@@ -15,8 +15,13 @@ const COPY = {
   review: 'To review',
   allContacts: 'All contacts',
   notSetUpTitle: 'MyFolks isn’t set up yet',
-  notSetUpBody: 'Run this once in your terminal. It shows your recovery code.',
+  notSetUpBody: 'Set it up here. You’ll see your recovery code once.',
   notSetUpCommand: 'hermes myfolks setup',
+  setUp: 'Set up MyFolks',
+  settingUp: 'Setting up…',
+  setupCodeIntro: 'Your recovery code. It is shown once. Keep it somewhere safe:',
+  setupCodeNeeded: 'If you lose both this device and this code, your contacts are gone.',
+  savedIt: 'I’ve saved it',
   lockedTitle: 'MyFolks can’t open its data',
   lockedBody: 'Nothing was changed. If you moved to a new device, run this in your terminal.',
   lockedCommand: 'hermes myfolks recover',
@@ -497,6 +502,36 @@ function Contacts({ ctx, narrow, tabs }) {
   })
 }
 
+function SetupPanel({ ctx, onDone }) {
+  const [step, setStep] = useState({ name: 'ask' })
+  const start = () => {
+    setStep({ name: 'working' })
+    ctx
+      .rest('/setup', { body: {}, method: 'POST' })
+      .then(data => (data && data.code ? setStep({ name: 'code', code: data.code }) : onDone()))
+      .catch(() => setStep({ name: 'failed' }))
+  }
+  if (step.name === 'failed') {
+    return jsx(Failure, { body: COPY.errorBody, onRetry: start, title: COPY.errorTitle })
+  }
+  if (step.name === 'code') {
+    return jsxs('div', {
+      className: 'flex h-full flex-col items-center justify-center gap-3 p-6',
+      children: [
+        jsx(Note, { children: COPY.setupCodeIntro }),
+        jsx(Command, { children: step.code }),
+        jsx(Note, { children: COPY.setupCodeNeeded }),
+        jsx(Button, { onClick: onDone, size: 'sm', children: COPY.savedIt })
+      ]
+    })
+  }
+  return jsx(CenteredMessage, {
+    action: jsx(Button, { disabled: step.name === 'working', onClick: start, size: 'sm', children: step.name === 'working' ? COPY.settingUp : COPY.setUp }),
+    body: COPY.notSetUpBody,
+    title: COPY.notSetUpTitle
+  })
+}
+
 function Page({ ctx }) {
   const [rootRef, narrow] = useNarrow()
   const [tab, setTab] = useState('contacts')
@@ -508,6 +543,8 @@ function Page({ ctx }) {
     body = jsx(StatePanel, { onRetry: status.reload, state: 'error' })
   } else if (!data) {
     body = jsx('div', { className: 'p-6', children: jsx(Skeleton, { className: 'h-16 w-full' }) })
+  } else if (data.state === 'not_set_up') {
+    body = jsx(SetupPanel, { ctx, onDone: status.reload })
   } else if (data.state !== 'ready') {
     body = jsx(StatePanel, { onRetry: status.reload, state: data.state })
   } else if (data.cards === 0 && !data.review) {

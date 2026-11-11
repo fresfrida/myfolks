@@ -117,7 +117,7 @@ def new_card(name: str) -> str:
     return f"New card for {value(name)}. Saved."
 
 
-NOT_SET_UP = "MyFolks isn't set up yet. Run this in your terminal: hermes myfolks setup"
+NOT_SET_UP = "MyFolks isn't set up yet. On your computer, send /myfolks in the terminal, or open the MyFolks page in Hermes Desktop."
 LOCKED = "MyFolks can't open its data. Nothing was changed. If you moved to a new device, run: hermes myfolks recover"
 BUSY = "MyFolks is busy. Try again in a moment."
 SETUP_DONE = "MyFolks is ready."

@@ -39,6 +39,14 @@ def state_for(error: VaultError) -> dict:
     return {"state": "error"}
 
 
+def setup(vault: Optional[Vault] = None) -> dict:
+    """Desktop page setup: the same path as hermes myfolks setup. The code is returned once."""
+    from .cli import create_store
+
+    code = create_store(vault or Vault())
+    return {"state": "ready", "code": code} if code else {"state": "ready"}
+
+
 def status(vault: Optional[Vault] = None) -> dict:
     with (vault or Vault()).read() as connection:
         return {

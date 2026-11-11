@@ -157,7 +157,7 @@ def test_refusal_is_identical_before_setup(tmp_path, mod, allow):
 def test_sole_owner_before_setup_is_told_to_set_up(tmp_path, mod, allow):
     fresh = mod("vault").Vault(tmp_path, keys=mod("device_key").DeviceKeys(tmp_path, use_keychain=False))
     allow("111")
-    assert "hermes myfolks setup" in mod("commands").handle("priya", platform="telegram", source=sender("111"), vault=fresh)
+    assert "send /myfolks in the terminal" in mod("commands").handle("priya", platform="telegram", source=sender("111"), vault=fresh)
 
 
 @pytest.mark.parametrize("platform,label", [("cli", "terminal"), ("tui", "terminal"), ("local", "terminal"), ("desktop", "Desktop")])

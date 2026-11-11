@@ -14,3 +14,9 @@ def test_old_settings_wording_is_gone():
 def test_card_opens_again_for_each_search_result():
     assert "  }, [answerCardId, data])\n" in PLUGIN_JS
     assert "  }, [answerCardId])\n" not in PLUGIN_JS
+
+
+def test_setup_screen_wording():
+    assert "setupCodeIntro: 'Your recovery code. It is shown once. Keep it somewhere safe:'," in PLUGIN_JS
+    assert "setupCodeNeeded: 'If you lose both this device and this code, your contacts are gone.'," in PLUGIN_JS
+    assert "body = jsx(SetupPanel, { ctx, onDone: status.reload })" in PLUGIN_JS

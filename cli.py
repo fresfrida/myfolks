@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import getpass
+from typing import Optional
 import sys
 
 from . import messages
@@ -28,23 +29,42 @@ def run(args) -> int:
     return handlers[args.myfolks_command](args)
 
 
+def create_store(vault) -> Optional[str]:
+    """The one setup path, for hermes myfolks setup, the first /myfolks in the terminal and the
+    Desktop page. Returns the recovery code, shown once, or None when the store already exists."""
+    from .vault import AlreadySetUp
+
+    try:
+        return vault.setup()
+    except AlreadySetUp:
+        return None
+
+
+def setup_lines(code: str) -> list[str]:
+    return [messages.SETUP_DONE, messages.SETUP_CODE_INTRO, code, messages.SETUP_CODE_NEEDED]
+
+
+def first_use_setup(vault, streams=None) -> Optional[str]:
+    """In a real terminal, set up a store that doesn't exist yet. Same checks as hermes myfolks setup."""
+    if not _in_terminal(streams or (sys.stdin, sys.stdout)):
+        return None
+    code = create_store(vault)
+    return "\n".join(setup_lines(code)) if code else None
+
+
 def cmd_setup(_args, *, vault=None, stdout=None) -> int:
-    from .vault import AlreadySetUp, Vault
+    from .vault import Vault
 
     out = stdout or sys.stdout
     if not out.isatty():
         print(messages.SETUP_NEEDS_TERMINAL, file=sys.stderr)
         return 1
-    vault = vault or Vault()
-    try:
-        code = vault.setup()
-    except AlreadySetUp:
+    code = create_store(vault or Vault())
+    if code is None:
         print(messages.SETUP_ALREADY, file=out)
         return 1
-    print(messages.SETUP_DONE, file=out)
-    print(messages.SETUP_CODE_INTRO, file=out)
-    print(code, file=out)
-    print(messages.SETUP_CODE_NEEDED, file=out)
+    for line in setup_lines(code):
+        print(line, file=out)
     return 0
 
 
