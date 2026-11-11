@@ -43,7 +43,7 @@ A typical case: a friend sends their new address. A year later you need it for t
 | R7 | Contacts arrive without typing | vCard and CSV import; Google sync through Hermes's OAuth helper; exact phone or email merges, similar names go to review | `tests/test_import.py`, `tests/test_google_sync.py` |
 | R8 | Every change is reversible | Change log; delete closes a record instead of erasing it; Desktop Undo reverses only its own change | `tests/test_delete.py` |
 | R9 | No commands to learn | Plain words map to actions (remember, fix, forget, undo); every reply shows the next step | `tests/test_plain_words.py` |
-| R10 | Fast at personal scale | In-memory SQLite, character-trigram search | `tests/benchmark.py`: lookup 8.3 ms median at 5,000 people and 20,000 details |
+| R10 | Fast at personal scale | In-memory SQLite, character-trigram search | `tests/benchmark.py`: lookup 8.5 ms median at 5,000 people and 20,000 details |
 
 ## Architecture
 
@@ -83,7 +83,7 @@ flowchart LR
 
 - **Automated tests:** 1,055 pass on macOS; 1,054 on Linux in a container (one root-only test skipped). `python3 -m pytest tests`
 - **Evidence pack**, re-runnable, made-up data: search 102 of 108 with no unanswerable question given a direct answer; 25 process kills during a save, file always the old or new version; 3 concurrent writers, 120 of 120 saves kept; wrong key, wrong recovery code and tampering at 5 positions all refused with the file untouched; non-owner, group chat and missing sender refused. `python3 tests/evidence_pack.py`
-- **Performance:** lookup 8.3 ms median and save 14.5 ms median at 5,000 people and 20,000 details; lookup during a 5,000-contact import 1.8 ms median. `python3 tests/benchmark.py`
+- **Performance:** lookup 8.5 ms median and save 18.9 ms median at 5,000 people and 20,000 details; lookup during a 5,000-contact import 1.9 ms median. `python3 tests/benchmark.py`
 - **Hermes plugin check:** passed, security scan `safe`, OAuth client valid. `hermes plugins validate .`
 - **Independent review:** change sets were reviewed by a separate reviewer before release, and no release went out with an open blocker.
 - **Acceptance testing on a real install** (Nov 11 to 12) found two defects, both fixed with regression tests: a detail word after `save` became a person's name ("address"); and a Google sync failure didn't say its cause. Sync failures now log the HTTP status and Google's reason code, never a token. A first sync design that read another tool's Google token was caught in review and rebuilt on Hermes's OAuth helper.
@@ -345,10 +345,10 @@ Run these yourself from a checkout, with a Python that has `cryptography`. Measu
 | Wrong key, wrong recovery code, tampered file | Refused, file untouched | `python3 tests/evidence_pack.py` |
 | Non-owner, group chat, missing sender | Refused | `python3 tests/evidence_pack.py` |
 | Near name | No details shown until you choose | `python3 tests/evidence_pack.py` |
-| Lookup at 5,000 cards and 20,000 details | 8.3 ms median, 11.5 ms slowest | `python3 tests/benchmark.py` |
-| Save at the same size | 14.5 ms median, 21.5 ms slowest | `python3 tests/benchmark.py` |
-| Wake word check on each chat message | 0.38 microseconds median for an ordinary message | `python3 tests/benchmark.py` |
-| Lookup while 5,000 contacts import | 1.8 ms median, 68 ms slowest | `python3 tests/benchmark.py` |
+| Lookup at 5,000 cards and 20,000 details | 8.5 ms median, 12.0 ms slowest | `python3 tests/benchmark.py` |
+| Save at the same size | 18.9 ms median, 25.2 ms slowest | `python3 tests/benchmark.py` |
+| Wake word check on each chat message | 0.42 microseconds median for an ordinary message | `python3 tests/benchmark.py` |
+| Lookup while 5,000 contacts import | 1.9 ms median, 77 ms slowest | `python3 tests/benchmark.py` |
 | Full test suite | 1,055 passed on macOS, and 1,054 passed on Linux in a container, where 1 test is skipped because it runs as root | `python3 -m pytest tests` |
 | Plugin check | Passed, security scan `safe` | `hermes plugins validate .` |
 
