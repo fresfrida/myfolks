@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import re
+from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import datetime
-from typing import Callable, Optional
+from typing import Callable, Iterator, Optional
 
 
 def _display_date(iso_timestamp: str) -> str:
@@ -49,6 +51,30 @@ def telegram_words(text: str) -> str:
     return _telegram_code(text) if _TELEGRAM_FORMATTING.search(text) else f"**{text}**"
 
 
+TELEGRAM = "Telegram"
+_VALUE_RENDER: ContextVar[Callable[[str], str]] = ContextVar("myfolks_value_render", default=str)
+
+
+def value(text) -> str:
+    """The one place a stored or typed value enters a reply: names, relations, aliases, sources,
+    summaries and commands. On Telegram it gets the same protection as saved words."""
+    return _VALUE_RENDER.get()(str(text))
+
+
+@contextmanager
+def replies_for(surface_label: str) -> Iterator[None]:
+    """Render every value in replies made inside this block for *surface_label*."""
+    token = _VALUE_RENDER.set(telegram_plain if surface_label == TELEGRAM else str)
+    try:
+        yield
+    finally:
+        _VALUE_RENDER.reset(token)
+
+
+def card_heading(name: str) -> str:
+    return value(name)
+
+
 def telegram_plain(text: str) -> str:
     """Saved words on Telegram without bold, still shown exactly."""
     return _telegram_code(text) if _TELEGRAM_FORMATTING.search(text) else text
@@ -58,23 +84,23 @@ def _with_tail(rendered: str, tail: str) -> str:
     return f"{rendered}\n{tail}" if rendered.endswith("```") else f"{rendered}{_SEPARATOR}{tail}"
 
 
-def more_line(count: int, name: str, render_name: Callable[[str], str] = str) -> str:
-    return f"+{count} more · /contacts {render_name(name)}"
+def more_line(count: int, name: str) -> str:
+    return f"+{count} more · /contacts {value(name)}"
 
 
-def answer(name: str, lines: list[tuple[str, str, str]], unsure: bool, render: Callable[[str], str], now: Optional[datetime] = None, more: int = 0, render_name: Callable[[str], str] = str) -> str:
+def answer(name: str, lines: list[tuple[str, str, str]], unsure: bool, render: Callable[[str], str], now: Optional[datetime] = None, more: int = 0) -> str:
     """An answer readable at a glance. *lines* are (saved words, saved at, source)."""
-    shown = render_name(name)
+    shown = value(name)
     head = _with_tail(shown, _NOT_SURE) if unsure else shown
     dates = [date_label(saved_at, now) for _text, saved_at, _source in lines]
     sources = {source for _text, _saved, source in lines}
     if len(set(dates)) == 1:
-        tail = f"{dates[0]}{_SEPARATOR}{sources.pop()}" if len(sources) == 1 else dates[0]
+        tail = f"{dates[0]}{_SEPARATOR}{value(sources.pop())}" if len(sources) == 1 else dates[0]
         body = [head, *(render(line[0]) for line in lines), tail]
     else:
         body = [head, *(_with_tail(render(line[0]), date) for line, date in zip(lines, dates))]
     if more:
-        body.append(more_line(more, name, render_name))
+        body.append(more_line(more, name))
     return "\n".join(body)
 
 
@@ -84,11 +110,11 @@ TERMINAL_WARNING = "Heads up: Hermes keeps a plain-text history of what you type
 
 
 def saved(name: str) -> str:
-    return f"Saved to {name}."
+    return f"Saved to {value(name)}."
 
 
 def new_card(name: str) -> str:
-    return f"New card for {name}. Saved."
+    return f"New card for {value(name)}. Saved."
 
 
 NOT_SET_UP = "MyFolks isn't set up yet. Run this in your terminal: hermes myfolks setup"
@@ -137,26 +163,26 @@ def overview(count: int) -> str:
 
 
 def choose_fallback(options: list[tuple[int, str, str]]) -> str:
-    lines = [f"#{card_id} {name}" + (f" ({hint})" if hint else "") for card_id, name, hint in options]
+    lines = [f"#{card_id} {value(name)}" + (f" ({value(hint)})" if hint else "") for card_id, name, hint in options]
     return "More than one match. Use the number, like /contacts #" + str(options[0][0]) + ":\n" + "\n".join(lines)
 
 
 def linked(left: str, relation: str, right: str, new_names: list[str]) -> str:
-    created = "".join(f"\nNew card for {name}." for name in new_names)
-    return f"Linked: {left}, {relation}, {right}.{created}"
+    created = "".join(f"\nNew card for {value(name)}." for name in new_names)
+    return f"Linked: {value(left)}, {value(relation)}, {value(right)}.{created}"
 
 
 def alias_added(name: str, alias: str) -> str:
-    return f"{name} also answers to {alias}."
+    return f"{value(name)} also answers to {value(alias)}."
 
 
 def undone(summary: str) -> str:
-    return f"Undone: {summary}."
+    return f"Undone: {value(summary)}."
 
 
 def link_line(relation: str, other: str, outgoing: bool) -> str:
     word = relation[:1].upper() + relation[1:]
-    return f"{word}: {other}" if outgoing else f"{word} of {other}"
+    return f"{value(word)}: {value(other)}" if outgoing else f"{value(word)} of {value(other)}"
 
 
 def notes_line(count: int, latest_saved_at: str, now: Optional[datetime] = None) -> str:
@@ -171,12 +197,12 @@ def numbered_line(number: int, rendered: str) -> str:
 def history_line(text: str, iso_timestamp: str, source: str, closed_iso: str | None, render: Callable[[str], str] = str) -> str:
     shown = render(text)
     words = f'"{shown}"' if shown == text else shown
-    line = f"{words}\nSaved {_display_date(iso_timestamp)} from {source}"
+    line = f"{words}\nSaved {_display_date(iso_timestamp)} from {value(source)}"
     return line + (f", replaced {_display_date(closed_iso)}" if closed_iso else "")
 
 
 def history_title(name: str) -> str:
-    return f"{name}: history"
+    return f"{value(name)}: history"
 
 
 def pair_instruction(code: str) -> str:
@@ -184,7 +210,7 @@ def pair_instruction(code: str) -> str:
 
 
 def done(summary: str) -> str:
-    return f"Done: {summary}."
+    return f"Done: {value(summary)}."
 
 
 def review_title(count: int) -> str:
@@ -192,9 +218,9 @@ def review_title(count: int) -> str:
 
 
 def review_entry(item: int, name: str, lines: list[str], candidates: list[tuple[int, str]]) -> str:
-    matches = ", ".join(f"{card_name} (#{card_id})" for card_id, card_name in candidates)
-    shown = "; ".join(lines)
-    return f"{item}. {name}" + (f" [{shown}]" if shown else "") + f" could be: {matches}"
+    matches = ", ".join(f"{value(card_name)} (#{card_id})" for card_id, card_name in candidates)
+    shown = "; ".join(value(line) for line in lines)
+    return f"{item}. {value(name)}" + (f" [{shown}]" if shown else "") + f" could be: {matches}"
 
 
 def import_stopped(applied: int, total: int) -> str:
@@ -240,7 +266,7 @@ NOT_NOW_CHOICE = "Not now"
 
 
 def link_offer_command(command: str) -> str:
-    return f"To link them too: {command}"
+    return f"To link them too: {value(command)}"
 
 
 BACKUP_PROMPT = "Backup passphrase: "
@@ -262,20 +288,19 @@ CANCELLED = "Nothing was changed."
 
 
 def did_you_mean_open(question: str, commands: list[str]) -> str:
-    return "\n".join([question, "To see it, send:", *commands])
+    return "\n".join([value(question), "To see it, send:", *(value(command) for command in commands)])
 
 
 def did_you_mean_fallback(question: str, commands: list[str]) -> str:
-    return "\n".join([question, "Nothing was saved. To go ahead, send one of these:", *commands])
+    return "\n".join([value(question), "Nothing was saved. To go ahead, send one of these:", *(value(command) for command in commands)])
 
 
 def ai_saved(name: str, text: str) -> str:
     return f'MyFolks saved to {name}: "{text}"'
 
 
-def hidden_only(name: str, render_name: Callable[[str], str] = str) -> str:
-    name = render_name(name)
-    return f"{name}\nNothing to show here.\nSome notes are hidden from chat."
+def hidden_only(name: str) -> str:
+    return f"{value(name)}\nNothing to show here.\nSome notes are hidden from chat."
 
 
 def hidden_count_line(count: int) -> str:

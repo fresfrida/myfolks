@@ -61,14 +61,17 @@ def test_name_with_formatting_characters_on_telegram(phone, vault):
 
 def test_unsure_heading_with_formatting_name(mod):
     messages = mod("messages")
-    out = messages.answer("Mel_x", [("likes tea", "2026-01-01T00:00:00+00:00", "Telegram")], True, messages.telegram_words, render_name=messages.telegram_plain)
+    with messages.replies_for("Telegram"):
+        out = messages.answer("Mel_x", [("likes tea", "2026-01-01T00:00:00+00:00", "Telegram")], True, messages.telegram_words)
     assert out.split("\n")[0] == "`Mel_x` · not sure"
 
 
 def test_more_line_protects_name(mod):
     messages = mod("messages")
-    assert messages.more_line(3, "Mel_x", messages.telegram_plain) == "+3 more · /contacts `Mel_x`"
-    assert messages.more_line(3, "Mel", messages.telegram_plain) == "+3 more · /contacts Mel"
+    with messages.replies_for("Telegram"):
+        assert messages.more_line(3, "Mel_x") == "+3 more · /contacts `Mel_x`"
+        assert messages.more_line(3, "Mel") == "+3 more · /contacts Mel"
+    assert messages.more_line(3, "Mel_x") == "+3 more · /contacts Mel_x"
 
 
 def test_plain_names_unchanged_on_telegram(phone):

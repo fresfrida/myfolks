@@ -22,7 +22,7 @@ _TYPO_VERBS = ("save", "link", "history", "correct", "undo", "review")
 _VERBS = {*_TYPO_VERBS, "hide", "unhide"}
 _MAX_QUESTIONS = 4
 _OFFER_KEY = "offer:link"
-_BOLD_SURFACE = "Telegram"
+_BOLD_SURFACE = messages.TELEGRAM
 _POSSESSIVE = re.compile(r"(?:['\u2019][sS]|['\u2019])$")
 _NEW_FLAG = "--new"
 _RETIRED_FLAGS = {"--private", "--computer-only"}
@@ -111,7 +111,8 @@ def handle(raw_args: str, *, platform: Optional[str] = None, source=None, ask: O
                 if access is None:
                     return messages.REFUSED
             label = owner.messaging_label(platform)
-        return _dispatch(raw, store, label, label == "terminal", ask, access)
+        with messages.replies_for(label):
+            return _dispatch(raw, store, label, label == "terminal", ask, access)
     except NotSetUp:
         return messages.NOT_SET_UP
     except Refused:
@@ -462,7 +463,7 @@ def _set_hidden(context: Context, parts: list[Token], hidden: bool) -> str:
     lines = cards.active_lines(context.connection, card["id"])
     if number is None:
         listed = [messages.hide_list_line(i, line["text"], bool(line["private"])) for i, line in enumerate(lines, 1)]
-        return "\n".join([card["name"], *(listed or [messages.NO_LINES]), messages.USAGE_HIDE])
+        return "\n".join([messages.card_heading(card["name"]), *(listed or [messages.NO_LINES]), messages.USAGE_HIDE])
     if not 1 <= number <= len(lines):
         return messages.NO_SUCH_LINE
     line = lines[number - 1]
@@ -494,7 +495,7 @@ def _correct_list(context: Context, parts: list[Token]) -> str:
         return messages.NO_LINES
     render = _plain_render(context)
     numbered = [messages.numbered_line(number, render(line["text"])) for number, line in enumerate(lines, 1)]
-    return "\n".join([card["name"], *numbered, messages.USAGE_CORRECT])
+    return "\n".join([messages.card_heading(card["name"]), *numbered, messages.USAGE_CORRECT])
 
 
 def _correct(context: Context, raw: str, parts: list[Token]) -> str:
@@ -600,7 +601,7 @@ def _plain_render(context: Context) -> Callable[[str], str]:
 def _card_view(context: Context, card: sqlite3.Row) -> str:
     lines = cards.active_lines(context.connection, card["id"], context.show_private)
     render = _plain_render(context)
-    out = [render(card["name"]), *(render(line["text"]) + (messages.HIDDEN_SUFFIX if context.terminal and line["private"] else "") for line in lines)]
+    out = [messages.card_heading(card["name"]), *(render(line["text"]) + (messages.HIDDEN_SUFFIX if context.terminal and line["private"] else "") for line in lines)]
     for link in cards.open_links(context.connection, card["id"]):
         outgoing = link["from_card"] == card["id"]
         out.append(messages.link_line(link["relation"], link["to_name"] if outgoing else link["from_name"], outgoing))
@@ -620,7 +621,7 @@ def _format_results(context: Context, card: sqlite3.Row, results: search.Results
     if not chosen:
         return messages.NOTHING
     lines = [(line["text"], line["saved_at"], line["source"]) for line in chosen]
-    return messages.answer(card["name"], lines, unsure=not results.direct, render=render, more=results.more if results.direct else 0, render_name=_plain_render(context))
+    return messages.answer(card["name"], lines, unsure=not results.direct, render=render, more=results.more if results.direct else 0)
 
 
 def _chosen_close_card(context: Context, words: list[str]) -> Optional[tuple[sqlite3.Row, list[str]]]:
@@ -654,5 +655,5 @@ def _query(context: Context, raw: str) -> str:
         return _card_view(context, card)
     results = search.rank(cards.active_lines(context.connection, card["id"], context.show_private), wanted)
     if not (results.direct or results.related) and _hidden_count(context, card):
-        return messages.hidden_only(card["name"], _plain_render(context))
+        return messages.hidden_only(card["name"])
     return _format_results(context, card, results)
