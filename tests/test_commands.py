@@ -58,7 +58,7 @@ def test_lookup_answer_format(run):
 
 
 def test_unknown_person_says_nothing(run):
-    assert run("nobody birthday") == "No one called nobody yet."
+    assert run("nobody birthday") == "Nothing saved about that."
 
 
 def test_card_view_has_no_numbers(run):
@@ -303,7 +303,7 @@ def test_near_name_never_followed_through_links(run):
 
 def test_short_names_get_no_typo_help(run):
     run("save Bob likes cake")
-    assert run("bo cake") == "No one called bo yet."
+    assert run("bo cake") == "Nothing saved about that."
 
 
 def test_several_close_names_ask(run):

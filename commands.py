@@ -691,6 +691,16 @@ def _chosen_close_card(context: Context, words: list[str]) -> Optional[tuple[sql
     return (card, remaining) if card is not None else (None, [])
 
 
+def _unknown_name(raw: str) -> str:
+    """The name someone asked about, when it's clear: the only word, or a word marked with 's
+    ("Tom's birthday"). Otherwise empty, and the reply stays "Nothing saved about that." """
+    words = [part for part in tokens(raw) if part.text.casefold() not in STOPWORDS and not part.text.startswith("#")]
+    marked = [part for part in words if not part.quoted and _POSSESSIVE.search(part.text)]
+    if len(marked) == 1:
+        return _POSSESSIVE.sub("", marked[0].text)
+    return words[0].text if len(words) == 1 and not marked else ""
+
+
 def _query(context: Context, raw: str) -> str:
     if any(part.text.startswith("#") and looks_numeric(part.text[1:]) for part in tokens(raw)):
         return messages.NOTHING  # card numbers are ASCII 0-9 only, before any text folding
@@ -701,7 +711,7 @@ def _query(context: Context, raw: str) -> str:
     if resolved is None:
         chosen = _chosen_close_card(context, words)
         if chosen is None:
-            typed = next((part.text for part in tokens(raw) if part.text.casefold() not in STOPWORDS and not part.text.startswith("#")), "")
+            typed = _unknown_name(raw)
             return messages.no_one_called(typed) if typed else messages.NOTHING
         if chosen[0] is None:
             return messages.CANCELLED
