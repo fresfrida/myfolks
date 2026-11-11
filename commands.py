@@ -506,7 +506,13 @@ def _correct_list(context: Context, parts: list[Token]) -> str:
 def _correct(context: Context, raw: str, parts: list[Token]) -> str:
     if any(i and looks_numeric(part.text) for i, part in enumerate(parts[:3])):
         return messages.USAGE_CORRECT
-    position = next((i for i, part in enumerate(parts) if i and ascii_number(part.text) is not None), None)
+    if _match_prefix(context, parts, len(parts))[0] == len(parts):
+        return _correct_list(context, parts)  # the whole thing is a name, such as "Studio 54"
+    used, _named = _match_prefix(context, parts, len(parts) - 2)
+    if used and ascii_number(parts[used].text) is not None:
+        position = used  # the longest card name first, as save does: "Studio 54 1 new text"
+    else:
+        position = next((i for i, part in enumerate(parts) if i and ascii_number(part.text) is not None), None)
     if position is None:
         return _correct_list(context, parts)
     if position + 1 >= len(parts):
