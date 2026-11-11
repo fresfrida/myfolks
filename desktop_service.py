@@ -8,7 +8,7 @@ from __future__ import annotations
 import sqlite3
 from typing import Optional
 
-from . import cards, db, fields, importer, lookup, messages, owner, search
+from . import cards, db, fields, importer, lookup, messages, owner, search, wake
 from .text import normalize, query_words
 from .vault import Busy, NotSetUp, Refused, Vault, VaultError
 
@@ -53,6 +53,7 @@ def status(vault: Optional[Vault] = None) -> dict:
             "state": "ready",
             "cards": cards.count_cards(connection),
             "review": len(importer.pending_reviews(connection)),
+            "wake_word": wake.configured_word(),
         }
 
 

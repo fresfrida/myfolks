@@ -21,6 +21,19 @@ def clean_word(value) -> str:
     return str(value or "").strip().lstrip("/").strip().casefold()
 
 
+def configured_word(read_config=None) -> str:
+    """The wake word as set in this Hermes profile, for the Desktop page's guide. Read-only, from the same
+    place ctx.get_config reads (plugins.entries.myfolks.settings). Only a label: the default if unreadable."""
+    try:
+        if read_config is None:
+            from hermes_cli.config import load_config_readonly as read_config
+        entry = (((read_config() or {}).get("plugins") or {}).get("entries") or {}).get("myfolks") or {}
+        settings = entry.get("settings") if isinstance(entry.get("settings"), dict) else entry.get("config") or {}
+        return clean_word(settings.get(SETTING, DEFAULT_WAKE_WORD))
+    except Exception:
+        return DEFAULT_WAKE_WORD
+
+
 class Settings:
     """The wake word and AI switch, read once and refreshed at most every REFRESH_SECONDS."""
 

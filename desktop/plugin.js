@@ -88,6 +88,22 @@ const COPY = {
   nothingToReview: 'Nothing to review.',
   reviewNote: 'These came from an import and look like someone you already have.',
   settingsTitle: 'MyFolks',
+  guideTitle: 'How to use',
+  guideIntro: word => (word ? `Start a chat message with ${word} (or /myfolks), then use plain words.` : 'Start a chat message with /myfolks, then use plain words.'),
+  guideHeadings: ['To', 'Words', 'Example'],
+  // The same rows as the README user guide. The first word is the one to remember.
+  guideRows: [
+    { to: 'Ask', words: ['any question, or just a name'], example: "what's Priya's dog called?", plain: true },
+    { to: 'Save', words: ['remember', 'save', 'note', 'add', 'keep'], example: 'remember Priya is allergic to peanuts' },
+    { to: 'Fix', words: ['fix', 'change', 'edit', 'correct', 'update'], example: 'fix Priya' },
+    { to: 'Delete', words: ['forget', 'delete', 'remove'], example: 'forget Priya' },
+    { to: 'Undo', words: ['undo'], example: 'undo' },
+    { to: 'Connect', words: ['link'], example: 'link Priya dog Biscuit' },
+    { to: 'Bring people in', words: ['sync', 'review'], example: 'sync', allBold: true },
+    { to: 'See changes', words: ['history', 'changes'], example: 'history Priya' },
+    { to: 'Help', words: ['help'], example: 'help' }
+  ],
+  guideDesktop: 'Here in Hermes Desktop, open MyFolks to search, add, edit, delete and undo with buttons.',
   storeRow: 'Your data',
   storeRowBody: 'Encrypted in this Hermes profile. MyFolks connects only to Google, and only after you send /myfolks sync.',
   recoveryRow: 'If MyFolks stops opening',
@@ -881,10 +897,48 @@ function Page({ ctx }) {
   return jsx('div', { className: 'h-full min-h-0', ref: rootRef, children: body })
 }
 
-function SettingsPage() {
+// The user guide: the plain words for each job, with the wake word this profile actually uses.
+function Guide({ word }) {
+  const prefix = word || '/myfolks'
+  const words = row =>
+    row.plain
+      ? row.words[0]
+      : row.words.map((w, i) => jsxs('span', { children: [i ? ', ' : '', i === 0 || row.allBold ? jsx('strong', { children: w }) : w] }, w))
   return jsxs('div', {
     className: 'flex flex-col gap-2',
     children: [
+      jsx('div', { className: 'text-sm font-medium', children: COPY.guideTitle }),
+      jsx(Note, { children: COPY.guideIntro(word) }),
+      jsx('table', {
+        className: 'w-full text-left text-sm',
+        children: [
+          jsx('thead', { children: jsx('tr', { children: COPY.guideHeadings.map(h => jsx('th', { className: 'py-1 pr-3 font-medium', children: h }, h)) }) }, 'head'),
+          jsx('tbody', {
+            children: COPY.guideRows.map(row =>
+              jsxs('tr', {
+                children: [
+                  jsx('td', { className: 'py-1 pr-3 align-top', children: row.to }),
+                  jsx('td', { className: 'py-1 pr-3 align-top', children: words(row) }),
+                  jsx('td', { className: 'py-1 align-top', children: jsx(Command, { children: `${prefix} ${row.example}` }) })
+                ]
+              }, row.to)
+            )
+          }, 'body')
+        ]
+      }),
+      jsx(Note, { children: COPY.guideDesktop })
+    ]
+  })
+}
+
+function SettingsPage({ ctx }) {
+  const status = useApi(ctx, '/status')
+  const word = status.data && typeof status.data.wake_word === 'string' ? status.data.wake_word : 'myfolks'
+  return jsxs('div', {
+    className: 'flex flex-col gap-2',
+    children: [
+      jsx(Guide, { word }),
+      jsx(Separator, {}),
       jsx(ListRow, { description: COPY.storeRowBody, title: COPY.storeRow }),
       jsx(ListRow, { description: COPY.recoveryRowBody, title: COPY.recoveryRow }),
       jsx(ListRow, { description: COPY.importRowBody, title: COPY.importRow })
@@ -900,6 +954,6 @@ export default {
       { id: 'page', area: ROUTES_AREA, data: { path: '/myfolks' }, render: () => jsx(Page, { ctx }) },
       { id: 'nav', area: SIDEBAR_NAV_AREA, data: { codicon: 'book', label: COPY.title, path: '/myfolks' } }
     ])
-    ctx.registerSettingsPage?.({ icon: 'book', id: 'settings', render: () => jsx(SettingsPage, {}), title: COPY.settingsTitle })
+    ctx.registerSettingsPage?.({ icon: 'book', id: 'settings', render: () => jsx(SettingsPage, { ctx }), title: COPY.settingsTitle })
   }
 }

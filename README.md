@@ -6,6 +6,24 @@ Your people, their folks, the details that matter.
 
 A contact book your agent can't misremember.
 
+## User guide
+
+Start a chat message with **myfolks** (or /myfolks), then use plain words.
+
+| To | Words | Example |
+|---|---|---|
+| Ask | any question, or just a name | `myfolks what's Priya's dog called?` |
+| Save | **remember**, save, note, add, keep | `myfolks remember Priya is allergic to peanuts` |
+| Fix | **fix**, change, edit, correct, update | `myfolks fix Priya` |
+| Delete | **forget**, delete, remove | `myfolks forget Priya`, or one line: `myfolks forget Priya 2` |
+| Undo | **undo** | `myfolks undo` |
+| Connect | **link** | `myfolks link Priya dog Biscuit` |
+| Bring people in | **sync**, **review** | `myfolks sync` |
+| See changes | **history**, changes | `myfolks history Priya` |
+| Help | **help** | `myfolks help` |
+
+In Hermes Desktop, open MyFolks to search, add, edit, delete and undo with buttons. To show it: **Capabilities**, then **Plugins**, and switch on MyFolks.
+
 ## Quick start
 
 1. Install: `hermes plugins install myfolks`
@@ -72,24 +90,21 @@ hermes myfolks recover
 
 | Command | What it does |
 |---|---|
-| `/contacts` | Short help and how many cards you have |
-| `/contacts <name>` | A person's card |
-| `/contacts <name> <question>` | Find saved lines, such as `/contacts priya allergic` |
-| `/contacts save <name> <text>` | Save a line. An unknown name makes a new card. Once you've imported or synced contacts, MyFolks asks first |
-| `/contacts link <name> <relation> <name>` | Link two cards, such as `/contacts link Priya dog Biscuit` |
-| `/contacts history <name>` | Every line, with exact dates, including corrected ones |
-| `/contacts correct <name>` | Numbered lines to pick from |
-| `/contacts correct <name> <number> <new text>` | Correct a line. The old value is kept in history |
-| `/contacts delete <name>` | Delete a person. `/contacts delete <name> <number>` deletes one line |
-| `/contacts undo` | Undo your last change, whatever it was |
-| `/contacts review` | Imported contacts waiting for you to merge or keep |
-| `/contacts sync` | Bring in your Google contacts, read-only. `/contacts sync off` stops it |
+| `/myfolks` | How many people you have, and how to ask |
+| `/myfolks help` | What you can do, in plain words |
+| `/myfolks what's Priya's dog called?` | Ask anything, or send just a name to see their card |
+| `/myfolks remember Priya is allergic to peanuts` | Save a line. An unknown name makes a new card. Once you've imported or synced contacts, MyFolks asks first |
+| `/myfolks fix Priya` | Numbered lines to pick from. `/myfolks fix Priya 2 <new text>` changes one, and the old text stays in history |
+| `/myfolks forget Priya` | Delete a person. `/myfolks forget Priya 2` deletes one line |
+| `/myfolks undo` | Undo your last change, whatever it was |
+| `/myfolks link Priya dog Biscuit` | Link two cards |
+| `/myfolks history Priya` | Every line, with exact dates, including changed and deleted ones |
+| `/myfolks review` | Imported contacts waiting for you to merge or keep |
+| `/myfolks sync` | Bring in your Google contacts, read-only. `/myfolks sync off` stops it |
 
-Use double quotes for a full name: `/contacts save "Priya Sharma" likes tea`.
+Each word in the user guide works in place of the one shown, and `/contacts` works everywhere `/myfolks` does. Use double quotes for a full name: `/myfolks remember "Priya Sharma" likes tea`.
 
-`/myfolks` works everywhere `/contacts` does, with no setup.
-
-Saving needs `/contacts save`, `/myfolks save`, or the wake word at the start of a chat app message. Plain chat without these goes to the AI instead of MyFolks.
+Saving needs a save word (remember, save, note, add, keep) after `/myfolks`, `/contacts` or the wake word at the start of a chat app message. Plain chat without these goes to the AI instead of MyFolks.
 
 ### Delete and undo
 

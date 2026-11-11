@@ -15,7 +15,7 @@ def loaded(vault, mod):
 
 
 def test_status_ready_counts(loaded, service):
-    assert service.status(loaded) == {"state": "ready", "cards": 2, "review": 0}
+    assert service.status(loaded) == {"state": "ready", "cards": 2, "review": 0, "wake_word": "myfolks"}
 
 
 def test_find_browses_everyone_with_no_query(loaded, service):

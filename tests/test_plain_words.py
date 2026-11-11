@@ -218,3 +218,61 @@ def test_the_example_question_in_help_really_works(run):
     run("save Biscuit is a golden retriever")
     reply = run("what's Priya's dog called?")
     assert reply.startswith("Priya\n") and "dog is Biscuit" in reply
+
+
+# 5. The user guide lists only words that work.
+
+def _readme_guide():
+    from pathlib import Path
+
+    text = (Path(__file__).parent.parent / "README.md").read_text()
+    return text.split("## User guide\n", 1)[1].split("\n## ", 1)[0]
+
+
+def test_readme_user_guide_comes_first_and_every_word_works(mod):
+    import re
+
+    readme = (__import__("pathlib").Path(__file__).parent.parent / "README.md").read_text()
+    assert readme.index("## User guide") < readme.index("## Quick start")
+    guide = _readme_guide()
+    assert guide.lstrip().startswith("Start a chat message with **myfolks** (or /myfolks), then use plain words.")
+    verbs = mod("commands")._VERB_WORDS
+    rows = [line.split("|")[1:4] for line in guide.splitlines() if line.startswith("| ") and not line.startswith("| To ")]
+    assert [row[0].strip() for row in rows] == ["Ask", "Save", "Fix", "Delete", "Undo", "Connect", "Bring people in", "See changes", "Help"]
+    for _to, words, _example in rows[1:]:
+        for word in re.findall(r"[a-z]+", words):
+            assert word in verbs, word
+    assert "In Hermes Desktop, open MyFolks to search, add, edit, delete and undo with buttons." in guide
+
+
+def test_every_readme_example_runs(run, vault):
+    import re
+
+    run("save Priya dog is Biscuit")
+    run("save Biscuit is a golden retriever")
+    for example in re.findall(r"`myfolks ([^`]+)`", _readme_guide()):
+        reply = run(example)
+        assert not reply.startswith(("To ", "MyFolks isn't")), (example, reply)
+
+
+def test_desktop_guide_lists_the_same_words(mod):
+    import re
+    from pathlib import Path
+
+    js = (Path(__file__).parent.parent / "desktop" / "plugin.js").read_text()
+    assert "guideTitle: 'How to use'," in js and "jsx(Guide, { word })" in js and "render: () => jsx(SettingsPage, { ctx })" in js
+    verbs = mod("commands")._VERB_WORDS
+    rows = re.findall(r"\{ to: '([^']+)', words: \[([^\]]+)\]", js)
+    assert [to for to, _ in rows] == ["Ask", "Save", "Fix", "Delete", "Undo", "Connect", "Bring people in", "See changes", "Help"]
+    for to, words in rows[1:]:
+        for word in re.findall(r"'([a-z]+)'", words):
+            assert word in verbs, (to, word)
+
+
+def test_desktop_status_gives_the_wake_word(vault, mod, monkeypatch):
+    wake = mod("wake")
+    assert wake.configured_word(lambda: {"plugins": {"entries": {"myfolks": {"settings": {"wake_word": "Folks"}}}}}) == "folks"
+    assert wake.configured_word(lambda: {"plugins": {"entries": {"myfolks": {"settings": {"wake_word": ""}}}}}) == ""
+    assert wake.configured_word(lambda: {}) == "myfolks"
+    monkeypatch.setattr(wake, "configured_word", lambda: "folks")
+    assert mod("desktop_service").status(vault=vault)["wake_word"] == "folks"
