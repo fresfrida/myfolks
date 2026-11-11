@@ -59,7 +59,7 @@ TEMPLATES = {
 
 # Text that never reaches Telegram: terminal prompts, the AI's own note, and Desktop JSON.
 RAW_BY_DESIGN = {
-    "ai_wake_note", "pair_ask_replace",
+    "ai_wake_note", "pair_ask_replace", "busy_use_wake_word",
     "pair_instruction", "receipt", "telegram_words", "telegram_plain", "value", "replies_for", "date_label",
     "import_summary", "import_stopped", "import_aliases", "overview", "notes_line", "numbered_line", "hidden_count_line",
     "hide_list_line", "review_title",

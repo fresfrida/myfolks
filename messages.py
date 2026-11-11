@@ -275,6 +275,10 @@ def link_offer(right: str, left: str, relation: str) -> str:
     return f"Also link {value(right)} as {value(left)}'s {value(relation)}?"
 
 
+def busy_use_wake_word(word: str) -> str:
+    return f"Use {word or 'myfolks'} <question> while Hermes is busy."
+
+
 def ai_wake_note(word: str, in_chat_app: bool) -> str:
     start = f'"{word}" or /myfolks' if in_chat_app else "/myfolks"
     return (

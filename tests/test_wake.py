@@ -183,3 +183,28 @@ def test_myfolks_command_is_the_same_handler():
     import sys
     sys.modules["myfolks"].register(context)
     assert context.handlers["myfolks"] is context.handlers["contacts"]
+
+
+@pytest.mark.parametrize("text", ["/myfolks priya", "/contacts priya allergy", "/contacts@fresfrida_hermesbot priya", "  /MyFolks", "/myfolks"])
+def test_myfolks_command_reaching_the_ai_is_blocked(wake, text):
+    for ai_on in (False, True):
+        hook = wake.llm_hook(wake.Settings(Reader(ai_tool=ai_on)))
+        assert hook(user_message=text, platform="telegram") == {"action": "block", "message": "Use myfolks <question> while Hermes is busy."}
+
+
+def test_blocked_reply_follows_the_wake_word_and_has_no_contact_data(wake, vault, mod):
+    mod("commands").handle("save Priya is allergic to peanuts", platform="cli", vault=vault)
+    hook = wake.llm_hook(wake.Settings(Reader(wake_word="folks")))
+    reply = hook(user_message="/myfolks priya allergy", platform="telegram")["message"]
+    assert reply == "Use folks <question> while Hermes is busy." and "peanuts" not in reply
+
+
+@pytest.mark.parametrize("text", ["/contactsx priya", "/help", "hi /myfolks", "please /contacts priya"])
+def test_other_messages_are_not_blocked(wake, text):
+    result = wake.llm_hook(wake.Settings(Reader()))(user_message=text, platform="telegram")
+    assert result is None or "context" in result
+
+
+def test_mid_sentence_mention_keeps_the_note(wake):
+    result = wake.llm_hook(wake.Settings(Reader()))(user_message="I installed myfolks yesterday", platform="telegram")
+    assert "context" in result

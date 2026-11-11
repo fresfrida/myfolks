@@ -120,6 +120,14 @@ async def _answer_or(answer: Callable, event, gateway, args: str, fallback):
     return fallback
 
 
+def _is_myfolks_command(text: str) -> bool:
+    stripped = text.strip()
+    if not stripped.startswith("/"):
+        return False
+    head = stripped.split(None, 1)[0]
+    return head[1:].split("@", 1)[0].casefold() in COMMAND_NAMES
+
+
 def _text_of(message) -> str:
     if isinstance(message, str):
         return message
@@ -131,6 +139,10 @@ def _text_of(message) -> str:
 def llm_hook(settings: Settings) -> Callable:
     def pre_llm_call(user_message=None, platform: str = "", **_kwargs):
         current = settings.current()
+        if _is_myfolks_command(_text_of(user_message)):
+            # A /myfolks or /contacts sent while Hermes is busy reaches the AI as plain text, because
+            # Hermes doesn't let plugin commands skip its busy handling. Stop it before any model request.
+            return {"action": "block", "message": messages.busy_use_wake_word(current.word)}
         if current.ai_on or current.mention is None:
             return None
         if not current.mention.search(_text_of(user_message)):
