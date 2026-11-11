@@ -283,6 +283,10 @@ LINK_CHOICE = "Link"
 NOT_NOW_CHOICE = "Not now"
 
 
+def auto_linked(right: str, left: str, relation: str) -> str:
+    return f"Linked {value(right)} as {value(left)}'s {value(relation)}. Undo: /contacts undo"
+
+
 def link_offer_command(command: str) -> str:
     return f"To link them too: {value(command)}"
 

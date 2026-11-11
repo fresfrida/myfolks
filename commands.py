@@ -319,6 +319,7 @@ def _save(context: Context, raw: str, parts: list[Token]) -> str:
         return messages.USAGE_SAVE
     used, matches = _match_prefix(context, parts, len(parts) - 1, possessive=True)
     card = None
+    exact = bool(matches)
     if matches:
         card = context.pick(matches, parts[0].text)
     elif not force_new:
@@ -348,11 +349,21 @@ def _save(context: Context, raw: str, parts: list[Token]) -> str:
         card_id, name = card["id"], card["name"]
     cards.add_detail(change, card_id, text, context.source_label)
     change.finish(f"saved to {name}")
-    offer = cards.link_offer_in(text)
-    if offer and normalize(offer[1]) != normalize(name) and not cards.has_link(context.connection, card_id, *offer):
-        context.answers[_OFFER_KEY] = (name, offer[0], offer[1])
     reply = messages.new_card(name) if is_new else messages.saved(name)
+    linked = None
+    if exact and not is_new and _allowed_link(context):
+        linked = cards.link_if_certain(context.connection, cards.card_by_id(context.connection, card_id), text, context.source_label)
+    if linked:
+        reply = f"{reply}\n{messages.auto_linked(linked[0], name, linked[1])}"
+    else:
+        offer = cards.link_offer_in(text)
+        if offer and normalize(offer[1]) != normalize(name) and not cards.has_link(context.connection, card_id, *offer):
+            context.answers[_OFFER_KEY] = (name, offer[0], offer[1])
     return _with_terminal_warning(context, reply)
+
+
+def _allowed_link(context: Context) -> bool:
+    return context.is_owner
 
 
 def _with_terminal_warning(context: Context, reply: str) -> str:

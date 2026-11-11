@@ -147,8 +147,9 @@ def chat(vault, mod, monkeypatch):
 def test_wake_word_end_to_end(chat):
     chat("myfolks save Mel likes tea")
     reply = chat("myfolks remember Mel's dog's name Ollie")
-    assert reply == "Saved to Mel.\nTo link them too: /contacts link Mel dog Ollie"
-    assert "dog's name Ollie" in chat("Myfolks, mel dog")
+    assert reply == "Saved to Mel.\nLinked Ollie as Mel's dog. Undo: /contacts undo"
+    assert chat("Myfolks, mel dog").startswith("Ollie\nDog of Mel")
+    assert "dog's name Ollie" in chat("Myfolks, mel dog name")
     assert chat("I installed myfolks yesterday") == "TO THE AI: I installed myfolks yesterday"
     assert chat("hi") == "TO THE AI: hi"
 
@@ -156,7 +157,7 @@ def test_wake_word_end_to_end(chat):
 def test_wake_word_offers_link_with_buttons(chat):
     chat("myfolks save Mel likes tea")
     asked = []
-    reply = chat("myfolks remember Mel's dog's name Ollie", ask=lambda q, c: asked.append(q) or "link")
+    reply = chat("myfolks remember Mel's dog is called Ollie", ask=lambda q, c: asked.append(q) or "link")
     assert asked == ["Also link Ollie as Mel's dog?"]
     assert reply == "Saved to Mel.\nLinked: Mel, dog, Ollie.\nNew card for Ollie."
 

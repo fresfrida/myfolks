@@ -51,6 +51,7 @@ TEMPLATES = {
     "new_card_choice": lambda m: m.new_card_choice(NAME),
     "choice_label": lambda m: m.choice_label(NAME, 3) + "\n" + m.choice_label(NAME),
     "link_offer": lambda m: m.link_offer(NAME, NAME, RELATION),
+    "auto_linked": lambda m: m.auto_linked(NAME, NAME, RELATION),
     "ai_saved": lambda m: m.ai_saved(NAME, f"{RELATION} is Ollie"),
 }
 
@@ -155,7 +156,7 @@ def test_questions_and_buttons_on_telegram(phone, vault, mod):
 
     phone(f'"{NAME}z" tea', ask=ask)
     phone(f'save "{NAME}z" likes cake', ask=ask)
-    phone(f'save "{NAME}" dog is Ollie', ask=ask)
+    phone(f'save "{NAME}" dog is called Ollie', ask=ask)
     assert asked and all(shows_literally(text) for text in asked), asked
     assert f"Also link Ollie as `{NAME}`'s dog?" in asked
     assert any(text.startswith("Did you mean `") for text in asked)

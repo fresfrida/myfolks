@@ -101,7 +101,10 @@ def _save(vault: Vault, name: str, text: str, tell_user) -> str:
         change = db.Change(connection, "save", SOURCE)
         cards.add_detail(change, card["id"], cleaned, SOURCE)
         change.finish(f"saved to {card['name']}")
+        linked = cards.link_if_certain(connection, card, cleaned, SOURCE)
     message = messages.ai_saved(card["name"], cleaned)
+    if linked:
+        message = f"{message}\n{messages.auto_linked(linked[0], card['name'], linked[1])}"
     if tell_user is not None:
         tell_user(message)
     return _reply(status="saved", tell_user=message)

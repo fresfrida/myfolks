@@ -23,21 +23,21 @@ def card_names(vault):
 def test_possessive_save_goes_to_the_person(run, vault):
     run("save Mel likes tea")
     assert run("save Mel's dog's name Ollie").split("\n")[0] == "Saved to Mel."
-    assert card_names(vault) == ["Mel"]
-    assert "dog's name Ollie" in run("mel dog")
+    assert card_names(vault)[0] == "Mel" and "Mel's" not in card_names(vault)
+    assert "dog's name Ollie" in run("mel dog name")
 
 
 @pytest.mark.parametrize("typed", ["Mel's", "mel's", "Mel’s", "MEL'S"])
 def test_possessive_spellings(run, vault, typed):
     run("save Mel likes tea")
     assert run(f"save {typed} dog's name Ollie").split("\n")[0] == "Saved to Mel."
-    assert card_names(vault) == ["Mel"]
+    assert card_names(vault) == ["Mel", "Ollie"]
 
 
 def test_trailing_apostrophe(run, vault):
     run("save James likes chess")
     assert run("save James' cat is Pixel").split("\n")[0] == "Saved to James."
-    assert "cat is Pixel" in run("james cat")
+    assert "cat is Pixel" in run("james cat pixel")
 
 
 def test_possessive_on_a_full_name(run, vault):
@@ -47,8 +47,8 @@ def test_possessive_on_a_full_name(run, vault):
 
 def test_new_person_from_possessive_gets_the_plain_name(run, vault):
     assert run("save Mel's dog's name Ollie").startswith("New card for Mel. Saved.")
-    assert card_names(vault) == ["Mel"]
-    assert "dog's name Ollie" in run("mel dog")
+    assert card_names(vault)[0] == "Mel" and "Mel's" not in card_names(vault)
+    assert "dog's name Ollie" in run("mel dog name")
 
 
 def test_real_name_ending_in_s_wins_when_exact(run, vault):
@@ -88,7 +88,7 @@ def test_possessive_link(run, vault):
 def test_possessive_on_chat(phone, vault):
     phone("save Mel likes tea")
     assert phone("save Mel's dog's name Ollie").split("\n")[0] == "Saved to Mel."
-    assert "dog's name Ollie" in phone("mel dog")
+    assert "dog's name Ollie" in phone("mel dog name")
 
 
 def test_lookups_are_unchanged(run, vault):

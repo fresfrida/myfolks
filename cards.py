@@ -146,6 +146,53 @@ def has_link(connection: sqlite3.Connection, from_card: int, relation: str, to_n
     ).fetchone() is not None
 
 
+_RELATION_ALTERNATION = "|".join(sorted(map(re.escape, RELATION_WORDS), key=len, reverse=True))
+_CERTAIN_NAME = r"(?:\"([^\"\n]+)\"|([A-Z][^\W\d_]*(?:['\u2019-][^\W\d_]+)*))"  # one capitalized word, letters only
+_CERTAIN_PATTERNS = [
+    re.compile(rf"(?i:({_RELATION_ALTERNATION}))['\u2019]s (?i:name) {_CERTAIN_NAME}"),
+    re.compile(rf"(?i:({_RELATION_ALTERNATION}))['\u2019]s (?i:name is) {_CERTAIN_NAME}"),
+    re.compile(rf"(?i:({_RELATION_ALTERNATION})) (?i:is) {_CERTAIN_NAME}"),
+    re.compile(rf"(?i:({_RELATION_ALTERNATION})) {_CERTAIN_NAME}"),
+]
+
+
+def certain_link_in(text: str) -> Optional[tuple[str, str]]:
+    """(relation, name) when the saved words are exactly one of the four plain forms, such as
+    "dog's name Ollie" or "dog is Ollie", with one capitalized word or a quoted name. Else None."""
+    for pattern in _CERTAIN_PATTERNS:
+        found = pattern.fullmatch(text.strip())
+        if found:
+            name = clean_name(found.group(2) or found.group(3) or "")
+            return (found.group(1).casefold(), name) if name else None
+    return None
+
+
+def link_if_certain(connection: sqlite3.Connection, card: sqlite3.Row, text: str, source: str) -> Optional[tuple[str, str]]:
+    """Link without asking only when the result cannot be wrong: a plain form, a name that is one exact
+    card or nobody (not one edit from anyone), and no such link yet. The link is its own change, so
+    the next undo removes only it. Returns (name, relation) when linked."""
+    found = certain_link_in(text)
+    if found is None:
+        return None
+    relation, name = found
+    if normalize(name) == card["norm_name"]:
+        return None
+    exact = find_cards(connection, name)
+    if len(exact) > 1 or (not exact and find_close_cards(connection, name)):
+        return None
+    if has_link(connection, card["id"], relation, name):
+        return None
+    change = db.Change(connection, "link", source)
+    if exact:
+        target_id, target_name = exact[0]["id"], exact[0]["name"]
+    else:
+        target_id, target_name = add_card(change, name, source, kind=kind_for_relation(relation)), name
+    if not add_link(change, card["id"], relation, target_id, source):
+        return None
+    change.finish(f"linked {card['name']}, {relation}, {target_name}")
+    return target_name, relation
+
+
 def link_offer_in(text: str) -> Optional[tuple[str, str]]:
     """A relation followed by a capitalized name in saved words, such as "dog's name Ollie" or
     "dog is Ollie": (relation, name). Plain text matching, no model."""

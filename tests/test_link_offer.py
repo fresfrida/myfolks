@@ -23,7 +23,7 @@ def links(vault):
             "SELECT a.name, links.relation, b.name FROM links JOIN cards a ON a.id=from_card JOIN cards b ON b.id=to_card WHERE links.closed_at IS NULL")]
 
 
-@pytest.mark.parametrize("words", ["dog's name Ollie", "dog is Ollie", "dog’s name is Ollie", "Dog is called Ollie"])
+@pytest.mark.parametrize("words", ["dog is called Ollie", "Dog is called Ollie", "dog is named Ollie", "dog named Ollie"])
 def test_offer_and_link(run, vault, words):
     run("save Mel likes tea")
     reply = run(f"save Mel {words}", answer="link")
@@ -34,29 +34,30 @@ def test_offer_and_link(run, vault, words):
 
 def test_possessive_save_offers_the_link(run, vault):
     run("save Mel likes tea")
-    reply = run("save Mel's dog's name Ollie", answer="link")
+    reply = run("save Mel's dog is called Ollie", answer="link")
     assert run.asked[0][0] == "Also link Ollie as Mel's dog?"
     assert "Linked: Mel, dog, Ollie." in reply
     assert run("mel dog") == "Ollie\nDog of Mel\nNo lines saved yet."
+    assert "dog is called Ollie" in run("mel dog called")
 
 
 def test_not_now_links_nothing(run, vault):
     run("save Mel likes tea")
-    assert run("save Mel dog's name Ollie", answer="not-now") == "Saved to Mel."
+    assert run("save Mel dog is called Ollie", answer="not-now") == "Saved to Mel."
     assert links(vault) == []
 
 
 def test_no_way_to_ask_adds_the_command(vault, mod):
     handle = mod("commands").handle
     handle("save Mel likes tea", platform="desktop", vault=vault)
-    reply = handle("save Mel dog's name Ollie", platform="desktop", vault=vault)
+    reply = handle("save Mel dog is called Ollie", platform="desktop", vault=vault)
     assert reply == "Saved to Mel.\nTo link them too: /contacts link Mel dog Ollie"
     assert links(vault) == []
 
 
 def test_unanswered_question_adds_the_command(run, vault):
     run("save Mel likes tea")
-    assert run("save Mel dog is Ollie").endswith("To link them too: /contacts link Mel dog Ollie")
+    assert run("save Mel dog is called Ollie").endswith("To link them too: /contacts link Mel dog Ollie")
 
 
 def test_full_names_are_quoted_in_the_command(vault, mod):
