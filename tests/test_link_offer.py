@@ -47,24 +47,18 @@ def test_not_now_links_nothing(run, vault):
     assert links(vault) == []
 
 
-def test_no_way_to_ask_adds_the_command(vault, mod):
+def test_no_way_to_ask_gives_the_save_reply_alone(vault, mod):
     handle = mod("commands").handle
     handle("save Mel likes tea", platform="desktop", vault=vault)
     reply = handle("save Mel dog is called Ollie", platform="desktop", vault=vault)
-    assert reply == "Saved to Mel.\nTo link them too: /contacts link Mel dog Ollie"
+    assert reply == "Saved to Mel."
     assert links(vault) == []
 
 
-def test_unanswered_question_adds_the_command(run, vault):
+def test_unanswered_question_gives_the_save_reply_alone(run, vault):
     run("save Mel likes tea")
-    assert run("save Mel dog is called Ollie").endswith("To link them too: /contacts link Mel dog Ollie")
-
-
-def test_full_names_are_quoted_in_the_command(vault, mod):
-    handle = mod("commands").handle
-    handle('save "Mel Ortiz" likes tea', platform="desktop", vault=vault)
-    assert handle('save "Mel Ortiz" mom is Rosa Ortiz', platform="desktop", vault=vault).endswith(
-        'To link them too: /contacts link "Mel Ortiz" mom "Rosa Ortiz"')
+    assert run("save Mel dog is called Ollie") == "Saved to Mel."
+    assert run.asked == [("Also link Ollie as Mel's dog?", ["Link", "Not now"])]
 
 
 @pytest.mark.parametrize("words", ["dog is ollie", "likes dogs", "dog is a beagle", "walks the dog", "hotdog is Big", "dogma is Strict"])

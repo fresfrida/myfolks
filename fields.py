@@ -6,7 +6,9 @@ import re
 from dataclasses import dataclass
 from typing import Optional
 
-_LABEL = re.compile(r"^(phone|mobile|cell|tel|email|e-mail|birthday|bday|born)\b[:\s]+(.+)$", re.IGNORECASE | re.DOTALL)
+LABEL_WORDS = ("phone", "mobile", "cell", "tel", "email", "e-mail", "birthday", "bday", "born")
+DETAIL_WORDS = frozenset({*LABEL_WORDS, "address"})  # words that start a detail, never a person's name
+_LABEL = re.compile(r"^(" + "|".join(re.escape(word) for word in LABEL_WORDS) + r")\b[:\s]+(.+)$", re.IGNORECASE | re.DOTALL)
 _PHONE_CHARS = re.compile(r"^[+\d\s().\-/]+$")
 _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 _MONTHS = {name: i + 1 for i, name in enumerate(
@@ -86,6 +88,11 @@ def parse_value(field: str, value: str) -> Optional[Parsed]:
         return Parsed("email", normalized) if normalized else None
     birthday = parse_birthday(value)
     return Parsed("birthday", None, *birthday) if birthday else None
+
+
+def is_detail_word(word: str) -> bool:
+    """`address`, `Phone:` and so on: the word alone, any case, with or without a trailing colon."""
+    return word.strip().rstrip(":").casefold() in DETAIL_WORDS
 
 
 def parse_detail(text: str) -> Parsed:

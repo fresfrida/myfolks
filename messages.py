@@ -273,6 +273,22 @@ def new_card_choice(name: str) -> str:
     return f"New card for {value(name)}"
 
 
+def who_is_this_for(detail_word: str) -> str:
+    return f"Who is this for? Start with their name, like:\n{value(f'myfolks save Priya {detail_word} ...')}"
+
+
+def not_in_contacts(name: str) -> str:
+    return f"{value(name)} isn't in your contacts yet."
+
+
+def new_person_choice(name: str) -> str:
+    return f"New person: {value(name)}"
+
+
+def not_in_contacts_fallback(name: str, command: str) -> str:
+    return f"{not_in_contacts(name)} Nothing was saved. To go ahead, send:\n{value(command)}"
+
+
 def choice_label(name: str, card_id: Optional[int] = None) -> str:
     return value(name) if card_id is None else f"{value(name)} (#{card_id})"
 
@@ -307,10 +323,6 @@ NOT_NOW_CHOICE = "Not now"
 
 def auto_linked(right: str, left: str, relation: str) -> str:
     return f"Linked {value(right)} as {value(left)}'s {value(relation)}. Undo: /contacts undo"
-
-
-def link_offer_command(command: str) -> str:
-    return f"To link them too: {value(command)}"
 
 
 BACKUP_PROMPT = "Backup passphrase: "

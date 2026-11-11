@@ -8,7 +8,7 @@ import sqlite3
 from dataclasses import dataclass
 from typing import Callable, Optional
 
-from . import cards, db, guard, importer, lookup, messages, owner, search
+from . import cards, db, fields, guard, importer, lookup, messages, owner, search
 from .text import STOPWORDS, Token, ascii_number, looks_numeric, normalize, one_edit_apart, query_words, tokens
 from .vault import Busy, NotSetUp, Refused, Vault, VaultError
 
@@ -175,9 +175,7 @@ def _offer_link(reply: str, offer: tuple[str, str, str], vault: Vault, label: st
     command = f"link {_display_token(left)} {relation} {_display_token(right)}"
     choices = [{"value": "link", "label": messages.LINK_CHOICE}, {"value": "not-now", "label": messages.NOT_NOW_CHOICE}]
     answer = ask(messages.link_offer(right, left, relation), choices) if ask is not None else None
-    if answer is None:
-        return f"{reply}\n{messages.link_offer_command('/contacts ' + command)}"
-    if answer != "link":
+    if answer != "link":  # no way to ask, no answer, or not now: the save reply alone
         return reply
     return f"{reply}\n{_dispatch(command, vault, label, terminal, ask, access)}"
 
@@ -327,6 +325,30 @@ def _confirm_close_name(context: Context, typed: str, close: list, command_for: 
     raise NeedsAnswer(key, question, choices, messages.did_you_mean_fallback(question, commands))
 
 
+def _has_import(connection: sqlite3.Connection) -> bool:
+    """Whether contacts were ever imported into this store (and that import not undone)."""
+    return connection.execute("SELECT 1 FROM changes WHERE kind='import' AND undone_at IS NULL LIMIT 1").fetchone() is not None
+
+
+def _refuse_unknown_name(context: Context, raw: str, parts: list[Token]) -> Optional[str]:
+    """No card has this name, exactly or nearly. A detail word (address, phone) is never a name; once
+    contacts are imported, a new person needs a yes. Returns the reply when nothing is saved, else None."""
+    if fields.is_detail_word(parts[0].text):
+        return messages.who_is_this_for(parts[0].text)
+    if not _has_import(context.connection):
+        return None
+    typed = _name_for(parts[:1], possessive=True)
+    key = f"new:{normalize(typed)}"
+    answer = context.answers.get(key)
+    if answer == "new":
+        return None
+    if answer is not None:
+        return messages.CANCELLED
+    text = raw[parts[0].start:].strip()
+    choices = [{"value": "new", "label": messages.new_person_choice(typed)}, {"value": "cancel", "label": messages.CANCEL_CHOICE}]
+    raise NeedsAnswer(key, messages.not_in_contacts(typed), choices, messages.not_in_contacts_fallback(typed, f"myfolks save {_NEW_FLAG} {text}"))
+
+
 def _save(context: Context, raw: str, parts: list[Token]) -> str:
     if any(not part.quoted and part.text.casefold() in _RETIRED_FLAGS for part in parts):
         return messages.HIDE_ON_COMPUTER
@@ -350,6 +372,10 @@ def _save(context: Context, raw: str, parts: list[Token]) -> str:
                 f"/contacts save {_NEW_FLAG} {_display_token(typed)} {text}",
             )
             used = close_used
+        else:
+            refusal = _refuse_unknown_name(context, raw, parts)
+            if refusal is not None:
+                return refusal
     if card is None and not used:
         used = 1
     text = raw[parts[used].start:].strip()
