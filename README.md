@@ -240,7 +240,7 @@ Run these yourself from a checkout, with a Python that has `cryptography`. Measu
 | Save at the same size | 14.5 ms median, 21.5 ms slowest | `python3 tests/benchmark.py` |
 | Wake word check on each chat message | 0.38 microseconds median for an ordinary message | `python3 tests/benchmark.py` |
 | Lookup while 5,000 contacts import | 1.8 ms median, 68 ms slowest | `python3 tests/benchmark.py` |
-| Full test suite | 871 passed on macOS, and 870 passed on Linux in a container, where 1 test is skipped because it runs as root | `python3 -m pytest tests` |
+| Full test suite | 872 passed on macOS, and 871 passed on Linux in a container, where 1 test is skipped because it runs as root | `python3 -m pytest tests` |
 | Plugin check | Passed, security scan `safe` | `hermes plugins validate .` |
 
 ## License
