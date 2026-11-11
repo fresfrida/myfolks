@@ -24,6 +24,10 @@ Start a chat message with **myfolks** (or /myfolks), then use plain words.
 
 In Hermes Desktop, open MyFolks to search, add, edit, delete and undo with buttons. To show it: **Capabilities**, then **Plugins**, and switch on MyFolks.
 
+## Where it works
+
+Tested in Telegram, the Hermes terminal and Hermes Desktop. Other chat apps that Hermes connects to, such as WhatsApp, Discord or Slack, reach MyFolks the same way and should work, but haven't been tested yet.
+
 ## Quick start
 
 1. Install: `hermes plugins install myfolks`

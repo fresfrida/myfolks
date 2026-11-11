@@ -276,3 +276,19 @@ def test_desktop_status_gives_the_wake_word(vault, mod, monkeypatch):
     assert wake.configured_word(lambda: {}) == "myfolks"
     monkeypatch.setattr(wake, "configured_word", lambda: "folks")
     assert mod("desktop_service").status(vault=vault)["wake_word"] == "folks"
+
+
+def test_where_it_works_follows_the_user_guide():
+    from pathlib import Path
+
+    readme = (Path(__file__).parent.parent / "README.md").read_text()
+    assert readme.index("## User guide") < readme.index("## Where it works") < readme.index("## Quick start")
+    assert "Tested in Telegram, the Hermes terminal and Hermes Desktop. Other chat apps that Hermes connects to, such as WhatsApp, Discord or Slack, reach MyFolks the same way and should work, but haven't been tested yet." in readme
+
+
+def test_google_setup_goes_straight_to_production():
+    from pathlib import Path
+
+    readme = (Path(__file__).parent.parent / "README.md").read_text()
+    assert "Test users" not in readme and "test users" in readme  # only "You don't need test users."
+    assert "Under Audience, choose External, then Publish app so it shows In production." in readme
