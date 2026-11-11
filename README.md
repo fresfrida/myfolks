@@ -1,5 +1,7 @@
 # MyFolks for Hermes
 
+![MyFolks for Hermes](assets/banner.png)
+
 Your people, their folks, the details that matter.
 
 A contact book your agent can't misremember.
@@ -16,10 +18,14 @@ June this year · Telegram
 
 ## What it does
 
+![Answers in a chat app](assets/phone.png)
+
 - **Exact answers.** You get back the words you saved.
 - **Receipts.** Every answer shows when and where it came from.
 - **No guessing.** If it isn't saved: `Nothing saved about that.` If MyFolks is unsure, the answer is marked `not sure`.
 - **The right person.** Only an exact name or nickname opens a card. A close spelling asks "Did you mean…?" and shows nothing until you choose.
+
+  ![A close spelling asks first](assets/didyoumean.png)
 - **Linked cards.** Priya links to their dog Biscuit, so `/contacts priya dog birthday` finds it.
 - **Forgiving search.** Most one-letter typos and common synonyms find the right line, with no AI model.
 - **Encrypted and local.** One encrypted file on your machine. No account and no cloud.
@@ -52,6 +58,8 @@ hermes myfolks recover
 ```
 
 ## Commands
+
+![The same answers in the terminal](assets/terminal.png)
 
 | Command | What it does |
 |---|---|
@@ -113,6 +121,8 @@ Imported text is stored as data and never treated as instructions.
 
 Search, read cards, follow links, save a line and work through your review list.
 
+![A card on the Desktop page](assets/desktop-card.png)
+
 ## Turning on AI use
 
 AI access is **off by default**. To turn it on, go to Settings, then Plugins, then MyFolks, then Agent settings, or set this in `config.yaml`:
@@ -162,6 +172,8 @@ The plugin installs into the profile you name, for example `hermes -p work plugi
 
 Hiding stops MyFolks from showing a note in chat. Anything first typed in a chat app remains there until you delete it.
 
+![Hide from chat on Desktop](assets/hide-from-chat.png)
+
 On Desktop, use **Hide from chat** on any line. In the terminal, use `/contacts hide <name> <line number>` and `/contacts unhide <name> <line number>`. `/contacts undo` reverses either.
 
 ## What to know before you rely on it
@@ -191,7 +203,7 @@ On Desktop, use **Hide from chat** on any line. In the terminal, use `/contacts 
 
 ## Test results
 
-Run these yourself from a checkout, with a Python that has `cryptography`. Measured on made-up data on one Mac:
+Run these yourself from a checkout, with a Python that has `cryptography`. Measured on made-up data on one Mac unless the row says otherwise. Tested on macOS and Linux. Windows is untested.
 
 | Check | Result | Command |
 |---|---|---|
@@ -201,9 +213,9 @@ Run these yourself from a checkout, with a Python that has `cryptography`. Measu
 | Wrong key, wrong recovery code, tampered file | Refused, file untouched | `python3 tests/evidence_pack.py` |
 | Non-owner, group chat, missing sender | Refused | `python3 tests/evidence_pack.py` |
 | Near name | No details shown until you choose | `python3 tests/evidence_pack.py` |
-| Lookup at 5,000 cards and 20,000 details | 8.1 ms median, 10.1 ms slowest | `python3 tests/benchmark.py` |
-| Save at the same size | 14.8 ms median, 24.0 ms slowest | `python3 tests/benchmark.py` |
+| Lookup at 5,000 cards and 20,000 details | 7.9 ms median, 8.8 ms slowest | `python3 tests/benchmark.py` |
+| Save at the same size | 14.1 ms median, 18.0 ms slowest | `python3 tests/benchmark.py` |
 | Wake word check on each chat message | 0.33 microseconds median for an ordinary message | `python3 tests/benchmark.py` |
-| Lookup while 5,000 contacts import | 1.6 ms median, 68 ms slowest | `python3 tests/benchmark.py` |
-| Full test suite | 677 passed | `python3 -m pytest tests` |
+| Lookup while 5,000 contacts import | 1.1 ms median, 68 ms slowest | `python3 tests/benchmark.py` |
+| Full test suite | 685 passed on macOS, and 685 passed on Linux in a container | `python3 -m pytest tests` |
 | Plugin check | Passed, security scan `safe` | `hermes plugins validate .` |
