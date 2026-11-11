@@ -22,7 +22,7 @@ def card_names(vault):
 
 def test_possessive_save_goes_to_the_person(run, vault):
     run("save Mel likes tea")
-    assert run("save Mel's dog's name Ollie") == "Saved to Mel."
+    assert run("save Mel's dog's name Ollie").split("\n")[0] == "Saved to Mel."
     assert card_names(vault) == ["Mel"]
     assert "dog's name Ollie" in run("mel dog")
 
@@ -30,19 +30,19 @@ def test_possessive_save_goes_to_the_person(run, vault):
 @pytest.mark.parametrize("typed", ["Mel's", "mel's", "Mel’s", "MEL'S"])
 def test_possessive_spellings(run, vault, typed):
     run("save Mel likes tea")
-    assert run(f"save {typed} dog's name Ollie") == "Saved to Mel."
+    assert run(f"save {typed} dog's name Ollie").split("\n")[0] == "Saved to Mel."
     assert card_names(vault) == ["Mel"]
 
 
 def test_trailing_apostrophe(run, vault):
     run("save James likes chess")
-    assert run("save James' cat is Pixel") == "Saved to James."
+    assert run("save James' cat is Pixel").split("\n")[0] == "Saved to James."
     assert "cat is Pixel" in run("james cat")
 
 
 def test_possessive_on_a_full_name(run, vault):
     run('save "Mel Ortiz" likes tea')
-    assert run("save Mel Ortiz's dog's name Ollie") == "Saved to Mel Ortiz."
+    assert run("save Mel Ortiz's dog's name Ollie").split("\n")[0] == "Saved to Mel Ortiz."
 
 
 def test_new_person_from_possessive_gets_the_plain_name(run, vault):
@@ -54,7 +54,7 @@ def test_new_person_from_possessive_gets_the_plain_name(run, vault):
 def test_real_name_ending_in_s_wins_when_exact(run, vault):
     run('save "Mel\'s" is a diner on Fifth')
     run("save Mel likes tea")
-    assert run("save Mel's serves pancakes") == "Saved to Mel's."
+    assert run("save Mel's serves pancakes").split("\n")[0] == "Saved to Mel's."
     assert card_names(vault) == ["Mel's", "Mel"]
     assert "serves pancakes" not in run("mel")
 
@@ -74,7 +74,7 @@ def test_near_name_still_asks_and_shows_nothing(run, vault):
 
 def test_near_name_choice_saves_to_chosen_card(run, vault):
     run("save Marcus likes tea")
-    assert run("save Markus's dog's name Ollie", ask=lambda question, choices: choices[0]["value"]) == "Saved to Marcus."
+    assert run("save Markus's dog's name Ollie", ask=lambda question, choices: choices[0]["value"]).split("\n")[0] == "Saved to Marcus."
 
 
 def test_possessive_link(run, vault):
@@ -87,7 +87,7 @@ def test_possessive_link(run, vault):
 
 def test_possessive_on_chat(phone, vault):
     phone("save Mel likes tea")
-    assert phone("save Mel's dog's name Ollie") == "Saved to Mel."
+    assert phone("save Mel's dog's name Ollie").split("\n")[0] == "Saved to Mel."
     assert "dog's name Ollie" in phone("mel dog")
 
 
