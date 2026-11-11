@@ -215,10 +215,10 @@ On Desktop, use **Hide from chat** on any line. In the terminal, use `/contacts 
 - **Stored credentials:** a device key, in your OS keychain when one is available, otherwise a file only your user can read, in the plugin's data folder.
 - **Hooks:** three.
   - `pre_tool_call` checks AI tool calls for direct access to its files. Tool arguments stay on your machine.
-  - `pre_gateway_dispatch` checks whether a chat app message starts with the wake word.
-  - `pre_llm_call` adds a short note for the AI when a message names MyFolks while AI use is off.
+  - `pre_gateway_dispatch` answers your own `/myfolks`, `/contacts` and wake word messages in chat apps before Hermes's session sees them, then drops them, so they never reach the AI or the transcript.
+  - `pre_llm_call` stops a `/myfolks` or `/contacts` that reaches the AI while Hermes is busy, before any model request, and adds a short note for the AI when a message names MyFolks while AI use is off.
 
-  The two message hooks only check the text in memory. They don't open the store and log nothing.
+  For any other message, the two message hooks only check the text in memory. They don't open the store and log nothing.
 - **Shell commands and background processes:** none.
 - **Telemetry:** none.
 - **Dependency:** `cryptography`, which Hermes already includes. Declaring it makes Hermes prepare its Python environment when you install.
