@@ -350,3 +350,47 @@ def test_desktop_edit_wiring():
 
     js = (Path(__file__).parent.parent / "desktop" / "plugin.js").read_text()
     assert "editLine: 'Edit'," in js and "savedToast: 'Saved.'," in js and "`/lines/${line.id}/edit`" in js
+
+
+# 5. New person in Desktop.
+
+def test_desktop_new_person_adds_and_undoes(run, vault, mod):
+    service = mod("desktop_service")
+    result = service.new_person("Sis Nel", "lives on Elm Street", vault=vault)
+    assert result["state"] == "ready" and result["card"]["name"] == "Sis Nel" and isinstance(result["change_id"], int)
+    assert "lives on Elm Street" in run("sis nel")
+    assert service.undo(result["change_id"], vault=vault) == {"state": "ready", "message": "Undone: added Sis Nel."}
+    assert live_names(vault) == []
+
+
+def test_desktop_new_person_exact_name_opens_that_person(run, vault, mod):
+    run("save Priya likes tea")
+    result = mod("desktop_service").new_person("priya", "", vault=vault)
+    assert result == {"state": "exists", "card": {"id": card_id(vault, "Priya"), "name": "Priya", "kind": "person"}}
+    assert live_names(vault) == ["Priya"]
+
+
+def test_desktop_new_person_close_name_asks_then_follows_the_choice(run, vault, mod):
+    run("save Rositah likes tea")
+    service = mod("desktop_service")
+    asked = service.new_person("Rositha", "", vault=vault)
+    assert asked["state"] == "close" and [card["name"] for card in asked["names"]] == ["Rositah"]
+    assert live_names(vault) == ["Rositah"]
+    assert service.new_person("Rositha", "", choice=str(card_id(vault, "Rositah")), vault=vault)["state"] == "exists"
+    assert service.new_person("Rositha", "", choice="new", vault=vault)["state"] == "ready"
+    assert live_names(vault) == ["Rositah", "Rositha"]
+
+
+def test_desktop_new_person_refuses_empty_and_detail_words(vault, mod):
+    service = mod("desktop_service")
+    assert service.new_person("  ", "", vault=vault) == {"state": "invalid"}
+    assert service.new_person("Address", "Elm Street", vault=vault) == {"state": "detail_word"}
+    assert live_names(vault) == []
+
+
+def test_desktop_new_person_wiring():
+    from pathlib import Path
+
+    js = (Path(__file__).parent.parent / "desktop" / "plugin.js").read_text()
+    assert "newPerson: 'New person'," in js and "addedToast: name => `Added ${name}.`," in js
+    assert ".rest('/people', {" in js and "jsx(NewPerson, {" in js

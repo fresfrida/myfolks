@@ -8,7 +8,7 @@ from __future__ import annotations
 import sqlite3
 from typing import Optional
 
-from . import cards, db, importer, lookup, messages, owner, search
+from . import cards, db, fields, importer, lookup, messages, owner, search
 from .text import normalize, query_words
 from .vault import Busy, NotSetUp, Refused, Vault, VaultError
 
@@ -169,6 +169,35 @@ def delete_line(line_id: int, vault: Optional[Vault] = None) -> dict:
         cards.delete_line(change, line)
         change_id = change.finish(f"deleted a line on {card['name']}")
         return {"state": "ready", "change_id": change_id, "name": card["name"]}
+
+
+def new_person(name: str, first_detail: str = "", choice: Optional[str] = None, vault: Optional[Vault] = None) -> dict:
+    """Add someone from the list page, with the chat save rules: an exact name opens that person instead of a
+    duplicate; a close name asks first (choice "new" adds anyway, a card id opens that card); a detail word
+    such as "address" is never a name."""
+    cleaned = cards.clean_name(name or "")
+    detail = (first_detail or "").strip()
+    if not cleaned or len(cleaned) > MAX_TEXT or len(detail) > MAX_TEXT:
+        return {"state": "invalid"}
+    if fields.is_detail_word(cleaned):
+        return {"state": "detail_word"}
+    with (vault or Vault()).write() as connection:
+        exact = cards.find_cards(connection, cleaned)
+        if exact:
+            return {"state": "exists", "card": _summary(exact[0])}
+        if choice != "new":
+            close = cards.find_close_cards(connection, cleaned)
+            chosen = next((card for card in close if str(card["id"]) == choice), None)
+            if chosen is not None:
+                return {"state": "exists", "card": _summary(chosen)}
+            if close:
+                return {"state": "close", "names": [_summary(card) for card in close]}
+        change = db.Change(connection, "save", SOURCE)
+        card_id = cards.add_card(change, cleaned, SOURCE)
+        if detail:
+            cards.add_detail(change, card_id, detail, SOURCE)
+        change_id = change.finish(f"added {cleaned}")
+        return {"state": "ready", "change_id": change_id, "card": _summary(cards.card_by_id(connection, card_id))}
 
 
 def edit_line(line_id: int, text: str, vault: Optional[Vault] = None) -> dict:

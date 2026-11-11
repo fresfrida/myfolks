@@ -56,6 +56,12 @@ class HiddenBody(BaseModel):
     hidden: bool
 
 
+class PersonBody(BaseModel):
+    name: str
+    first_detail: str = ""
+    choice: Optional[str] = None
+
+
 class UndoBody(BaseModel):
     change_id: int
 
@@ -103,6 +109,11 @@ def delete_line(line_id: int):
 @router.post("/lines/{line_id}/edit")
 def edit_line(line_id: int, body: LineBody):
     return _call(lambda s: s.edit_line(line_id, body.text))
+
+
+@router.post("/people")
+def new_person(body: PersonBody):
+    return _call(lambda s: s.new_person(body.name, body.first_detail, body.choice))
 
 
 @router.post("/undo")

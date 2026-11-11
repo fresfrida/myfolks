@@ -13,5 +13,5 @@ def _routes():
 def test_every_route_is_a_plain_function():
     """FastAPI runs plain routes in a worker thread, so slow store access never holds up the dashboard."""
     routes = _routes()
-    assert len(routes) == 12
+    assert len(routes) == 13
     assert all(isinstance(route, ast.FunctionDef) for route in routes)

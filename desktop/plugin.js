@@ -1,6 +1,6 @@
 // MyFolks Desktop page. Contact data stays in component memory: never in browser storage.
 import {
-  Badge, Button, ConfirmDialog, EmptyState, ErrorState, ListRow, ROUTES_AREA, ScrollArea, SearchField, SegmentedControl, Separator,
+  Badge, Button, ConfirmDialog, EmptyState, ErrorState, Input, ListRow, ROUTES_AREA, ScrollArea, SearchField, SegmentedControl, Separator,
   SIDEBAR_NAV_AREA, Skeleton, Textarea, host, useValue
 } from '@hermes/plugin-sdk'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -57,6 +57,13 @@ const COPY = {
   deletedPersonToast: name => `Deleted ${name}.`,
   deletedLineToast: 'Deleted.',
   savedToast: 'Saved.',
+  addedToast: name => `Added ${name}.`,
+  newPerson: 'New person',
+  nameLabel: 'Name',
+  firstDetailLabel: 'First detail (optional)',
+  add: 'Add',
+  didYouMean: names => `Did you mean ${names.join(' or ')}?`,
+  nameIsDetailWord: 'Start with their name, like Priya.',
   editLine: 'Edit',
   undo: 'Undo',
   couldNotUndo: 'That couldn’t be undone.',
@@ -397,6 +404,85 @@ function AddLine({ ctx, cardId, onSaved }) {
   })
 }
 
+// Add someone from the list page, with the chat save rules: an exact name opens that person, a close name asks first.
+function NewPerson({ ctx, onOpen, onAdded }) {
+  const [open, setOpen] = useState(false)
+  const [name, setName] = useState('')
+  const [detail, setDetail] = useState('')
+  const [close, setClose] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState(null)
+  const reset = () => {
+    setOpen(false)
+    setName('')
+    setDetail('')
+    setClose(null)
+    setMessage(null)
+  }
+  const submit = choice => {
+    setBusy(true)
+    setMessage(null)
+    ctx
+      .rest('/people', { body: { choice: choice ?? null, first_detail: detail, name }, method: 'POST' })
+      .then(result => {
+        if (result.state === 'ready') {
+          reset()
+          onAdded(result)
+        } else if (result.state === 'exists') {
+          reset()
+          onOpen(result.card)
+        } else if (result.state === 'close') {
+          setClose(result.names)
+        } else {
+          setMessage(result.state === 'detail_word' ? COPY.nameIsDetailWord : COPY.couldNotSave)
+        }
+      })
+      .catch(() => setMessage(COPY.couldNotSave))
+      .finally(() => setBusy(false))
+  }
+
+  if (!open) {
+    return jsx(Button, { className: 'self-start', onClick: () => setOpen(true), size: 'sm', variant: 'outline', children: COPY.newPerson })
+  }
+  return jsxs('div', {
+    className: 'flex flex-col gap-2',
+    children: [
+      jsx(Input, {
+        'aria-label': COPY.nameLabel,
+        onChange: event => {
+          setName(event.target.value)
+          setClose(null)
+        },
+        placeholder: COPY.nameLabel,
+        value: name
+      }),
+      jsx(Textarea, { 'aria-label': COPY.firstDetailLabel, onChange: event => setDetail(event.target.value), placeholder: COPY.firstDetailLabel, value: detail }),
+      message ? jsx(Muted, { children: message }) : null,
+      close
+        ? jsxs('div', {
+            className: 'flex flex-col gap-2',
+            children: [
+              jsx(Note, { children: COPY.didYouMean(close.map(card => card.name)) }),
+              jsxs('div', {
+                className: 'flex flex-wrap gap-2',
+                children: [
+                  ...close.map(card => jsx(Button, { disabled: busy, onClick: () => submit(String(card.id)), size: 'sm', variant: 'outline', children: card.name }, card.id)),
+                  jsx(Button, { disabled: busy, onClick: () => submit('new'), size: 'sm', children: COPY.newPerson }, 'new')
+                ]
+              })
+            ]
+          })
+        : jsxs('div', {
+            className: 'flex gap-2 self-end',
+            children: [
+              jsx(Button, { onClick: reset, size: 'sm', variant: 'ghost', children: COPY.cancel }),
+              jsx(Button, { disabled: busy || !name.trim(), onClick: () => submit(null), size: 'sm', children: COPY.add })
+            ]
+          })
+    ]
+  })
+}
+
 function CardView({ ctx, trail, onCrumb, onFollow, onBack, onDeleted }) {
   const current = trail[trail.length - 1]
   const detail = useApi(ctx, `/cards/${current.id}`)
@@ -583,6 +669,14 @@ function Contacts({ ctx, narrow, tabs }) {
   const open = card => setTrail([card])
   const follow = card => setTrail(previous => [...previous, card])
   const crumb = index => setTrail(previous => previous.slice(0, index + 1))
+  const added = result => {
+    found.reload()
+    setTrail([result.card])
+    offerUndo(ctx, COPY.addedToast(result.card.name), result.change_id, () => {
+      setTrail([])
+      found.reload()
+    })
+  }
   const deleted = result => {
     setTrail([])
     found.reload()
@@ -612,6 +706,7 @@ function Contacts({ ctx, narrow, tabs }) {
   const listColumn = jsxs('div', {
     className: 'flex min-w-0 flex-1 flex-col gap-3',
     children: [
+      jsx(NewPerson, { ctx, onAdded: added, onOpen: open }),
       jsx(Answer, { answer, onOpen: open }),
       data ? jsx(CardList, { cards: data.cards, onOpen: open, selectedId: showCard ? trail[trail.length - 1].id : null, total: data.total }) : jsx(Skeleton, { className: 'h-16 w-full' })
     ]
