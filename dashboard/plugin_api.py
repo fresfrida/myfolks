@@ -62,35 +62,35 @@ class ReviewBody(BaseModel):
 
 
 @router.get("/status")
-async def status():
+def status():
     return _call(lambda s: s.status())
 
 
 @router.post("/find")
-async def find(body: FindBody):
+def find(body: FindBody):
     return _call(lambda s: s.find(body.query))
 
 
 @router.get("/cards/{card_id}")
-async def card(card_id: int):
+def card(card_id: int):
     return _call(lambda s: s.card_detail(card_id))
 
 
 @router.post("/cards/{card_id}/lines")
-async def save_line(card_id: int, body: LineBody):
+def save_line(card_id: int, body: LineBody):
     return _call(lambda s: s.save_line(card_id, body.text))
 
 
 @router.post("/lines/{line_id}/hidden")
-async def set_hidden(line_id: int, body: HiddenBody):
+def set_hidden(line_id: int, body: HiddenBody):
     return _call(lambda s: s.set_hidden(line_id, body.hidden))
 
 
 @router.get("/review")
-async def review():
+def review():
     return _call(lambda s: s.review_list())
 
 
 @router.post("/review/{item_id}")
-async def resolve_review(item_id: int, body: ReviewBody):
+def resolve_review(item_id: int, body: ReviewBody):
     return _call(lambda s: s.resolve_review(item_id, body.action, body.card_id))
