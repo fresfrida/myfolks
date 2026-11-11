@@ -439,12 +439,13 @@ function Contacts({ ctx, narrow, tabs }) {
   const answer = data && data.state === 'ready' ? data.answer : null
   const answerCardId = answer && answer.kind === 'card' ? answer.card.id : null
 
+  // Each new search result can open its card, even when a changed search lands on the same person.
   useEffect(() => {
     if (answerCardId !== null) {
       setTrail([answer.card])
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [answerCardId])
+  }, [answerCardId, data])
 
   const open = card => setTrail([card])
   const follow = card => setTrail(previous => [...previous, card])

@@ -9,3 +9,8 @@ def test_settings_row_says_what_myfolks_connects_to():
 
 def test_old_settings_wording_is_gone():
     assert "Nothing is sent anywhere." not in PLUGIN_JS
+
+
+def test_card_opens_again_for_each_search_result():
+    assert "  }, [answerCardId, data])\n" in PLUGIN_JS
+    assert "  }, [answerCardId])\n" not in PLUGIN_JS
