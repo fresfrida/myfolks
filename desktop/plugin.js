@@ -872,7 +872,14 @@ function Page({ ctx }) {
   } else if (data.state !== 'ready') {
     body = jsx(StatePanel, { onRetry: status.reload, state: data.state })
   } else if (data.cards === 0 && !data.review) {
-    body = jsx(CenteredMessage, { body: COPY.emptyBody, command: COPY.emptyCommand, title: COPY.emptyTitle })
+    // No one yet: the empty message, and New person so the first one can be added here too.
+    body = jsxs('div', {
+      className: 'flex h-full flex-col',
+      children: [
+        jsx(CenteredMessage, { body: COPY.emptyBody, command: COPY.emptyCommand, title: COPY.emptyTitle }),
+        jsx('div', { className: 'mx-auto flex w-full max-w-md flex-col p-6', children: jsx(NewPerson, { ctx, onAdded: status.reload, onOpen: status.reload }) })
+      ]
+    })
   } else {
     const tabs = jsx(SegmentedControl, {
       onChange: setTab,

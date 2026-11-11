@@ -437,3 +437,11 @@ def test_desktop_rename_wiring():
     js = (Path(__file__).parent.parent / "desktop" / "plugin.js").read_text()
     assert "rename: 'Rename'," in js and "renamedToast: 'Renamed.'," in js
     assert "nameTaken: name => `Someone called ${name} is already here.`," in js and "`/cards/${card.id}/rename`" in js
+
+
+def test_desktop_empty_store_still_offers_new_person():
+    from pathlib import Path
+
+    js = (Path(__file__).parent.parent / "desktop" / "plugin.js").read_text()
+    empty = js.split("data.cards === 0 && !data.review", 1)[1].split("} else {", 1)[0]
+    assert "jsx(NewPerson, { ctx, onAdded: status.reload, onOpen: status.reload })" in empty
