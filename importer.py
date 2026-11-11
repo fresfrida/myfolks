@@ -432,6 +432,8 @@ def import_in_batches(vault, contacts: list[Incoming], source: str, batch_size: 
                 for contact in part:
                     _apply_one(connection, change, index, contact, source, batch)
                 change_id = change.finish_into(f"imported from {source}", change_id)
+                if change_id is not None and start + batch_size >= len(planned):
+                    change_id = db.make_newest(connection, change_id)
         except Exception as exc:  # the batch was not saved; earlier batches stay
             result.stopped = exc
             return result

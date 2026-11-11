@@ -179,6 +179,21 @@ class Change:
         return change_id
 
 
+def make_newest(connection: sqlite3.Connection, change_id: int) -> int:
+    """Move a change to the end of the undo order, so the next undo reverses it first."""
+    newer = connection.execute("SELECT 1 FROM changes WHERE id>? LIMIT 1", (change_id,)).fetchone()
+    if newer is None:
+        return change_id
+    row = connection.execute("SELECT source,kind,summary,ops,undone_at FROM changes WHERE id=?", (change_id,)).fetchone()
+    if row is None or row["undone_at"] is not None:
+        return change_id
+    cursor = connection.execute(
+        "INSERT INTO changes(at,source,kind,summary,ops) VALUES(?,?,?,?,?)", (now(), row["source"], row["kind"], row["summary"], row["ops"])
+    )
+    connection.execute("DELETE FROM changes WHERE id=?", (change_id,))
+    return cursor.lastrowid
+
+
 class ChangeClosed(Exception):
     """A change can't be extended because it was undone."""
 

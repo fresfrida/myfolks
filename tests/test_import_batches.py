@@ -129,3 +129,26 @@ def test_lookup_during_big_import_is_quick(vault, mod):
     print(f"\nLOOKUPS DURING IMPORT: {len(timings)}, slowest {max(timings) * 1000:.0f} ms, median {sorted(timings)[len(timings) // 2] * 1000:.0f} ms")
     assert len(timings) >= 3
     assert max(timings) < 1.0
+
+
+def test_first_undo_reverses_import_even_after_a_save_during_it(vault, mod, monkeypatch):
+    commands = mod("commands")
+    commands.handle("save Priya likes tea", platform="cli", vault=vault)
+    original = vault.write
+    calls = {"n": 0}
+
+    def save_between_batches():
+        calls["n"] += 1
+        if calls["n"] == 2:
+            commands.handle("save Priya likes jam", platform="cli", vault=vault)
+        return original()
+
+    monkeypatch.setattr(vault, "write", save_between_batches)
+    result = mod("importer").import_in_batches(vault, people(mod, 450), "test import", batch_size=200)
+    monkeypatch.setattr(vault, "write", original)
+    assert result.applied == 450 and result.stopped is None
+    assert commands.handle("undo", platform="cli", vault=vault) == "Undone: imported from test import."
+    assert counts(vault)[0] == 1
+    assert "likes jam" in commands.handle("priya jam", platform="cli", vault=vault)
+    assert commands.handle("undo", platform="cli", vault=vault) == "Undone: saved to Priya."
+    assert "likes jam" not in commands.handle("priya", platform="cli", vault=vault)
