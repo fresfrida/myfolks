@@ -80,7 +80,8 @@ hermes myfolks recover
 | `/contacts history <name>` | Every line, with exact dates, including corrected ones |
 | `/contacts correct <name>` | Numbered lines to pick from |
 | `/contacts correct <name> <number> <new text>` | Correct a line. The old value is kept in history |
-| `/contacts undo` | Undo the last change |
+| `/contacts delete <name>` | Delete a person. `/contacts delete <name> <number>` deletes one line |
+| `/contacts undo` | Undo your last change, whatever it was |
 | `/contacts review` | Imported contacts waiting for you to merge or keep |
 | `/contacts sync` | Bring in your Google contacts, read-only. `/contacts sync off` stops it |
 
@@ -89,6 +90,12 @@ Use double quotes for a full name: `/contacts save "Priya Sharma" likes tea`.
 `/myfolks` works everywhere `/contacts` does, with no setup.
 
 Saving needs `/contacts save`, `/myfolks save`, or the wake word at the start of a chat app message. Plain chat without these goes to the AI instead of MyFolks.
+
+### Delete and undo
+
+Delete hides a person or a line from everything and keeps it in history, so Undo can bring it back. MyFolks doesn't erase anything permanently yet.
+
+On the Desktop page, each change you make there shows a short note with an Undo button. It undoes only that change, and only if nothing else changed since.
 
 ### Linking as you save
 
@@ -260,7 +267,7 @@ Run these yourself from a checkout, with a Python that has `cryptography`. Measu
 | Save at the same size | 14.5 ms median, 21.5 ms slowest | `python3 tests/benchmark.py` |
 | Wake word check on each chat message | 0.38 microseconds median for an ordinary message | `python3 tests/benchmark.py` |
 | Lookup while 5,000 contacts import | 1.8 ms median, 68 ms slowest | `python3 tests/benchmark.py` |
-| Full test suite | 954 passed on macOS, and 953 passed on Linux in a container, where 1 test is skipped because it runs as root | `python3 -m pytest tests` |
+| Full test suite | 995 passed on macOS, and 994 passed on Linux in a container, where 1 test is skipped because it runs as root | `python3 -m pytest tests` |
 | Plugin check | Passed, security scan `safe` | `hermes plugins validate .` |
 
 ## License
