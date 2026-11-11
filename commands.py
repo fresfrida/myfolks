@@ -233,8 +233,8 @@ def _span_names(parts: list[Token], possessive: bool = False) -> list[str]:
 
 
 def _name_for(parts: list[Token], possessive: bool = False) -> str:
-    """The name a new card gets from these tokens: Mel's makes Mel."""
-    return _span_names(parts, possessive)[-1]
+    """The name a new card gets from these tokens: Mel's makes Mel. Always one line."""
+    return cards.clean_name(_span_names(parts, possessive)[-1])
 
 
 def _match_prefix(context: Context, parts: list[Token], limit: int, possessive: bool = False) -> tuple[int, list]:
@@ -324,6 +324,8 @@ def _save(context: Context, raw: str, parts: list[Token]) -> str:
     is_new = card is None
     if is_new:
         name = _name_for(parts[:used], possessive=True)
+        if not name:
+            return messages.USAGE_SAVE
         card_id = cards.add_card(change, name, context.source_label)
     else:
         card_id, name = card["id"], card["name"]
@@ -598,7 +600,7 @@ def _plain_render(context: Context) -> Callable[[str], str]:
 def _card_view(context: Context, card: sqlite3.Row) -> str:
     lines = cards.active_lines(context.connection, card["id"], context.show_private)
     render = _plain_render(context)
-    out = [card["name"], *(render(line["text"]) + (messages.HIDDEN_SUFFIX if context.terminal and line["private"] else "") for line in lines)]
+    out = [render(card["name"]), *(render(line["text"]) + (messages.HIDDEN_SUFFIX if context.terminal and line["private"] else "") for line in lines)]
     for link in cards.open_links(context.connection, card["id"]):
         outgoing = link["from_card"] == card["id"]
         out.append(messages.link_line(link["relation"], link["to_name"] if outgoing else link["from_name"], outgoing))
@@ -618,7 +620,7 @@ def _format_results(context: Context, card: sqlite3.Row, results: search.Results
     if not chosen:
         return messages.NOTHING
     lines = [(line["text"], line["saved_at"], line["source"]) for line in chosen]
-    return messages.answer(card["name"], lines, unsure=not results.direct, render=render, more=results.more if results.direct else 0)
+    return messages.answer(card["name"], lines, unsure=not results.direct, render=render, more=results.more if results.direct else 0, render_name=_plain_render(context))
 
 
 def _chosen_close_card(context: Context, words: list[str]) -> Optional[tuple[sqlite3.Row, list[str]]]:
@@ -652,5 +654,5 @@ def _query(context: Context, raw: str) -> str:
         return _card_view(context, card)
     results = search.rank(cards.active_lines(context.connection, card["id"], context.show_private), wanted)
     if not (results.direct or results.related) and _hidden_count(context, card):
-        return messages.hidden_only(card["name"])
+        return messages.hidden_only(card["name"], _plain_render(context))
     return _format_results(context, card, results)

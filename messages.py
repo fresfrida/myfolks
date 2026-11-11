@@ -37,7 +37,11 @@ def date_label(iso_timestamp: str, now: Optional[datetime] = None) -> str:
 
 
 def _telegram_code(text: str) -> str:
-    return f"```\n{text}\n```" if "`" in text or "\n" in text else f"`{text}`"
+    if "`" not in text and "\n" not in text:
+        return f"`{text}`"
+    longest = max((len(run) for run in re.findall(r"`+", text)), default=0)
+    fence = "`" * max(3, longest + 1)
+    return f"{fence}\n{text}\n{fence}"
 
 
 def telegram_words(text: str) -> str:
@@ -54,13 +58,14 @@ def _with_tail(rendered: str, tail: str) -> str:
     return f"{rendered}\n{tail}" if rendered.endswith("```") else f"{rendered}{_SEPARATOR}{tail}"
 
 
-def more_line(count: int, name: str) -> str:
-    return f"+{count} more · /contacts {name}"
+def more_line(count: int, name: str, render_name: Callable[[str], str] = str) -> str:
+    return f"+{count} more · /contacts {render_name(name)}"
 
 
-def answer(name: str, lines: list[tuple[str, str, str]], unsure: bool, render: Callable[[str], str], now: Optional[datetime] = None, more: int = 0) -> str:
+def answer(name: str, lines: list[tuple[str, str, str]], unsure: bool, render: Callable[[str], str], now: Optional[datetime] = None, more: int = 0, render_name: Callable[[str], str] = str) -> str:
     """An answer readable at a glance. *lines* are (saved words, saved at, source)."""
-    head = f"{name}{_SEPARATOR}{_NOT_SURE}" if unsure else name
+    shown = render_name(name)
+    head = _with_tail(shown, _NOT_SURE) if unsure else shown
     dates = [date_label(saved_at, now) for _text, saved_at, _source in lines]
     sources = {source for _text, _saved, source in lines}
     if len(set(dates)) == 1:
@@ -69,7 +74,7 @@ def answer(name: str, lines: list[tuple[str, str, str]], unsure: bool, render: C
     else:
         body = [head, *(_with_tail(render(line[0]), date) for line, date in zip(lines, dates))]
     if more:
-        body.append(more_line(more, name))
+        body.append(more_line(more, name, render_name))
     return "\n".join(body)
 
 
@@ -264,7 +269,8 @@ def ai_saved(name: str, text: str) -> str:
     return f'MyFolks saved to {name}: "{text}"'
 
 
-def hidden_only(name: str) -> str:
+def hidden_only(name: str, render_name: Callable[[str], str] = str) -> str:
+    name = render_name(name)
     return f"{name}\nNothing to show here.\nSome notes are hidden from chat."
 
 

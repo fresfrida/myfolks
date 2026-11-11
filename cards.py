@@ -26,6 +26,14 @@ _OFFER = re.compile(
 _TRAILING_POSSESSIVE = re.compile(r"(?:['\u2019][sS]|['\u2019])$")
 
 
+_NOT_IN_NAMES = re.compile(r"[\x00-\x1f\x7f-\x9f\u2028\u2029]+")
+
+
+def clean_name(name: str) -> str:
+    """Names are one line: line breaks and control characters become spaces."""
+    return " ".join(_NOT_IN_NAMES.sub(" ", name).split())
+
+
 def find_cards(connection: sqlite3.Connection, name: str) -> list[sqlite3.Row]:
     """Every card whose name or alias is exactly *name*, case-insensitive."""
     norm = normalize(name)
@@ -58,6 +66,7 @@ def count_cards(connection: sqlite3.Connection) -> int:
 
 
 def add_card(change: db.Change, name: str, source: str, kind: str = "person") -> int:
+    name = clean_name(name)
     card_id = change.insert("cards", kind=kind, name=name, norm_name=normalize(name), created_at=db.now(), source=source)
     words = name.split()
     if kind == "person" and len(words) > 1:
@@ -66,6 +75,7 @@ def add_card(change: db.Change, name: str, source: str, kind: str = "person") ->
 
 
 def add_alias(change: db.Change, card_id: int, alias: str, automatic: bool = False) -> None:
+    alias = clean_name(alias)
     norm = normalize(alias)
     exists = change.connection.execute("SELECT 1 FROM aliases WHERE card_id=? AND norm_alias=?", (card_id, norm)).fetchone()
     if not exists:
