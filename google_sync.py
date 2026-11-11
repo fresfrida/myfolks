@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import time
 import urllib.parse
 from typing import Optional
@@ -31,15 +32,55 @@ MAX_PAGES = 200
 
 NO_SIGN_IN = "no_sign_in"
 NO_CONTACTS = "no_contacts"
+API_OFF = "api_off"
 UNREACHABLE = "unreachable"
+_SCOPE_REASON = "ACCESS_TOKEN_SCOPE_INSUFFICIENT"
+_API_OFF_REASONS = frozenset({"SERVICE_DISABLED", "accessNotConfigured"})  # ErrorInfo reason; legacy errors[].reason
+_SAFE_NAME = re.compile(r"[A-Za-z_]{1,64}")
 
 
 class SyncFailed(Exception):
-    """One of NO_SIGN_IN, NO_CONTACTS or UNREACHABLE. Never holds Hermes's error text."""
+    """A failure kind (NO_SIGN_IN, NO_CONTACTS, API_OFF or UNREACHABLE) and its cause for the log. The cause
+    holds only an HTTP status, Google's status and reason names, or an exception class name: never a
+    message, body, header or URL, so nothing secret or personal can reach the log."""
 
-    def __init__(self, kind: str):
+    def __init__(self, kind: str, cause: str = ""):
         super().__init__(kind)
         self.kind = kind
+        self.cause = cause
+
+
+def _safe(name) -> str:
+    """An enum or class name as it is, or "other" for anything else: never free text."""
+    return name if isinstance(name, str) and _SAFE_NAME.fullmatch(name) else "other"
+
+
+def _google_error(body: bytes) -> tuple[str, list[str]]:
+    """Google's error status and reasons from an error body: error.details[].reason (ErrorInfo) and the
+    older error.errors[].reason. Nothing else is read."""
+    try:
+        error = json.loads(body).get("error")
+    except (ValueError, AttributeError):
+        return "", []
+    if not isinstance(error, dict):
+        return "", []
+    reasons = [item.get("reason") for key in ("details", "errors") for item in error.get(key) or [] if isinstance(item, dict)]
+    return error.get("status") or "", [reason for reason in reasons if isinstance(reason, str)]
+
+
+def _http_failure(status: int, body: bytes) -> SyncFailed:
+    google_status, reasons = _google_error(body)
+    shown = "/".join([_safe(google_status) if google_status else "-", *(_safe(reason) for reason in reasons[:3])])
+    cause = f"status={int(status)} google={shown}"
+    if status == 403 and _SCOPE_REASON in reasons:
+        return SyncFailed(NO_CONTACTS, cause)
+    if status == 403 and _API_OFF_REASONS.intersection(reasons):
+        return SyncFailed(API_OFF, cause)
+    return SyncFailed(UNREACHABLE, cause)  # 401, any other 4xx or 5xx, and a redirect, which Hermes never follows
+
+
+def _error_cause(exc: BaseException) -> str:
+    return f"error={_safe(type(exc).__name__)}"
 
 
 def is_on(connection) -> bool:
@@ -70,7 +111,7 @@ class _Clock:
             return REQUEST_SECONDS
         left = self._end - time.monotonic()
         if left <= 0:
-            raise SyncFailed(UNREACHABLE)
+            raise SyncFailed(UNREACHABLE, "error=OutOfTime")
         return min(REQUEST_SECONDS, left)
 
 
@@ -80,14 +121,14 @@ def _get(url: str, clock: _Clock) -> tuple[int, bytes]:
     timeout = clock.timeout()
     try:
         from hermes_cli.plugin_provider_requests import ProviderNotSignedIn, credentialed_provider_request
-    except ImportError:  # not running inside Hermes, or a Hermes without plugin sign-ins
-        raise SyncFailed(UNREACHABLE) from None
+    except ImportError as exc:  # not running inside Hermes, or a Hermes without plugin sign-ins
+        raise SyncFailed(UNREACHABLE, _error_cause(exc)) from None
     try:
         response = credentialed_provider_request(OAUTH_ID, "GET", url, headers={"Accept": "application/json"}, timeout=timeout)
-    except ProviderNotSignedIn:  # never signed in, signed out, revoked, or the oauth entry changed
-        raise SyncFailed(NO_SIGN_IN) from None
-    except Exception:  # network, timeout, a refusal by Hermes, a failed refresh: never shown, never logged
-        raise SyncFailed(UNREACHABLE) from None
+    except ProviderNotSignedIn as exc:  # never signed in, signed out, revoked, or the oauth entry changed
+        raise SyncFailed(NO_SIGN_IN, _error_cause(exc)) from None
+    except Exception as exc:  # network, timeout, a refusal by Hermes, a failed refresh: only the class is kept
+        raise SyncFailed(UNREACHABLE, _error_cause(exc)) from None
     return response.status, response.body
 
 
@@ -99,21 +140,19 @@ def fetch_people(clock: _Clock) -> list[dict]:
         if page_token:
             query["pageToken"] = page_token
         status, body = _get(f"{CONNECTIONS_URL}?{urllib.parse.urlencode(query)}", clock)
-        if status == 403 and b"ACCESS_TOKEN_SCOPE_INSUFFICIENT" in body:
-            raise SyncFailed(NO_CONTACTS)
-        if status != 200:  # 401, any other 4xx or 5xx, and a redirect, which Hermes never follows
-            raise SyncFailed(UNREACHABLE)
+        if status != 200:
+            raise _http_failure(status, body)
         try:
             data = json.loads(body)
         except ValueError:
-            raise SyncFailed(UNREACHABLE) from None
+            raise SyncFailed(UNREACHABLE, "status=200 error=NotJSON") from None
         if not isinstance(data, dict):
-            raise SyncFailed(UNREACHABLE)
+            raise SyncFailed(UNREACHABLE, "status=200 error=NotJSON")
         people.extend(person for person in data.get("connections") or [] if isinstance(person, dict))
         page_token = data.get("nextPageToken")
         if not page_token:
             return people
-    raise SyncFailed(UNREACHABLE)  # more pages than any real address book: stop rather than loop
+    raise SyncFailed(UNREACHABLE, "error=TooManyPages")  # more pages than any real address book: stop rather than loop
 
 
 def _primary(items) -> Optional[dict]:
@@ -168,7 +207,7 @@ def sync(vault, *, seconds: Optional[float] = None, now: Optional[float] = None)
     try:
         people = fetch_people(_Clock(seconds))
     except SyncFailed as failure:
-        logger.warning("MyFolks Google sync failed: %s", failure.kind)
+        logger.warning("MyFolks Google sync failed: %s %s", failure.kind, failure.cause)
         raise
     contacts = [contact for contact in (to_incoming(person) for person in people) if contact is not None]
     return importer.import_in_batches(vault, contacts, SOURCE)

@@ -208,7 +208,7 @@ def _sync_command(vault: Vault, parts: list[Token]) -> str:
     try:
         result = google_sync.sync(vault)
     except google_sync.SyncFailed as failure:
-        return {google_sync.NO_SIGN_IN: messages.SYNC_NO_SIGN_IN, google_sync.NO_CONTACTS: messages.SYNC_NO_CONTACTS}.get(failure.kind, messages.SYNC_UNREACHABLE)
+        return {google_sync.NO_SIGN_IN: messages.SYNC_NO_SIGN_IN, google_sync.NO_CONTACTS: messages.SYNC_NO_CONTACTS, google_sync.API_OFF: messages.SYNC_API_OFF}.get(failure.kind, messages.SYNC_UNREACHABLE)
     if not was_on:
         with vault.write() as connection:
             google_sync.set_on(connection, True)

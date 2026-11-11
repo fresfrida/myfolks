@@ -17,6 +17,16 @@ class ProviderNotSignedIn(RuntimeError):
     pass
 
 
+# The shape of Google's error_reason.proto example (ErrorInfo under error.details) with a real-looking message.
+DISABLED_BODY = json.dumps({"error": {"code": 403, "message": f"People API has not been used in project 123456 before or it is disabled. {SECRET}", "status": "PERMISSION_DENIED", "details": [
+    {"@type": "type.googleapis.com/google.rpc.ErrorInfo", "reason": "SERVICE_DISABLED", "domain": "googleapis.com",
+     "metadata": {"consumer": "projects/123456", "service": "people.googleapis.com"}}]}}).encode()
+# The older shape, with error.errors[].reason, not in Google's current docs.
+LEGACY_BODY = json.dumps({"error": {"code": 403, "message": f"Access Not Configured. {SECRET}", "status": "PERMISSION_DENIED",
+                                    "errors": [{"message": f"Access Not Configured {SECRET}", "domain": "usageLimits", "reason": "accessNotConfigured"}]}}).encode()
+FREE_TEXT_BODY = json.dumps({"error": {"code": 429, "status": "quota for person@example.com", "details": [{"reason": "x y z"}]}}).encode()
+
+
 def person(name, phone=None, email=None, birthday=None):
     found = {"resourceName": "people/" + name.replace(" ", ""), "names": [{"displayName": name, "metadata": {"primary": True}}]}
     if phone:
@@ -52,7 +62,9 @@ class FakeHermes:
             raise failures[self.fail]
         statuses = {"401": (401, b'{"error": {"code": 401}}'), "500": (500, b"{}"), "302": (302, b""),
                     "403-scope": (403, b'{"error": {"code": 403, "status": "PERMISSION_DENIED", "details": [{"reason": "ACCESS_TOKEN_SCOPE_INSUFFICIENT"}]}}'),
-                    "403-other": (403, b'{"error": {"code": 403, "status": "PERMISSION_DENIED", "details": [{"reason": "SERVICE_DISABLED"}]}}')}
+                    "403-disabled": (403, DISABLED_BODY), "403-legacy": (403, LEGACY_BODY),
+                    "403-other": (403, b'{"error": {"code": 403, "status": "PERMISSION_DENIED", "details": [{"reason": "IAM_PERMISSION_DENIED"}]}}'),
+                    "429-free-text": (429, FREE_TEXT_BODY)}
         if self.fail in statuses:
             status, body = statuses[self.fail]
             return SimpleNamespace(status=status, headers={}, body=body)
@@ -234,12 +246,52 @@ NO_CONTACTS = (
     "Or import a contacts file instead: hermes myfolks import <file>"
 )
 UNREACHABLE = "Couldn't reach Google contacts. Nothing was changed. Try /myfolks sync again later."
+API_OFF = "Google's People API is off for your Google Cloud project. Turn it on: APIs & Services > Library > People API > Enable. Then send /myfolks sync again."
+
+
+@pytest.mark.parametrize("fail, line", [
+    ("403-disabled", "api_off status=403 google=PERMISSION_DENIED/SERVICE_DISABLED"),
+    ("403-legacy", "api_off status=403 google=PERMISSION_DENIED/accessNotConfigured"),
+    ("403-scope", "no_contacts status=403 google=PERMISSION_DENIED/ACCESS_TOKEN_SCOPE_INSUFFICIENT"),
+    ("403-other", "unreachable status=403 google=PERMISSION_DENIED/IAM_PERMISSION_DENIED"),
+    ("401", "unreachable status=401 google=-"),
+    ("500", "unreachable status=500 google=-"),
+    ("302", "unreachable status=302 google=-"),
+    ("429-free-text", "unreachable status=429 google=other/other"),
+    ("network", "unreachable error=ConnectionError"),
+    ("timeout", "unreachable error=TimeoutError"),
+    ("refused", "unreachable error=PermissionError"),
+    ("refresh", "unreachable error=RuntimeError"),
+    ("not_signed_in", "no_sign_in error=ProviderNotSignedIn"),
+])
+def test_each_failure_logs_one_line_with_its_cause_only(google, run, caplog, fail, line):
+    google.fake.fail = fail
+    with caplog.at_level(logging.DEBUG):
+        run("sync")
+    lines = [record.getMessage() for record in caplog.records if record.name.endswith("google_sync")]
+    assert lines == [f"MyFolks Google sync failed: {line}"]
+    for text in (SECRET, "123456", "people.googleapis.com", "projects/", "person@example.com", "Access Not Configured", "personFields"):
+        assert text not in lines[0]
+
+
+def test_missing_helper_logs_its_class(run, monkeypatch, caplog):
+    monkeypatch.setitem(sys.modules, "hermes_cli.plugin_provider_requests", None)
+    with caplog.at_level(logging.DEBUG):
+        run("sync")
+    assert [r.getMessage() for r in caplog.records if r.name.endswith("google_sync")] == ["MyFolks Google sync failed: unreachable error=ModuleNotFoundError"]
+
+
+def test_unusual_exception_class_names_are_capped(mod):
+    safe = mod("google_sync")._safe
+    assert safe("ConnectTimeout") == "ConnectTimeout" and safe("SERVICE_DISABLED") == "SERVICE_DISABLED"
+    assert safe("A" * 65) == "other" and safe("has space") == "other" and safe("e@x.com") == "other" and safe(None) == "other"
 
 
 @pytest.mark.parametrize("fail, expected", [
     ("not_signed_in", NO_SIGN_IN), ("revoked", NO_SIGN_IN),
     ("403-scope", NO_CONTACTS),
-    ("403-other", UNREACHABLE), ("401", UNREACHABLE), ("500", UNREACHABLE), ("302", UNREACHABLE),
+    ("403-disabled", API_OFF), ("403-legacy", API_OFF),
+    ("403-other", UNREACHABLE), ("429-free-text", UNREACHABLE), ("401", UNREACHABLE), ("500", UNREACHABLE), ("302", UNREACHABLE),
     ("network", UNREACHABLE), ("timeout", UNREACHABLE), ("refused", UNREACHABLE), ("refresh", UNREACHABLE),
 ])
 def test_each_failure_is_one_plain_reply_and_changes_nothing(google, run, vault, mod, caplog, fail, expected):

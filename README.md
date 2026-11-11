@@ -230,7 +230,7 @@ On Desktop, use **Hide from chat** on any line. In the terminal, use `/contacts 
 
 ## Disclosures
 
-- **Network:** none unless you send /myfolks sync. Then Hermes connects to Google for MyFolks, read-only, and only to people.googleapis.com. MyFolks never reads or stores the Google sign-in: Hermes keeps it and attaches it only for people.googleapis.com. MyFolks never sends your notes anywhere. Replies sent over a messaging platform pass through that platform.
+- **Network:** none unless you send /myfolks sync. Then Hermes connects to Google for MyFolks, read-only: people.googleapis.com for your contacts, plus Google's sign-in addresses when you sign in and when Hermes refreshes the sign-in. MyFolks never reads or stores the Google sign-in: Hermes keeps it and attaches it only for people.googleapis.com. MyFolks never sends your notes anywhere. Replies sent over a messaging platform pass through that platform.
 - **AI:** `/contacts` uses no model. The optional AI tool is off by default. When on, the lines it returns go to your model provider.
 - **Files:** it reads and writes only its own data folder, plus files you name for import, backup, restore or export. It never reads the Google sign-in.
 - **Stored credentials:** a device key, in a file only your user can read, in the plugin's data folder. MyFolks uses the OS keychain instead only when Python's `keyring` package is available to Hermes, which a default Hermes install doesn't include. The Google sign-in for sync is Hermes's own, kept in Hermes's `auth.json`; MyFolks never holds it.

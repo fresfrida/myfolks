@@ -400,6 +400,7 @@ SYNC_NO_CONTACTS = (
     "Or import a contacts file instead: hermes myfolks import <file>"
 )
 SYNC_UNREACHABLE = "Couldn't reach Google contacts. Nothing was changed. Try /myfolks sync again later."
+SYNC_API_OFF = "Google's People API is off for your Google Cloud project. Turn it on: APIs & Services > Library > People API > Enable. Then send /myfolks sync again."
 SYNC_OFF = "Google sync is off. MyFolks won't connect to Google. Your people stay here. Turn it back on: /myfolks sync"
 SYNC_USAGE = "To sync Google contacts: /myfolks sync    To stop: /myfolks sync off"
 SYNC_CHECK_FAILED = "Couldn't check Google contacts just now."

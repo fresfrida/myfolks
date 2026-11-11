@@ -346,7 +346,7 @@ def cmd_export(args, *, vault=None, read_line=None, read_secret=None, stdin=None
     return 0
 
 
-_SYNC_FAILURES = frozenset({messages.SYNC_NO_SIGN_IN, messages.SYNC_NO_CONTACTS, messages.SYNC_UNREACHABLE, messages.NOT_SET_UP, messages.LOCKED, messages.BUSY, messages.ERROR})
+_SYNC_FAILURES = frozenset({messages.SYNC_NO_SIGN_IN, messages.SYNC_NO_CONTACTS, messages.SYNC_API_OFF, messages.SYNC_UNREACHABLE, messages.NOT_SET_UP, messages.LOCKED, messages.BUSY, messages.ERROR})
 
 
 def cmd_sync(args, *, vault=None, stdout=None) -> int:
