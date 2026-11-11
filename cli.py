@@ -12,7 +12,7 @@ from . import messages
 def setup_parser(parser) -> None:
     commands = parser.add_subparsers(dest="myfolks_command", required=True)
     commands.add_parser("setup", help="Create the encrypted store and show the recovery code once")
-    commands.add_parser("recover", help="Open the store on this device with the recovery code")
+    commands.add_parser("recover", help="Open the store on this computer with the recovery code")
     commands.add_parser("pair", help="Make a one-time code to link your messaging account")
     backing_up = commands.add_parser("backup", help="Write an encrypted backup of MyFolks, protected by a passphrase")
     backing_up.add_argument("-o", "--output", help=f"File or folder for the backup (default: ~/{BACKUP_PREFIX}<timestamp>{BACKUP_SUFFIX})")

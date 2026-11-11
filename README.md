@@ -36,7 +36,7 @@ June this year · Telegram
   ![A close spelling asks first](assets/didyoumean.png)
 - **Linked cards.** Priya links to their dog Biscuit, so `/contacts priya dog birthday` finds it.
 - **Forgiving search.** Most one-letter typos and common synonyms find the right line, with no AI model.
-- **Encrypted and local.** One encrypted file on your machine. No account and no cloud.
+- **Encrypted and local.** One encrypted file in your Hermes folder. No account and no cloud.
 - **Yours only.** Only you, unless you change a setting. Group chats are refused.
 - **Your own words.** Use /contacts, /myfolks, a [wake word](#the-wake-word) you choose with no slash, or [your own short command](#choose-your-own-command).
 
@@ -58,7 +58,7 @@ Run this in your own terminal, or use the setup screen on the MyFolks page in He
 hermes myfolks setup
 ```
 
-Either shows a recovery code **once**. No chat ever shows it, not even the terminal chat. `/myfolks` with nothing after it shows when and from where MyFolks was set up. Keep it somewhere safe. What you save in MyFolks is stored only on this device. Your address book is separate, and MyFolks never changes it. You need the recovery code if MyFolks stops opening, and to back up or export. It is not a copy, so also make a backup.
+Either shows a recovery code **once**. No chat ever shows it, not even the terminal chat. `/myfolks` with nothing after it shows when and from where MyFolks was set up. Keep it somewhere safe. MyFolks keeps what you save only in your Hermes folder, on the computer that runs Hermes. If you use it from a chat app like Telegram, that app also keeps a copy of the chat. Your address book is separate, and MyFolks never changes it. You need the recovery code if MyFolks stops opening, and to back up or export. It is not a copy, so also make a backup.
 
 If MyFolks stops opening:
 
@@ -176,12 +176,12 @@ If more than one person is allowed on your bot, link your own account once with 
 
 ## Backup and restore
 
-What you save in MyFolks is stored only on this device. To keep it if you lose the device, make a backup and keep the file somewhere else.
+MyFolks keeps what you save only in your Hermes folder, on the computer that runs Hermes. To keep it if you lose that computer, make a backup and keep the file somewhere else.
 
 - **Only MyFolks:** `hermes myfolks backup` saves `~/myfolks-backup-<date-time>.mfbk`, locked with a passphrase you choose. Without the passphrase, the file can't be opened. Add `-o` with a file or folder to save it elsewhere. Restore it with `hermes myfolks restore <file>`. Restoring into a new setup gives you a new recovery code.
 - **All of Hermes:** a full `hermes backup` includes MyFolks and, on a default Hermes install, the key that opens it. Anyone with that file can read what you saved in MyFolks, so treat it like a password. `hermes backup --quick` leaves MyFolks out. On a new device, restore it with `hermes import <file>`. If MyFolks then can't open, run `hermes myfolks recover`.
 
-Restoring over existing contacts asks for your recovery code, then asks you to type `REPLACE`. MyFolks also keeps the last 7 encrypted versions of your store on this device.
+Restoring over existing contacts asks for your recovery code, then asks you to type `REPLACE`. MyFolks also keeps the last 7 encrypted versions of your store in your Hermes folder.
 
 `hermes myfolks export <file>` writes an **unencrypted** copy after you type `EXPORT`. Export, backup, restore and pair ask for your recovery code first, typed privately, and do nothing without it.
 
@@ -199,14 +199,14 @@ On Desktop, use **Hide from chat** on any line. In the terminal, use `/contacts 
 
 ## What to know before you rely on it
 
-- **Telegram:** bot chats aren't end-to-end encrypted, so questions and answers there pass through Telegram.
+- **Chat apps:** if you use MyFolks from a chat app such as Telegram, that app also keeps a copy of the chat, MyFolks's answers included, on its own servers. Telegram bot chats also aren't end-to-end encrypted.
 - **Exact means exactly what was saved.** MyFolks can't know a detail has gone out of date.
 - **Other software on your account:** Hermes runs as you, so anything else running as you, including other enabled plugins and an unsandboxed terminal, is not fully walled off. Running Hermes's terminal in a sandbox is the strongest setup.
 - **AI agents with terminal access:** an AI agent with unrestricted terminal access runs as you, with the same reach you have. A sandboxed terminal is the strong setup.
 - **The AI file block is a safety net.** A hook blocks AI tools that directly name the store, its key, its versions or your typed history. An indirect route, such as a wildcard in a shell command, can get past it.
 - **Typed history:** Hermes keeps a plain-text history of what you type in a terminal, including `/contacts` commands.
-- **Lost device or code:** lose this device without a backup and what you saved in MyFolks is gone. Your address book isn't affected. Lose the recovery code and MyFolks keeps working here, but you can't back up, restore, export or pair.
-- **Hermes backups:** on a default Hermes install, the MyFolks key is a file next to its encrypted store, so a full `hermes backup` holds both. Anyone with that backup can read what you saved in MyFolks.
+- **Lost computer or code:** lose the computer that runs Hermes without a backup, and what you saved in MyFolks is gone. Your address book isn't affected. Lose the recovery code and MyFolks keeps working here, but you can't back up, restore, export or pair.
+- **Copies of your Hermes folder:** on a default Hermes install, the MyFolks key is a file next to its encrypted store, so any copy of your Hermes folder can open MyFolks. That includes a full `hermes backup`, Time Machine or other whole-computer backups, and a synced or backed-up home folder. Protect those copies like a password.
 
 ## Disclosures
 

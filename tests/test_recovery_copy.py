@@ -35,13 +35,13 @@ def test_terminal_setup_prints_exactly_the_approved_screen(fresh, mod):
     code = CODE.search(out.getvalue()).group(0)
     assert out.getvalue() == (
         "MyFolks is ready.\n"
-        "What you save in MyFolks is stored only on this device. Your address book is separate, and MyFolks never changes it.\n"
+        "MyFolks keeps what you save only in your Hermes folder, on the computer that runs Hermes. If you use it from a chat app like Telegram, that app also keeps a copy of the chat. Your address book is separate, and MyFolks never changes it.\n"
         "\n"
         "Your recovery code. It is shown once. Keep it somewhere safe:\n"
         f"{code}\n"
         "You need it if MyFolks stops opening, and to back up or export.\n"
         "\n"
-        "To keep what you saved in MyFolks if you lose this device, back up and keep the file somewhere else:\n"
+        "To keep what you saved if you lose that computer, back up and keep the file somewhere else:\n"
         "  hermes myfolks backup    only MyFolks, locked with a passphrase you choose\n"
         "  hermes backup            all of Hermes, MyFolks included. Treat the file like a password\n"
     )
@@ -50,10 +50,10 @@ def test_terminal_setup_prints_exactly_the_approved_screen(fresh, mod):
 def test_desktop_setup_screen_has_the_same_text():
     for line in [
         "setupDone: 'MyFolks is ready.',",
-        "setupStoredHere: 'What you save in MyFolks is stored only on this device. Your address book is separate, and MyFolks never changes it.',",
+        "setupStoredHere: 'MyFolks keeps what you save only in your Hermes folder, on the computer that runs Hermes. If you use it from a chat app like Telegram, that app also keeps a copy of the chat. Your address book is separate, and MyFolks never changes it.',",
         "setupCodeIntro: 'Your recovery code. It is shown once. Keep it somewhere safe:',",
         "setupCodePurpose: 'You need it if MyFolks stops opening, and to back up or export.',",
-        "setupBackupIntro: 'To keep what you saved in MyFolks if you lose this device, back up and keep the file somewhere else:',",
+        "setupBackupIntro: 'To keep what you saved if you lose that computer, back up and keep the file somewhere else:',",
         "setupBackupHermes: 'hermes backup',",
         "setupBackupHermesNote: 'all of Hermes, MyFolks included. Treat the file like a password',",
         "setupBackupMyfolks: 'hermes myfolks backup',",
@@ -114,7 +114,7 @@ def _backup(mod, vault, output, now=NOW):
 
 
 def _done(path):
-    return f"Backup saved to {path}. Keep it somewhere other than this device. Keep the passphrase safe: without it, this file can't be opened.\n"
+    return f"Backup saved to {path}. Keep it somewhere other than this computer. Keep the passphrase safe: without it, this file can't be opened.\n"
 
 
 def test_no_output_writes_the_default_name_in_the_home_folder(vault, mod, tmp_path, monkeypatch):
@@ -223,6 +223,20 @@ def test_restore_into_a_new_store_shows_the_code_with_what_it_is_for(vault, mod,
     assert lines[1] == "Your recovery code. It is shown once. Keep it somewhere safe:" and CODE.fullmatch(lines[2])
     assert lines[3] == "You need it if MyFolks stops opening, and to back up or export."
     assert "after you restore a Hermes backup" not in out.getvalue()
+
+
+def test_recover_says_it_opens_on_this_computer(vault, mod):
+    out = Terminal()
+    vault.keys.file_path.unlink()
+    assert mod("cli").cmd_recover(None, vault=vault, read_code=lambda _prompt: vault.recovery_code, stdout=out) == 0
+    assert out.getvalue() == "Recovered. MyFolks opens on this computer again.\n"
+
+
+def test_no_text_says_this_device(mod):
+    texts = [value for name, value in vars(mod("messages")).items() if isinstance(value, str) and name.isupper()]
+    texts.append(mod("messages").backup_done("/x"))
+    assert not [text for text in texts if "device" in text.lower()]
+    assert "this device" not in PLUGIN_JS.lower()
 
 
 def test_no_setup_or_restore_text_promises_a_hermes_backup_needs_the_code(mod):
