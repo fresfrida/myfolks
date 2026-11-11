@@ -34,6 +34,13 @@ desktop_service = importlib.import_module("myfolks.desktop_service")
 WORKER = str(HERE / "worker.py")
 NOTHING = "Nothing saved about that."
 NO_ONE = "No one called "
+
+
+def found_nothing(reply):
+    """No answer: "Nothing saved about that" (with or without "yet") or "No one called", whatever
+    next-step hint follows on the lines below."""
+    first = reply.split("\n")[0]
+    return first.startswith("Nothing saved about that") or first.startswith(NO_ONE)
 REFUSED = "MyFolks isn't available here."
 failures = []
 
@@ -80,13 +87,13 @@ def search_outcome(item, reply):
     if expect == "ask":
         return reply.startswith(find) and '"' not in reply.split("To see it")[0]
     if expect == "direct":
-        return not is_unsure(reply) and find in reply and not (reply == NOTHING or reply.startswith(NO_ONE))
+        return not is_unsure(reply) and find in reply and not found_nothing(reply)
     if expect == "related":
         return is_unsure(reply) and find in reply
     if expect == "nothing":
-        return (reply == NOTHING or reply.startswith(NO_ONE))
+        return found_nothing(reply)
     if expect == "not_direct":
-        return is_unsure(reply) or (reply == NOTHING or reply.startswith(NO_ONE))
+        return is_unsure(reply) or found_nothing(reply)
     return find in reply.split("\n")[0]
 
 
@@ -106,7 +113,7 @@ def check_search():
         reply = commands.handle(item["q"], platform="cli", ask=ask, vault=vault)
         if not search_outcome(item, reply):
             misses.append((item, reply))
-            if item["expect"] in ("nothing", "not_direct") and not is_unsure(reply) and not (reply == NOTHING or reply.startswith(NO_ONE)):
+            if item["expect"] in ("nothing", "not_direct") and not is_unsure(reply) and not found_nothing(reply):
                 wrong_direct.append(item["q"])
     total = len(data["questions"])
     print(f"  Score: {total - len(misses)}/{total} correct, {len(misses)} misses")

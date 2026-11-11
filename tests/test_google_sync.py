@@ -434,7 +434,7 @@ def test_failed_live_check_carries_on_with_one_line(google, run, vault, mod):
     run("sync")
     _due(vault, mod)
     google.fake.fail = "timeout"
-    assert run("zed") == "No one called zed yet.\nCouldn't check Google contacts just now."
+    assert run("zed") == "No one called zed yet.\nNot sure what to send? /myfolks help\nCouldn't check Google contacts just now."
     _due(vault, mod)
     assert run("save Zed is new", answer="new") == "New card for Zed. Saved. Undo: /myfolks undo\nCouldn't check Google contacts just now."
 

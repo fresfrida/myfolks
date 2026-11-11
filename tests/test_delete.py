@@ -68,12 +68,12 @@ def test_deleted_person_is_gone_from_every_read(run, vault, mod):
     run("link Priya sister \"Sis Nel\"")
     deleted_id = card_id(vault, "Sis Nel")
     run("delete Sis Nel")
-    assert run("sis nel") == "Nothing saved about that."
-    assert run("nel") == "No one called nel yet."
+    assert run("sis nel") == "Nothing saved about that.\nNot sure what to send? /myfolks help"
+    assert run("nel") == "No one called nel yet.\nNot sure what to send? /myfolks help"
     assert run("priya") == "Priya\nlikes tea\n1 note · last saved today\nChange a line: /myfolks fix Priya    Delete: /myfolks forget Priya"  # the link to a deleted person is left out
-    assert run("priya sister") == "Nothing saved about that."
-    assert run(f"#{deleted_id}") == "Nothing saved about that."
-    assert run("sis nell") == "Nothing saved about that."  # no "Did you mean" for a deleted person
+    assert run("priya sister") == "Nothing saved about that.\nNot sure what to send? /myfolks help"
+    assert run(f"#{deleted_id}") == "Nothing saved about that.\nNot sure what to send? /myfolks help"
+    assert run("sis nell") == "Nothing saved about that.\nNot sure what to send? /myfolks help"  # no "Did you mean" for a deleted person
     assert run("").startswith("MyFolks: 1 card.")
     service = mod("desktop_service")
     assert [c["name"] for c in service.find("", vault=vault)["cards"]] == ["Priya"]

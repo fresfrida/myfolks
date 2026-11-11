@@ -132,7 +132,7 @@ def test_other_messages_are_untouched_and_instant(setup, text):
 
 def test_unknown_name_says_no_one_by_that_name(setup):
     assert setup.send("/myfolks zed")["action"] == "skip"
-    assert setup.adapter.sent == [("c1", "No one called zed yet.")]
+    assert setup.adapter.sent == [("c1", "No one called zed yet.\nNot sure what to send? myfolks help")]
 
 
 def test_known_name_shows_the_card_through_the_hook(setup):

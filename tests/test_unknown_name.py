@@ -8,13 +8,13 @@ def run(vault, mod):
 
 
 @pytest.mark.parametrize("text, reply", [
-    ("Tom's birthday", "No one called Tom yet."),
-    ("tom’s birthday", "No one called tom yet."),
-    ("James' cat", "No one called James yet."),
-    ("zed", "No one called zed yet."),
-    ("allergies of priyanka", "Nothing saved about that."),
-    ("nobody birthday", "Nothing saved about that."),
-    ("what is Tom's and Ann's address", "Nothing saved about that."),
+    ("Tom's birthday", "No one called Tom yet.\nNot sure what to send? /myfolks help"),
+    ("tom’s birthday", "No one called tom yet.\nNot sure what to send? /myfolks help"),
+    ("James' cat", "No one called James yet.\nNot sure what to send? /myfolks help"),
+    ("zed", "No one called zed yet.\nNot sure what to send? /myfolks help"),
+    ("allergies of priyanka", "Nothing saved about that.\nNot sure what to send? /myfolks help"),
+    ("nobody birthday", "Nothing saved about that.\nNot sure what to send? /myfolks help"),
+    ("what is Tom's and Ann's address", "Nothing saved about that.\nNot sure what to send? /myfolks help"),
 ])
 def test_unknown_names(run, text, reply):
     assert run(text) == reply

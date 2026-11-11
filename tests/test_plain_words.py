@@ -141,3 +141,38 @@ def test_shared_people_see_no_change_or_delete_line(vault, mod, monkeypatch):
     view = mod("commands").handle("priya", platform="telegram", source=source, vault=vault, shared="telegram:222:read", wake_word="myfolks")
     assert "forget" not in view and "fix" not in view
 
+
+
+# 3. No dead ends.
+
+def test_a_statement_that_finds_nothing_gets_the_save_command(run, vault):
+    run("save Melisa likes tea")
+    assert run("Melisa's dog's name is Ollie") == "Nothing saved about that yet. To save it, send:\n/myfolks remember Melisa's dog's name is Ollie"
+    assert lines_of(vault, "Melisa") == ["likes tea"]  # never saved on a guess
+
+
+@pytest.mark.parametrize("text", ["rositah is vegetarian", "Sam has two kids", "Ana likes jazz"])
+def test_statements_about_new_people_too(run, vault, text):
+    assert run(text) == f"Nothing saved about that yet. To save it, send:\n/myfolks remember {text}"
+    assert live_names(vault) == []
+
+
+@pytest.mark.parametrize("text", ["what's Melisa's dog called?", "is Melisa vegetarian", "Tom's birthday", "melisa shoe size"])
+def test_questions_keep_their_reply_and_get_the_help_pointer(run, text):
+    run("save Melisa likes tea")
+    reply = run(text)
+    assert reply.endswith("\nNot sure what to send? /myfolks help") and "To save it" not in reply
+
+
+def test_on_telegram_the_command_is_a_copy_block_with_the_wake_word(phone):
+    assert phone("Melisa's dog's name is Ollie") == "Nothing saved about that yet. To save it, send:\n`myfolks remember Melisa's dog's name is Ollie`"
+    assert phone("zed") == "No one called zed yet.\nNot sure what to send? myfolks help"
+
+
+def test_people_who_may_only_read_get_the_help_pointer_not_a_save(vault, mod, monkeypatch):
+    monkeypatch.setattr(mod("owner"), "allowed_users", lambda platform: ({"111", "222"}, False))
+    with vault.write() as connection:
+        connection.execute("INSERT INTO owners(platform,user_id,created_at) VALUES('telegram','111','2026-01-01')")
+    source = SimpleNamespace(user_id="222", chat_type="dm", is_bot=False)
+    reply = mod("commands").handle("Sam has two kids", platform="telegram", source=source, vault=vault, shared="telegram:222:read")
+    assert reply.endswith("Not sure what to send? /myfolks help") and "remember" not in reply

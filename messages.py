@@ -475,3 +475,16 @@ def did_you_mean_delete_fallback(question: str, commands: list[str]) -> str:
 def help_text(access: str = "full") -> str:
     """Help as jobs, in plain words. People the owner shared with see only what they may do."""
     return "MyFolks help"
+
+
+def copy_block(text: str) -> str:
+    """A command to copy as it is: always a code span on Telegram."""
+    return _telegram_code(text) if _VALUE_RENDER.get() is telegram_plain else text
+
+
+def save_it_instead(words: str) -> str:
+    return f"Nothing saved about that yet. To save it, send:\n{copy_block(command('remember ' + words))}"
+
+
+def help_pointer() -> str:
+    return f"Not sure what to send? {command('help')}"

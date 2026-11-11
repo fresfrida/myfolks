@@ -139,7 +139,7 @@ def test_messaging_public_answer_never_mentions_private(phone):
 def test_card_without_private_says_nothing_saved(mod, seeded):
     handle = mod("commands").handle
     handle("save Marco likes jazz", platform="cli", vault=seeded)
-    assert handle("marco shoe size", platform="telegram", source=dm(), vault=seeded) == "Nothing saved about that."
+    assert handle("marco shoe size", platform="telegram", source=dm(), vault=seeded) == "Nothing saved about that.\nNot sure what to send? /myfolks help"
 
 
 def test_card_view_counts_private_notes(phone):
@@ -200,8 +200,8 @@ def shared_ask(mod, seeded, text):
 
 
 def test_shared_person_gets_nothing_saved(seeded, mod):
-    assert shared_ask(mod, seeded, "priya therapist") == "Nothing saved about that."
-    assert shared_ask(mod, seeded, "priya shoe size") == "Nothing saved about that."
+    assert shared_ask(mod, seeded, "priya therapist") == "Nothing saved about that.\nNot sure what to send? /myfolks help"
+    assert shared_ask(mod, seeded, "priya shoe size") == "Nothing saved about that.\nNot sure what to send? /myfolks help"
 
 
 def test_shared_person_sees_no_hidden_count(seeded, mod):

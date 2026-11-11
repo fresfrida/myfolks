@@ -46,6 +46,7 @@ TEMPLATES = {
     "who_is_this_for": lambda m: m.who_is_this_for(NAME),
     "deleted_person": lambda m: m.deleted_person(NAME),
     "card_next_steps": lambda m: m.card_next_steps(NAME),
+    "save_it_instead": lambda m: m.save_it_instead(f"{NAME} is {RELATION}"),
     "deleted_line": lambda m: m.deleted_line(2, NAME),
     "did_you_mean_delete_fallback": lambda m: m.did_you_mean_delete_fallback(m.did_you_mean(NAME), [f"/myfolks delete {NAME}"]),
     "not_in_contacts": lambda m: m.not_in_contacts(NAME),
@@ -74,7 +75,7 @@ RAW_BY_DESIGN = {
 
 
 # Templates that take only numbers or fixed words: no saved or typed value can reach them.
-NUMBERS_ONLY = {"sync_summary", "sync_first", "help_text", "command", "changed"}
+NUMBERS_ONLY = {"sync_summary", "sync_first", "help_text", "command", "changed", "help_pointer", "copy_block"}
 
 
 @pytest.mark.parametrize("template", sorted(TEMPLATES))

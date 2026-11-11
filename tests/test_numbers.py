@@ -34,7 +34,7 @@ def test_review(run, odd):
 
 @pytest.mark.parametrize("odd", ODD)
 def test_card_number(run, odd):
-    assert run(f"#{odd}") == "Nothing saved about that."
+    assert run(f"#{odd}") == "Nothing saved about that.\nNot sure what to send? /myfolks help"
 
 
 def test_ascii_numbers_still_work(run):

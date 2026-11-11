@@ -62,7 +62,7 @@ def test_lookup_answer_format(run):
 
 
 def test_unknown_person_says_nothing(run):
-    assert run("nobody birthday") == "Nothing saved about that."
+    assert run("nobody birthday") == "Nothing saved about that.\nNot sure what to send? /myfolks help"
 
 
 def test_card_view_has_no_numbers(run):
@@ -98,7 +98,7 @@ def test_correct_bad_line_number(run):
 def test_undo_save(run):
     run("save Priya likes tea")
     assert run("undo").startswith("Undone:")
-    assert run("priya") == "No one called priya yet."
+    assert run("priya") == "No one called priya yet.\nNot sure what to send? /myfolks help"
     assert run("undo") == "Nothing to undo."
 
 
@@ -307,7 +307,7 @@ def test_near_name_never_followed_through_links(run):
 
 def test_short_names_get_no_typo_help(run):
     run("save Bob likes cake")
-    assert run("bo cake") == "Nothing saved about that."
+    assert run("bo cake") == "Nothing saved about that.\nNot sure what to send? /myfolks help"
 
 
 def test_several_close_names_ask(run):

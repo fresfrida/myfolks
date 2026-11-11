@@ -20,7 +20,7 @@ def test_linked_card_answer_still_wins(run):
 
 
 def test_nothing_only_when_both_are_empty(run):
-    assert run("priya dog shoe size") == "Nothing saved about that."
+    assert run("priya dog shoe size") == "Nothing saved about that.\nNot sure what to send? /myfolks help"
 
 
 def test_fallback_on_desktop_and_ai_tool(vault, mod, run):

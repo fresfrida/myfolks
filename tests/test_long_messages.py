@@ -22,7 +22,7 @@ def _timed(run, text):
 def test_400_words_with_no_name_is_fast(run):
     reply, seconds = _timed(run, " ".join(f"word{i}" for i in range(400)))
     print(f"\n400 words, no name: {seconds * 1000:.1f} ms")
-    assert reply == "Nothing saved about that."
+    assert reply == "Nothing saved about that.\nNot sure what to send? /myfolks help"
     assert seconds < 0.1
 
 

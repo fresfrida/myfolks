@@ -327,7 +327,10 @@ def _run(raw: str, vault: Vault, label: str, terminal: bool, answers: dict, acce
             return messages.overview(cards.count_cards(connection), db.get_setting(connection, "set_up_at"), db.get_setting(connection, "set_up_from"))
         if verb == "history":
             return _history(context, raw, parts[1:])
-        return _query(context, raw)
+        reply = _query(context, raw)
+        if reply in (messages.NOTHING, messages.no_one_called(_unknown_name(raw))):
+            return _no_dead_end(context, raw, reply, access)
+        return reply
 
 
 def _span_names(parts: list[Token], possessive: bool = False) -> list[str]:
@@ -834,6 +837,26 @@ def _chosen_close_card(context: Context, words: list[str]) -> Optional[tuple[sql
     suffix = "".join(f" {w}" for w in remaining)
     card = _confirm_or_cancel(context, " ".join(words[start:end]), close, lambda name: f"/contacts {name}{suffix}", messages.did_you_mean_open)
     return (card, remaining) if card is not None else (None, [])
+
+
+_STATEMENT = re.compile(r" is | has | likes ", re.IGNORECASE)  # a verb: "Tom's birthday" alone is a lookup
+_QUESTION_WORDS = {"what", "what's", "whats", "who", "who's", "whose", "when", "where", "which", "how", "why",
+                   "does", "do", "did", "is", "are", "was", "can", "could", "has", "have"}
+
+
+def _reads_like_a_statement(raw: str) -> bool:
+    """"Melisa's dog's name is Ollie", not "what's Melisa's dog called?" or "Tom's birthday"."""
+    text = raw.strip()
+    first = text.split(maxsplit=1)[0].casefold().replace("\u2019", "'") if text else ""
+    return bool(_STATEMENT.search(f" {text} ")) and "?" not in text and first not in _QUESTION_WORDS
+
+
+def _no_dead_end(context: Context, raw: str, reply: str, access: str) -> str:
+    """Found nothing: never a dead end. A statement gets the save command to copy, never a save on a guess;
+    anything else gets a pointer to help."""
+    if _reads_like_a_statement(raw) and _allowed_for(access, "save"):
+        return messages.save_it_instead(raw.strip())
+    return f"{reply}\n{messages.help_pointer()}"
 
 
 def _unknown_name(raw: str) -> str:

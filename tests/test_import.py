@@ -123,7 +123,7 @@ def test_exact_phone_merges_and_undo_reverses(vault, importer, run, mod):
     assert run("undo").startswith("Undone:")
     view = run("noor")
     assert "Vegetarian" not in view and "phone +1 202 555 0105" in view
-    assert run("ravi") == "No one called ravi yet."
+    assert run("ravi") == "No one called ravi yet.\nNot sure what to send? /myfolks help"
 
 
 def test_exact_email_merges_case_insensitive(vault, importer, run):

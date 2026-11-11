@@ -8,6 +8,13 @@ NOTHING = "Nothing saved about that."
 NO_ONE = "No one called "
 
 
+def found_nothing(reply):
+    """No answer: "Nothing saved about that" (with or without "yet") or "No one called", whatever
+    next-step hint follows on the lines below."""
+    first = reply.split("\n")[0]
+    return first.startswith("Nothing saved about that") or first.startswith(NO_ONE)
+
+
 @pytest.fixture
 def ask_run(vault, mod):
     commands = mod("commands")
@@ -46,13 +53,13 @@ def outcome(item, reply):
     if expect == "ask":
         return reply.startswith(find) and '"' not in reply.split("To see it")[0]
     if expect == "direct":
-        return not is_unsure(reply) and find in reply and not (reply == NOTHING or reply.startswith(NO_ONE))
+        return not is_unsure(reply) and find in reply and not found_nothing(reply)
     if expect == "related":
         return is_unsure(reply) and find in reply
     if expect == "nothing":
-        return (reply == NOTHING or reply.startswith(NO_ONE))
+        return found_nothing(reply)
     if expect == "not_direct":
-        return is_unsure(reply) or (reply == NOTHING or reply.startswith(NO_ONE))
+        return is_unsure(reply) or found_nothing(reply)
     if expect == "card":
         return find in reply.split("\n")[0]
     raise AssertionError(expect)
@@ -69,7 +76,7 @@ def test_question_set_prints_score(loaded):
     print(f"\nSEARCH SCORE: {total - len(misses)}/{total} correct, {len(misses)} misses")
     for item, reply in misses:
         print(f"MISS [{item['expect']}] {item['q']!r}" + (f" choose={item['choose']}" if "choose" in item else "") + f" -> {reply.splitlines()[0]!r}" + (f" | {reply.splitlines()[1]!r}" if len(reply.splitlines()) > 1 else ""))
-    wrong_direct = [(item, reply) for item, reply in misses if item["expect"] in ("nothing", "not_direct") and not is_unsure(reply) and not (body_of(reply) == NOTHING or body_of(reply).startswith(NO_ONE))]
+    wrong_direct = [(item, reply) for item, reply in misses if item["expect"] in ("nothing", "not_direct") and not is_unsure(reply) and not found_nothing(reply)]
     for item, reply in wrong_direct:
         print(f"WRONG ANSWER LABELED DIRECT: {item['q']!r} -> {reply.splitlines()[0]!r}")
     assert not wrong_direct, "a question with no answer returned a direct answer"
@@ -82,11 +89,11 @@ def test_known_case_allergy_finds_line(loaded, question):
 
 def test_known_case_favorite_food_is_not_direct(loaded):
     reply = loaded("priya favorite food")
-    assert is_unsure(reply) or (reply == NOTHING or reply.startswith(NO_ONE))
+    assert is_unsure(reply) or found_nothing(reply)
 
 
 def test_known_case_shoe_size_is_nothing(loaded):
-    assert loaded("priya shoe size") == NOTHING
+    assert loaded("priya shoe size") == NOTHING + "\nNot sure what to send? /myfolks help"
 
 
 def test_answer_prints_stored_words_exactly(ask_run):
@@ -97,13 +104,13 @@ def test_answer_prints_stored_words_exactly(ask_run):
 def test_closed_lines_are_not_searched(ask_run):
     ask_run("save Priya lives in Oslo")
     ask_run("correct Priya 1 moved to Bergen")
-    assert ask_run("priya oslo") == NOTHING
+    assert ask_run("priya oslo") == NOTHING + "\nNot sure what to send? /myfolks help"
 
 
 def test_search_stays_on_one_person(ask_run):
     ask_run("save Priya likes tea")
     ask_run("save Marco likes jazz")
-    assert ask_run("priya jazz") == NOTHING
+    assert ask_run("priya jazz") == NOTHING + "\nNot sure what to send? /myfolks help"
 
 
 def test_concept_list_never_direct(ask_run):
@@ -153,7 +160,7 @@ def test_exact_match_ranks_before_typo(ask_run):
 
 def test_typo_never_makes_partial_match_direct(ask_run):
     ask_run("save Marco passport renewal due")
-    assert ask_run("marco passprot visa") in (NOTHING,) or is_unsure(ask_run("marco passprot visa"))
+    assert ask_run("marco passprot visa") in (NOTHING + "\nNot sure what to send? /myfolks help",) or is_unsure(ask_run("marco passprot visa"))
 
 
 @pytest.mark.parametrize("question,find", [("marco bears", "size 42"), ("sam lee chest", "chess"), ("priya lines", "Queenstown")])
