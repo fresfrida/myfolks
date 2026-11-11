@@ -22,6 +22,7 @@ _TYPO_VERBS = ("save", "link", "history", "correct", "undo", "review")
 _VERBS = {*_TYPO_VERBS, "hide", "unhide"}
 _MAX_QUESTIONS = 4
 _BOLD_SURFACE = "Telegram"
+_POSSESSIVE = re.compile(r"(?:['\u2019][sS]|['\u2019])$")
 _NEW_FLAG = "--new"
 _RETIRED_FLAGS = {"--private", "--computer-only"}
 _MAX_NAME_TOKENS = 3
@@ -200,20 +201,39 @@ def _run(raw: str, vault: Vault, label: str, terminal: bool, answers: dict, acce
         return _query(context, raw)
 
 
-def _match_prefix(context: Context, parts: list[Token], limit: int) -> tuple[int, list]:
+def _span_names(parts: list[Token], possessive: bool = False) -> list[str]:
+    """Names a run of tokens can mean, exact first. With *possessive*, Mel's or James' also means
+    Mel or James, unless the last word was quoted."""
+    text = " ".join(p.text for p in parts)
+    if not possessive or not parts or parts[-1].quoted:
+        return [text]
+    base = _POSSESSIVE.sub("", parts[-1].text)
+    if not base or base == parts[-1].text:
+        return [text]
+    return [text, " ".join([*(p.text for p in parts[:-1]), base])]
+
+
+def _name_for(parts: list[Token], possessive: bool = False) -> str:
+    """The name a new card gets from these tokens: Mel's makes Mel."""
+    return _span_names(parts, possessive)[-1]
+
+
+def _match_prefix(context: Context, parts: list[Token], limit: int, possessive: bool = False) -> tuple[int, list]:
     """Longest run of leading tokens that names a card: (tokens used, matches)."""
     for used in range(min(limit, len(parts)), 0, -1):
-        matches = lookup.cards_for_words(context.connection, [" ".join(p.text for p in parts[:used])])
-        if matches:
-            return used, matches
+        for name in _span_names(parts[:used], possessive):
+            matches = lookup.cards_for_words(context.connection, [name])
+            if matches:
+                return used, matches
     return 0, []
 
 
-def _match_suffix(context: Context, parts: list[Token], limit: int) -> tuple[int, list]:
+def _match_suffix(context: Context, parts: list[Token], limit: int, possessive: bool = False) -> tuple[int, list]:
     for used in range(min(limit, len(parts)), 0, -1):
-        matches = lookup.cards_for_words(context.connection, [" ".join(p.text for p in parts[-used:])])
-        if matches:
-            return used, matches
+        for name in _span_names(parts[-used:], possessive):
+            matches = lookup.cards_for_words(context.connection, [name])
+            if matches:
+                return used, matches
     return 0, []
 
 
@@ -229,11 +249,12 @@ def _display_token(name: str) -> str:
     return f'"{name}"' if " " in name else name
 
 
-def _close_prefix(context: Context, parts: list[Token], limit: int) -> tuple[int, list]:
+def _close_prefix(context: Context, parts: list[Token], limit: int, possessive: bool = False) -> tuple[int, list]:
     for used in range(min(limit, _MAX_NAME_TOKENS, len(parts)), 0, -1):
-        matches = cards.find_close_cards(context.connection, " ".join(p.text for p in parts[:used]))
-        if matches:
-            return used, matches
+        for name in _span_names(parts[:used], possessive):
+            matches = cards.find_close_cards(context.connection, name)
+            if matches:
+                return used, matches
     return 0, []
 
 
@@ -260,14 +281,14 @@ def _save(context: Context, raw: str, parts: list[Token]) -> str:
     force_new = _NEW_FLAG in flags
     if len(parts) < 2:
         return messages.USAGE_SAVE
-    used, matches = _match_prefix(context, parts, len(parts) - 1)
+    used, matches = _match_prefix(context, parts, len(parts) - 1, possessive=True)
     card = None
     if matches:
         card = context.pick(matches, parts[0].text)
     elif not force_new:
-        close_used, close = _close_prefix(context, parts, len(parts) - 1)
+        close_used, close = _close_prefix(context, parts, len(parts) - 1, possessive=True)
         if close:
-            typed = " ".join(p.text for p in parts[:close_used])
+            typed = _name_for(parts[:close_used], possessive=True)
             text = raw[parts[close_used].start:].strip()
             card = _confirm_close_name(
                 context, typed, close,
@@ -283,7 +304,7 @@ def _save(context: Context, raw: str, parts: list[Token]) -> str:
     change = db.Change(context.connection, "save", context.source_label)
     is_new = card is None
     if is_new:
-        name = " ".join(p.text for p in parts[:used])
+        name = _name_for(parts[:used], possessive=True)
         card_id = cards.add_card(change, name, context.source_label)
     else:
         card_id, name = card["id"], card["name"]
@@ -321,17 +342,17 @@ def _link(context: Context, _raw: str, parts: list[Token]) -> str:
     force_new = _NEW_FLAG in flags
     if len(parts) < 3:
         return messages.USAGE_LINK
-    left_used, left_matches = _match_prefix(context, parts, len(parts) - 2)
+    left_used, left_matches = _match_prefix(context, parts, len(parts) - 2, possessive=True)
     is_self = not left_matches and parts[0].text.casefold() in _SELF_WORDS
     if not left_matches:
         left_used = 1
     tail = parts[left_used:]
-    right_used, right_matches = _match_suffix(context, tail, len(tail) - 1)
+    right_used, right_matches = _match_suffix(context, tail, len(tail) - 1, possessive=True)
     if not right_matches:
         right_used = 1
     relation = " ".join(p.text for p in tail[:-right_used])
-    left_name = " ".join(p.text for p in parts[:left_used])
-    right_name = " ".join(p.text for p in tail[-right_used:])
+    left_name = _name_for(parts[:left_used], possessive=True)
+    right_name = _name_for(tail[-right_used:], possessive=True)
     change = db.Change(context.connection, "link", context.source_label)
     created: list[str] = []
     if is_self:
