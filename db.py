@@ -240,10 +240,17 @@ class UndoBlocked(Exception):
         self.summary = summary
 
 
-def undo_latest(connection: sqlite3.Connection) -> str | None:
+class ChangedSince(Exception):
+    """The change asked for is no longer the latest one, so undoing now would undo something else."""
+
+
+def undo_latest(connection: sqlite3.Connection, expected_id: Optional[int] = None) -> str | None:
     """Reverse the most recent change that has not been undone. Returns its summary.
+    With *expected_id*, only that change: if anything changed since, ChangedSince and nothing is undone.
     If the database refuses, nothing is changed and UndoBlocked says which change it was."""
     row = connection.execute("SELECT id,summary,ops FROM changes WHERE undone_at IS NULL ORDER BY id DESC LIMIT 1").fetchone()
+    if expected_id is not None and (row is None or row["id"] != expected_id):
+        raise ChangedSince()
     if row is None:
         return None
     ops = json.loads(row["ops"])

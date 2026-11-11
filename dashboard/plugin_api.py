@@ -56,6 +56,10 @@ class HiddenBody(BaseModel):
     hidden: bool
 
 
+class UndoBody(BaseModel):
+    change_id: int
+
+
 class ReviewBody(BaseModel):
     action: str
     card_id: Optional[int] = None
@@ -94,6 +98,11 @@ def delete_person(card_id: int):
 @router.post("/lines/{line_id}/delete")
 def delete_line(line_id: int):
     return _call(lambda s: s.delete_line(line_id))
+
+
+@router.post("/undo")
+def undo(body: UndoBody):
+    return _call(lambda s: s.undo(body.change_id))
 
 
 @router.post("/lines/{line_id}/hidden")

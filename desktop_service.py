@@ -171,6 +171,18 @@ def delete_line(line_id: int, vault: Optional[Vault] = None) -> dict:
         return {"state": "ready", "change_id": change_id, "name": card["name"]}
 
 
+def undo(change_id: int, vault: Optional[Vault] = None) -> dict:
+    """The toast's Undo: undoes exactly *change_id*, and only while it is still the latest change."""
+    try:
+        with (vault or Vault()).write() as connection:
+            summary = db.undo_latest(connection, expected_id=change_id)
+    except db.ChangedSince:  # raised inside the write, so nothing is saved
+        return {"state": "changed", "message": messages.UNDO_CHANGED_SINCE}
+    except db.UndoBlocked as blocked:
+        return {"state": "blocked", "message": messages.undo_blocked(blocked.summary)}
+    return {"state": "ready", "message": messages.undone(summary)}
+
+
 def set_hidden(line_id: int, hidden: bool, vault: Optional[Vault] = None) -> dict:
     with (vault or Vault()).write() as connection:
         line = connection.execute("SELECT * FROM details WHERE id=? AND closed_at IS NULL", (line_id,)).fetchone()

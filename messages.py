@@ -177,7 +177,7 @@ def overview(count: int, set_up_at: Optional[str] = None, set_up_from: Optional[
         "/contacts link <name> <relation> <name>\n"
         "/contacts history <name>\n"
         "/contacts correct <name> <line number> <new text>\n"
-        "/contacts undo"
+        "Undo your last change: /myfolks undo"
     )
 
 
@@ -435,6 +435,7 @@ def sync_first(added: int, matched: int, to_check: int) -> str:
 
 
 # Delete. New wording, TENTATIVE.
+UNDO_CHANGED_SINCE = "Can't undo that: something changed since. See History."
 USAGE_DELETE = "To delete someone: /myfolks delete <name>    One line: /myfolks delete <name> <line number>"
 
 

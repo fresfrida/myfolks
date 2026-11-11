@@ -268,3 +268,52 @@ def test_desktop_line_delete_button():
 
     js = (Path(__file__).parent.parent / "desktop" / "plugin.js").read_text()
     assert "deleteLine: 'Delete'," in js and "`/lines/${line.id}/delete`" in js
+
+
+# 3. Undo that can't undo the wrong thing.
+
+def test_toast_undo_undoes_exactly_its_change(run, vault, mod):
+    run('save "Sis Nel" lives on Elm Street')
+    service = mod("desktop_service")
+    deleted = service.delete_person(card_id(vault, "Sis Nel"), vault=vault)
+    assert service.undo(deleted["change_id"], vault=vault) == {"state": "ready", "message": "Undone: deleted Sis Nel."}
+    assert live_names(vault) == ["Sis Nel"]
+
+
+def test_toast_undo_refuses_after_a_telegram_save_in_between(vault, mod, monkeypatch):
+    monkeypatch.setattr(mod("owner"), "allowed_users", lambda platform: ({"111"}, False))
+    with vault.write() as connection:
+        connection.execute("INSERT INTO owners(platform,user_id,created_at) VALUES('telegram','111','2026-01-01')")
+    handle = mod("commands").handle
+    handle('save "Sis Nel" lives on Elm Street', platform="cli", vault=vault)
+    service = mod("desktop_service")
+    deleted = service.delete_person(card_id(vault, "Sis Nel"), vault=vault)
+    source = SimpleNamespace(user_id="111", chat_type="dm", is_bot=False)
+    assert handle("save Priya likes tea", platform="telegram", source=source, vault=vault) == "New card for Priya. Saved."
+    assert service.undo(deleted["change_id"], vault=vault) == {"state": "changed", "message": "Can't undo that: something changed since. See History."}
+    assert live_names(vault) == ["Priya"]  # Priya's save stays, and Sis Nel stays deleted
+
+
+def test_toast_undo_refuses_twice_and_an_unknown_id(run, vault, mod):
+    run("save Priya likes tea")
+    service = mod("desktop_service")
+    line_id = service.card_detail(card_id(vault, "Priya"), vault=vault)["lines"][0]["id"]
+    deleted = service.delete_line(line_id, vault=vault)
+    assert service.undo(deleted["change_id"], vault=vault)["state"] == "ready"
+    assert service.undo(deleted["change_id"], vault=vault)["state"] == "changed"
+    assert service.undo(999999, vault=vault)["state"] == "changed"
+    assert live_names(vault) == ["Priya"] and len(service.card_detail(card_id(vault, "Priya"), vault=vault)["lines"]) == 1
+
+
+def test_chat_help_names_undo_plainly(run):
+    run("save Priya likes tea")
+    assert run("").splitlines()[-1] == "Undo your last change: /myfolks undo"
+
+
+def test_desktop_toast_wiring():
+    from pathlib import Path
+
+    js = (Path(__file__).parent.parent / "desktop" / "plugin.js").read_text()
+    assert "deletedPersonToast: name => `Deleted ${name}.`," in js and "undo: 'Undo'," in js
+    assert ".rest('/undo', { body: { change_id: changeId }, method: 'POST' })" in js
+    assert "host.notify({" in js

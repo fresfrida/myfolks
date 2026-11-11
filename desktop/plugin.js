@@ -54,6 +54,10 @@ const COPY = {
     const word = relation.charAt(0).toUpperCase() + relation.slice(1)
     return outgoing ? `${word}: ${name}` : `${word} of ${name}`
   },
+  deletedPersonToast: name => `Deleted ${name}.`,
+  deletedLineToast: 'Deleted.',
+  undo: 'Undo',
+  couldNotUndo: 'That couldn’t be undone.',
   deletePerson: 'Delete person',
   deleteLine: 'Delete',
   deletePersonTitle: name => `Delete ${name}?`,
@@ -123,6 +127,28 @@ function useNarrow() {
   }, [])
 
   return [ref, narrow]
+}
+
+// After a change made on this page: a toast whose Undo undoes exactly that change, and only while it is
+// still the latest one. The backend refuses otherwise, so a later change (from chat, say) is never undone.
+function offerUndo(ctx, message, changeId, reload) {
+  host.notify({
+    kind: 'success',
+    message,
+    action: changeId
+      ? {
+          label: COPY.undo,
+          onClick: () =>
+            ctx
+              .rest('/undo', { body: { change_id: changeId }, method: 'POST' })
+              .then(result => {
+                host.notify({ kind: result.state === 'ready' ? 'info' : 'warning', message: result.message || COPY.couldNotUndo })
+                reload()
+              })
+              .catch(() => host.notify({ kind: 'error', message: COPY.couldNotUndo }))
+        }
+      : undefined
+  })
 }
 
 const Muted = ({ children }) => jsx('div', { className: 'text-xs text-(--ui-text-tertiary)', children })
@@ -354,7 +380,12 @@ function CardView({ ctx, trail, onCrumb, onFollow, onBack, onDeleted }) {
   const deleteLine = line =>
     ctx
       .rest(`/lines/${line.id}/delete`, { body: {}, method: 'POST' })
-      .then(detail.reload)
+      .then(result => {
+        detail.reload()
+        if (result.state === 'ready') {
+          offerUndo(ctx, COPY.deletedLineToast, result.change_id, detail.reload)
+        }
+      })
       .catch(detail.reload)
 
   if (detail.failed) {
@@ -501,9 +532,10 @@ function Contacts({ ctx, narrow, tabs }) {
   const open = card => setTrail([card])
   const follow = card => setTrail(previous => [...previous, card])
   const crumb = index => setTrail(previous => previous.slice(0, index + 1))
-  const deleted = () => {
+  const deleted = result => {
     setTrail([])
     found.reload()
+    offerUndo(ctx, COPY.deletedPersonToast(result.name), result.change_id, found.reload)
   }
   const showCard = trail.length > 0
 
