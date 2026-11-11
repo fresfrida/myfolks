@@ -3,6 +3,7 @@ what they save, what the recovery code is for, and how to back up."""
 
 import argparse
 import io
+import os
 import re
 import stat
 from datetime import datetime
@@ -171,6 +172,14 @@ def test_an_existing_default_name_in_a_folder_is_refused(vault, mod, tmp_path):
     assert code == 1 and (tmp_path / DEFAULT_NAME).read_text() == "keep me"
 
 
+def test_a_file_in_the_way_of_a_folder_prints_one_line_and_writes_nothing(vault, mod, tmp_path):
+    (tmp_path / "taken").write_text("a file, not a folder")
+    code, output = _backup(mod, vault, str(tmp_path / "taken" / "inner" / "b.mfbk"))
+    assert code == 1 and output == "MyFolks can't write a file there. Nothing was written.\n"
+    assert (tmp_path / "taken").read_text() == "a file, not a folder"
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root ignores folder permissions")
 def test_an_unwritable_place_prints_one_line_and_writes_nothing(vault, mod, tmp_path):
     locked = tmp_path / "locked"
     locked.mkdir()
