@@ -524,7 +524,8 @@ function SetupPanel({ ctx, onDone }) {
     return jsx(Failure, { body: COPY.errorBody, onRetry: start, title: COPY.errorTitle })
   }
   if (step.name === 'code') {
-    const group = children => jsx('div', { className: 'flex flex-col items-center gap-2', children })
+    const group = children => jsx('div', { className: 'flex flex-col items-center gap-2 text-center', children })
+    const row = (command, note) => jsx('div', { className: 'flex flex-col items-center gap-1', children: [jsx(Command, { children: command }), jsx(Note, { children: note })] })
     return jsxs('div', {
       className: 'flex h-full flex-col items-center justify-center gap-4 p-6',
       children: [
@@ -536,10 +537,8 @@ function SetupPanel({ ctx, onDone }) {
         ]),
         group([
           jsx(Note, { children: COPY.setupBackupIntro }),
-          jsx(Command, { children: COPY.setupBackupHermes }),
-          jsx(Note, { children: COPY.setupBackupHermesNote }),
-          jsx(Command, { children: COPY.setupBackupMyfolks }),
-          jsx(Note, { children: COPY.setupBackupMyfolksNote })
+          row(COPY.setupBackupHermes, COPY.setupBackupHermesNote),
+          row(COPY.setupBackupMyfolks, COPY.setupBackupMyfolksNote)
         ]),
         jsx(Button, { onClick: onDone, size: 'sm', children: COPY.savedIt })
       ]

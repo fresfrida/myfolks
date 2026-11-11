@@ -65,11 +65,12 @@ def test_desktop_setup_screen_keeps_the_terminal_order_and_ends_with_the_button(
     panel = PLUGIN_JS[PLUGIN_JS.index("function SetupPanel"):PLUGIN_JS.index("function Page(")]
     order = [
         "COPY.setupDone", "COPY.setupStoredHere", "COPY.setupCodeIntro", "RecoveryCode, { children: step.code }",
-        "COPY.setupCodePurpose", "COPY.setupBackupIntro", "Command, { children: COPY.setupBackupHermes }",
-        "COPY.setupBackupHermesNote", "Command, { children: COPY.setupBackupMyfolks }", "COPY.setupBackupMyfolksNote",
+        "COPY.setupCodePurpose", "COPY.setupBackupIntro", "row(COPY.setupBackupHermes, COPY.setupBackupHermesNote)",
+        "row(COPY.setupBackupMyfolks, COPY.setupBackupMyfolksNote)",
         "COPY.savedIt",
     ]
     positions = [panel.index(item) for item in order]
+    assert "jsx(Command, { children: command }), jsx(Note, { children: note })" in panel  # each backup row: command, then its note
     assert positions == sorted(positions)
     assert panel.count("jsx(Button") == 2  # the set-up button before, and only "I've saved it" on the code screen
 
