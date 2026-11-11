@@ -177,7 +177,8 @@ def link_if_certain(connection: sqlite3.Connection, card: sqlite3.Row, text: str
     relation, name = found
     if normalize(name) == card["norm_name"]:
         return None
-    exact = find_cards(connection, name)
+    if find_cards(connection, name) != (exact := certain_cards(connection, name)):
+        return None  # the name only matches an automatic first-name nickname: ask instead
     if len(exact) > 1 or (not exact and find_close_cards(connection, name)):
         return None
     if has_link(connection, card["id"], relation, name):
@@ -191,6 +192,17 @@ def link_if_certain(connection: sqlite3.Connection, card: sqlite3.Row, text: str
         return None
     change.finish(f"linked {card['name']}, {relation}, {target_name}")
     return target_name, relation
+
+
+def certain_cards(connection: sqlite3.Connection, name: str) -> list[sqlite3.Row]:
+    """Cards whose full name, or a nickname the user added, is exactly *name*. Automatic first-name
+    nicknames (Joanne for Joanne Lim) don't count."""
+    norm = normalize(name)
+    return connection.execute(
+        """SELECT DISTINCT cards.* FROM cards LEFT JOIN aliases ON aliases.card_id=cards.id AND aliases.automatic=0
+           WHERE cards.norm_name=? OR aliases.norm_alias=? ORDER BY cards.id""",
+        (norm, norm),
+    ).fetchall()
 
 
 def link_offer_in(text: str) -> Optional[tuple[str, str]]:

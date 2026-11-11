@@ -22,6 +22,7 @@
     "save \"Sam Lee\" phone +1 202 555 0100",
     "save \"Sam Lee\" is vegetarian",
     "save \"Sam Ong\" coffee at Nylon every Friday",
+    "save \"Joanne Lim\" is a coworker at the design studio",
     "save \"Sam Ong\" wife is Joanne",
     "save \"Sam Ong\" anniversary June 12",
     "save Marco owes me 50 dollars",
@@ -340,8 +341,8 @@
     },
     {
       "q": "sam ong spouse",
-      "expect": "card",
-      "find": "Joanne"
+      "expect": "related",
+      "find": "wife is Joanne"
     },
     {
       "q": "sam ong anniversary",

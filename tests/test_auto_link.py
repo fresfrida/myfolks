@@ -111,3 +111,35 @@ def test_ai_tool_links_the_same_way(vault, mod):
     told.clear()
     json.loads(mod("ai_tool").handle({"action": "save", "name": "Mel", "text": "cat is called Tom"}, vault=vault, tell_user=told.append, session=("cli", None)))
     assert "Linked" not in told[0]
+
+
+def test_first_name_of_another_card_asks_instead(vault, mod):
+    handle = mod("commands").handle
+    handle('save "Sam Ong" likes tea', platform="cli", vault=vault)
+    handle('save "Joanne Lim" is a coworker', platform="cli", vault=vault)
+    asked = []
+    reply = handle('save "Sam Ong" wife is Joanne', platform="desktop", vault=vault, ask=lambda q, c: asked.append(q))
+    assert "Linked" not in reply and asked == ["Also link Joanne as Sam Ong's wife?"]
+    assert links(vault) == []
+
+
+def test_a_nickname_the_user_added_counts(vault, mod):
+    handle = mod("commands").handle
+    handle('save "Sam Ong" likes tea', platform="cli", vault=vault)
+    handle('save "Joanne Lim" is a coworker', platform="cli", vault=vault)
+    handle('link "Joanne Lim" aka Jo', platform="cli", vault=vault)
+    reply = handle('save "Sam Ong" wife is Jo', platform="cli", vault=vault)
+    assert "Linked Joanne Lim as Sam Ong's wife. Undo: /contacts undo" in reply
+
+
+def test_full_name_counts(vault, mod):
+    handle = mod("commands").handle
+    handle('save "Sam Ong" likes tea', platform="cli", vault=vault)
+    handle('save "Joanne Lim" is a coworker', platform="cli", vault=vault)
+    assert "Linked Joanne Lim as Sam Ong's wife." in handle('save "Sam Ong" wife is "Joanne Lim"', platform="cli", vault=vault)
+
+
+def test_no_joanne_at_all_links(vault, mod):
+    handle = mod("commands").handle
+    handle('save "Sam Ong" likes tea', platform="cli", vault=vault)
+    assert "Linked Joanne as Sam Ong's wife." in handle('save "Sam Ong" wife is Joanne', platform="cli", vault=vault)
