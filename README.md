@@ -68,18 +68,32 @@ hermes myfolks recover
 
 Use double quotes for a full name: `/contacts save "Priya Sharma" likes tea`.
 
-### Choose your own command
+`/myfolks` works everywhere `/contacts` does, with no setup.
 
-Hermes can give MyFolks a shorter name. Add this to `config.yaml`:
+Saving needs `/contacts save`, `/myfolks save`, or the wake word at the start of a chat app message. Plain chat without these goes to the AI instead of MyFolks.
 
-```yaml
-quick_commands:
-  keep:
-    type: alias
-    target: /contacts save
+### Linking as you save
+
+```
+/contacts save Mel's dog's name Ollie
+/contacts link Mel dog Ollie
+/contacts mel dog
 ```
 
-Then `/keep Priya likes mangoes` saves that line.
+`Mel's` saves to Mel. When the saved words name someone's dog, mom and so on, MyFolks offers to link them for you.
+
+### The wake word
+
+In chat apps such as Telegram, start a message with `myfolks`:
+
+- `myfolks remember Mel's dog's name Ollie` saves. `save`, `keep` and `note` work too.
+- `Myfolks, mel dog` looks something up.
+
+The wake word works only at the start of a chat app message. A mention mid-sentence goes to the AI. In the terminal and Desktop, use `/myfolks`. You can change the wake word, or turn it off, in Settings, then Plugins, then MyFolks, then Agent settings.
+
+### Choose your own command
+
+Hermes's `quick_commands` can add your own name for a command, with `type: alias` and a `target` such as `/contacts save`.
 
 ## Import your contacts
 
@@ -111,7 +125,7 @@ plugins:
         ai_tool: true
 ```
 
-It takes effect from your next session. Hermes can then look up only the lines that answer a request, and save a new line, telling you what it saved. **Those lines are sent to your configured model provider.** Saved text is passed as data. A close spelling of a name counts as no match.
+It takes effect from your next session. Hermes can then look up only the lines that answer a request, and save a new line, telling you what it saved. **Those lines are sent to your configured model provider.** Saved text is passed as data. A close spelling of a name counts as no match. With AI use on, a plain "remember…" message can save through Hermes.
 
 ## Sharing with someone
 
@@ -189,4 +203,5 @@ Measured on made-up data on one Mac:
 | Non-owner, group chat, missing sender | Refused |
 | Lookup at 5,000 cards and 20,000 details | 7.9 ms median, 9.2 ms slowest |
 | Save at the same size | 13.2 ms median, 16.2 ms slowest |
+| Wake word check on each chat message | Under 1 microsecond median, 59 microseconds slowest |
 | `hermes plugins validate` | Passed, security scan `safe` |
