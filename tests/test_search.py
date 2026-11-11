@@ -112,13 +112,15 @@ def test_concept_list_never_direct(ask_run):
 
 
 def test_no_network_or_model_imports():
-    """Only the Google sync module reaches the network, and only with urllib. No model anywhere."""
+    """Nothing in MyFolks reaches the network itself: Google sync goes through Hermes's
+    credentialed_provider_request. google_sync.py only builds a query string. No model anywhere."""
     root = Path(__file__).parent.parent
     banned = ("socket", "http.client", "urllib", "requests", "httpx", "aiohttp", "openai", "anthropic", "agent.plugin_llm")
     for path in root.glob("*.py"):
         source = path.read_text()
         for name in banned:
             if path.name == "google_sync.py" and name == "urllib":
+                assert "import urllib.parse\n" in source and source.count("urllib") == source.count("urllib.parse"), path.name
                 continue
             assert f"import {name}" not in source and f"from {name}" not in source, (path.name, name)
         assert "ctx.llm" not in source, path.name

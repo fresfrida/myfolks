@@ -46,7 +46,7 @@ TEMPLATES = {
     "who_is_this_for": lambda m: m.who_is_this_for(NAME),
     "not_in_contacts": lambda m: m.not_in_contacts(NAME),
     "new_person_choice": lambda m: m.new_person_choice(NAME),
-    "not_in_contacts_fallback": lambda m: m.not_in_contacts_fallback(NAME, f"myfolks save --new {NAME} {RELATION}"),
+    "not_in_contacts_fallback": lambda m: m.not_in_contacts_fallback(NAME, f"/myfolks save --new {NAME} {RELATION}"),
     "did_you_mean_open": lambda m: m.did_you_mean_open(m.did_you_mean(NAME), [f"/contacts {NAME}"]),
     "did_you_mean_fallback": lambda m: m.did_you_mean_fallback(m.did_you_mean(NAME), [f"/contacts save {NAME} x"]),
     "hidden_only": lambda m: m.hidden_only(NAME),

@@ -4,7 +4,7 @@ import pytest
 
 from test_ingress import setup  # noqa: F401  (the real register() and wake-word hook, a fake Telegram adapter)
 
-QUESTION = "Who is this for? Start with their name, like:\nmyfolks save Priya {} ..."
+QUESTION = "Who is this for? Start with their name, like:\n/myfolks save Priya {} ..."
 
 
 @pytest.fixture
@@ -92,7 +92,7 @@ def test_telegram_save_naming_a_dog_is_the_save_reply_alone(setup):
 def test_imported_store_on_telegram_saves_nothing_and_gives_the_command(setup, mod):
     do_import(setup.vault, mod, "Melisa Tan")
     setup.send("myfolks save Rositah is vegetarian")
-    assert setup.adapter.sent == [("c1", "Rositah isn't in your contacts yet. Nothing was saved. To go ahead, send:\nmyfolks save --new Rositah is vegetarian")]
+    assert setup.adapter.sent == [("c1", "Rositah isn't in your contacts yet. Nothing was saved. To go ahead, send:\n/myfolks save --new Rositah is vegetarian")]
     assert "Rositah" not in card_names(setup.vault)
 
 

@@ -401,7 +401,7 @@ def _refuse_unknown_name(context: Context, raw: str, parts: list[Token]) -> Opti
         return messages.CANCELLED
     text = raw[parts[0].start:].strip()
     choices = [{"value": "new", "label": messages.new_person_choice(typed)}, {"value": "cancel", "label": messages.CANCEL_CHOICE}]
-    raise NeedsAnswer(key, messages.not_in_contacts(typed), choices, messages.not_in_contacts_fallback(typed, f"myfolks save {_NEW_FLAG} {text}"))
+    raise NeedsAnswer(key, messages.not_in_contacts(typed), choices, messages.not_in_contacts_fallback(typed, f"/myfolks save {_NEW_FLAG} {text}"))
 
 
 def _save(context: Context, raw: str, parts: list[Token]) -> str:

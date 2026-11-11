@@ -276,7 +276,7 @@ def new_card_choice(name: str) -> str:
 
 
 def who_is_this_for(detail_word: str) -> str:
-    return f"Who is this for? Start with their name, like:\n{value(f'myfolks save Priya {detail_word} ...')}"
+    return f"Who is this for? Start with their name, like:\n{value(f'/myfolks save Priya {detail_word} ...')}"
 
 
 def not_in_contacts(name: str) -> str:
@@ -391,11 +391,12 @@ def hide_list_line(number: int, text: str, hidden: bool) -> str:
 
 # Google sync. New wording, TENTATIVE.
 SYNC_NO_SIGN_IN = (
-    "Hermes isn't signed in to Google yet. Ask Hermes to set up Google Workspace, then send /myfolks sync again.\n"
-    "Or import a contacts file instead: hermes myfolks import <file>"
+    "MyFolks isn't signed in to Google yet. On the computer that runs Hermes, run:\n"
+    "  hermes auth add myfolks:google\n"
+    "then send /myfolks sync again. Or import a contacts file instead: hermes myfolks import <file>"
 )
 SYNC_NO_CONTACTS = (
-    "Hermes's Google sign-in doesn't include your contacts. Ask Hermes to set up Google Workspace again and allow Contacts, then send /myfolks sync again.\n"
+    "MyFolks's Google sign-in doesn't include your contacts. Run hermes auth add myfolks:google again and allow Contacts, then send /myfolks sync again.\n"
     "Or import a contacts file instead: hermes myfolks import <file>"
 )
 SYNC_UNREACHABLE = "Couldn't reach Google contacts. Nothing was changed. Try /myfolks sync again later."
@@ -421,7 +422,7 @@ EMPTY_OVERVIEW = (
 def sync_summary(added: int, matched: int, to_check: int) -> str:
     if not (added or matched or to_check):
         return "Google contacts synced: nothing new."
-    line = f"Google contacts synced: {added} people added, {matched} matched to people already here"
+    line = f"Google contacts synced: {added} {'person' if added == 1 else 'people'} added, {matched} matched to people already here"
     return line + (f", {to_check} to check." if to_check else ".")
 
 

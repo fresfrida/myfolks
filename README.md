@@ -141,7 +141,14 @@ Imported text is stored as data and never treated as instructions.
 /myfolks sync
 ```
 
-Brings in the people in your Google Contacts, read-only: names, phone numbers, emails and birthdays. It uses the Google sign-in Hermes already keeps. If Hermes isn't signed in to Google yet, ask Hermes to set up Google Workspace and allow Contacts. `hermes myfolks sync` does the same in the terminal.
+Brings in the people in your Google Contacts, read-only: names, phone numbers, emails and birthdays. `hermes myfolks sync` does the same in the terminal.
+
+Set it up once. MyFolks uses your own Google Cloud sign-in client, and Hermes keeps the sign-in:
+
+1. In the [Google Cloud console](https://console.cloud.google.com), create a project (**IAM & Admin** > **Create a Project**). Turn on the People API (**APIs & Services** > **Library**, then **People API** > **Enable**). Set up **Google Auth platform** for the project; if you choose **External** under **Audience**, add your own Google account under **Test users**. Then create the client: **Google Auth platform** > **Clients** > **Create Client**, with **Application type** set to **Desktop app**.
+2. Put its client ID and client secret in your Hermes `.env` (`~/.hermes/.env`, or your profile's own folder) as `MYFOLKS_GOOGLE_CLIENT_ID` and `MYFOLKS_GOOGLE_CLIENT_SECRET`.
+3. On the computer that runs Hermes, run `hermes auth add myfolks:google` and allow Contacts in the browser.
+4. Send `/myfolks sync`.
 
 The first sync turns sync on. After that, when you save or ask about someone MyFolks doesn't have yet, it checks Google first, at most every 10 minutes. Matching works like an import: an exact phone or email merges, a similar name waits in `/contacts review`, and `/contacts undo` reverses the last sync.
 
@@ -223,10 +230,10 @@ On Desktop, use **Hide from chat** on any line. In the terminal, use `/contacts 
 
 ## Disclosures
 
-- **Network:** none unless you send /myfolks sync. Then MyFolks connects only to Google, read-only, using the Google sign-in Hermes keeps in your Hermes folder. It never stores that sign-in and never sends your MyFolks notes anywhere. Replies sent over a messaging platform pass through that platform.
+- **Network:** none unless you send /myfolks sync. Then Hermes connects to Google for MyFolks, read-only, and only to people.googleapis.com. MyFolks never reads or stores the Google sign-in: Hermes keeps it and attaches it only for people.googleapis.com. MyFolks never sends your notes anywhere. Replies sent over a messaging platform pass through that platform.
 - **AI:** `/contacts` uses no model. The optional AI tool is off by default. When on, the lines it returns go to your model provider.
-- **Files:** it reads and writes only its own data folder, plus files you name for import, backup, restore or export. When you sync, it also reads Hermes's Google sign-in file, `google_token.json`, and never writes it.
-- **Stored credentials:** a device key, in a file only your user can read, in the plugin's data folder. MyFolks uses the OS keychain instead only when Python's `keyring` package is available to Hermes, which a default Hermes install doesn't include.
+- **Files:** it reads and writes only its own data folder, plus files you name for import, backup, restore or export. It never reads the Google sign-in.
+- **Stored credentials:** a device key, in a file only your user can read, in the plugin's data folder. MyFolks uses the OS keychain instead only when Python's `keyring` package is available to Hermes, which a default Hermes install doesn't include. The Google sign-in for sync is Hermes's own, kept in Hermes's `auth.json`; MyFolks never holds it.
 - **Hooks:** three.
   - `pre_tool_call` checks AI tool calls for direct access to its files. Tool arguments stay on your machine.
   - `pre_gateway_dispatch` answers your own `/myfolks`, `/contacts` and wake word messages in chat apps before Hermes's session sees them, then drops them, so they never reach the AI or the transcript.

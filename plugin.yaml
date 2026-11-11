@@ -10,6 +10,23 @@ provides_hooks:
   - pre_tool_call
   - pre_gateway_dispatch
   - pre_llm_call
+optional_env:
+  - name: MYFOLKS_GOOGLE_CLIENT_ID
+    description: "Client ID of your own Google Cloud OAuth client (Desktop app). Only for /myfolks sync."
+    password: false
+  - name: MYFOLKS_GOOGLE_CLIENT_SECRET
+    description: "Client secret of that OAuth client. Only for /myfolks sync."
+    password: true
+oauth:
+  - id: google
+    authorize_url: https://accounts.google.com/o/oauth2/v2/auth
+    token_url: https://oauth2.googleapis.com/token
+    scopes:
+      - https://www.googleapis.com/auth/contacts.readonly
+    client_id_env: MYFOLKS_GOOGLE_CLIENT_ID
+    client_secret_env: MYFOLKS_GOOGLE_CLIENT_SECRET
+    hosts: [people.googleapis.com]
+    authorize_params: {access_type: offline, prompt: consent}
 config_schema:
   ai_tool:
     type: bool

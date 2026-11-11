@@ -1,18 +1,20 @@
-"""Google sync: off until the owner sends sync, read-only, the sign-in never written or shown, every
-failure one plain reply that changes nothing. A fake Google stands in for the network everywhere."""
+"""Google sync: off until the owner sends sync, read-only, every request through Hermes's
+credentialed_provider_request (Hermes holds the sign-in), every failure one plain reply that changes
+nothing. A fake Hermes helper stands in for Hermes and Google everywhere."""
 import json
 import logging
+import sys
+import types
 import urllib.parse
 from types import SimpleNamespace
 
 import pytest
 
-ACCESS = "ya29.access-SECRET"
-FRESH = "ya29.fresh-SECRET"
-REFRESH = "1//refresh-SECRET"
-CLIENT_SECRET = "client-SECRET"
-SECRETS = (ACCESS, FRESH, REFRESH, CLIENT_SECRET)
-CONTACTS_SCOPE = "https://www.googleapis.com/auth/contacts.readonly"
+SECRET = "ya29.SECRET-in-hermes-error"
+
+
+class ProviderNotSignedIn(RuntimeError):
+    pass
 
 
 def person(name, phone=None, email=None, birthday=None):
@@ -26,65 +28,60 @@ def person(name, phone=None, email=None, birthday=None):
     return found
 
 
-class FakeGoogle:
-    """Answers the two calls MyFolks makes, two people per page. Records every call."""
+class FakeHermes:
+    """Hermes's credentialed_provider_request in front of the People API, two people per page."""
 
-    def __init__(self, people=(), expired=False):
-        self.people = list(people)
+    def __init__(self):
+        self.people = []
         self.calls = []
-        self.fail = None  # "network", "500", "403-scope", "401", "invalid_grant", "timeout"
-        self.valid = {FRESH} if expired else {ACCESS, FRESH}
+        self.fail = None
 
-    def __call__(self, method, url, headers, body, timeout):
-        self.calls.append((method, url, timeout))
-        assert timeout <= 10
-        if self.fail == "network":
-            raise OSError("network down")
-        if self.fail == "timeout":
-            raise TimeoutError("timed out")
-        if url == "https://oauth2.googleapis.com/token":
-            form = dict(urllib.parse.parse_qsl(body.decode()))
-            assert method == "POST" and form == {"client_id": "cid", "client_secret": CLIENT_SECRET, "refresh_token": REFRESH, "grant_type": "refresh_token"}
-            if self.fail == "invalid_grant":
-                return 400, b'{"error": "invalid_grant", "error_description": "Token has been expired or revoked."}'
-            return 200, json.dumps({"access_token": FRESH, "expires_in": 3599, "token_type": "Bearer"}).encode()
-        assert method == "GET" and url.startswith("https://people.googleapis.com/v1/people/me/connections?")
+    def __call__(self, provider, method, url, *, json=None, headers=None, timeout=30.0):
+        self.calls.append((provider, method, url, timeout))
+        assert provider == "google" and method == "GET" and json is None and timeout <= 10
+        assert url.startswith("https://people.googleapis.com/v1/people/me/connections?")
+        failures = {
+            "not_signed_in": ProviderNotSignedIn(f"Not signed in to google for plugin 'myfolks'. {SECRET}"),
+            "revoked": ProviderNotSignedIn(f"The google sign-in for plugin 'myfolks' was revoked (invalid_grant). {SECRET}"),
+            "network": ConnectionError(f"connect failed {SECRET}"),
+            "timeout": TimeoutError(f"timed out {SECRET}"),
+            "refused": PermissionError(f"Refusing to send the google sign-in {SECRET}"),
+            "refresh": RuntimeError(f"the token request failed {SECRET}"),
+        }
+        if self.fail in failures:
+            raise failures[self.fail]
+        statuses = {"401": (401, b'{"error": {"code": 401}}'), "500": (500, b"{}"), "302": (302, b""),
+                    "403-scope": (403, b'{"error": {"code": 403, "status": "PERMISSION_DENIED", "details": [{"reason": "ACCESS_TOKEN_SCOPE_INSUFFICIENT"}]}}'),
+                    "403-other": (403, b'{"error": {"code": 403, "status": "PERMISSION_DENIED", "details": [{"reason": "SERVICE_DISABLED"}]}}')}
+        if self.fail in statuses:
+            status, body = statuses[self.fail]
+            return SimpleNamespace(status=status, headers={}, body=body)
         query = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(url).query))
         assert query["personFields"] == "names,emailAddresses,phoneNumbers,birthdays" and query["pageSize"] == "1000"
-        if self.fail == "500":
-            return 500, b'{"error": {"code": 500}}'
-        if self.fail == "403-scope":
-            return 403, b'{"error": {"code": 403, "status": "PERMISSION_DENIED", "details": [{"reason": "ACCESS_TOKEN_SCOPE_INSUFFICIENT"}]}}'
-        if self.fail == "401" or headers["Authorization"].removeprefix("Bearer ") not in self.valid:
-            return 401, b'{"error": {"code": 401, "status": "UNAUTHENTICATED"}}'
         start = int(query.get("pageToken", "0"))
         page = {"connections": self.people[start:start + 2], "totalItems": len(self.people)}
         if start + 2 < len(self.people):
             page["nextPageToken"] = str(start + 2)
-        return 200, json.dumps(page).encode()
+        return SimpleNamespace(status=200, headers={}, body=json_dumps(page))
 
     def pages(self):
-        return [url for method, url, _timeout in self.calls if method == "GET"]
+        return [call for call in self.calls if call[1] == "GET"]
 
 
-def write_token(path, scopes=(CONTACTS_SCOPE,), expiry="2999-01-01T00:00:00Z"):
-    payload = {"type": "authorized_user", "token": ACCESS, "refresh_token": REFRESH, "client_id": "cid", "client_secret": CLIENT_SECRET, "expiry": expiry}
-    if scopes is not None:
-        payload["scopes"] = list(scopes)
-    path.write_text(json.dumps(payload, indent=2))
-    return path
+def json_dumps(value):
+    return json.dumps(value).encode()
 
 
 @pytest.fixture
-def google(vault, mod, monkeypatch, tmp_path):
-    sync = mod("google_sync")
-    fake = FakeGoogle()
-    token = tmp_path / "hermes" / "google_token.json"
-    token.parent.mkdir()
-    write_token(token)
-    monkeypatch.setattr(sync, "_https_request", fake)
-    monkeypatch.setattr(sync, "token_path", lambda: token)
-    return SimpleNamespace(fake=fake, token=token, sync=sync)
+def google(monkeypatch, mod):
+    fake = FakeHermes()
+    helper = types.ModuleType("hermes_cli.plugin_provider_requests")
+    helper.ProviderNotSignedIn = ProviderNotSignedIn
+    helper.credentialed_provider_request = fake
+    if "hermes_cli" not in sys.modules:
+        monkeypatch.setitem(sys.modules, "hermes_cli", types.ModuleType("hermes_cli"))
+    monkeypatch.setitem(sys.modules, "hermes_cli.plugin_provider_requests", helper)
+    return SimpleNamespace(fake=fake, helper=helper, sync=mod("google_sync"))
 
 
 @pytest.fixture
@@ -106,7 +103,7 @@ def setting(vault, mod, key):
 
 
 def no_secrets(text):
-    return not any(secret in text for secret in SECRETS)
+    return SECRET not in text and "plugin 'myfolks'" not in text
 
 
 # 1. Opt-in is the command itself.
@@ -115,7 +112,7 @@ def test_new_store_never_reaches_the_network(google, run, vault, monkeypatch, mo
     def no_network(*_args, **_kwargs):
         raise AssertionError("network call on a store that never synced")
 
-    monkeypatch.setattr(google.sync, "_https_request", no_network)
+    monkeypatch.setattr(google.helper, "credentialed_provider_request", no_network)
     monkeypatch.setattr("urllib.request.urlopen", no_network)
     for text in ["", "save Priya likes tea", "save Zed is new", "zed", "who likes tea", "priya", "review", "undo"]:
         run(text)
@@ -207,7 +204,7 @@ def test_two_pages_merge_new_and_review(google, run, vault, mod):
 def test_first_sync_without_anything_to_check(google, run):
     google.fake.people = [person("Rositah Lim", "555 0102")]
     assert run("sync") == (
-        "Google contacts synced: 1 people added, 0 matched to people already here.\n"
+        "Google contacts synced: 1 person added, 0 matched to people already here.\n"
         "From now on, MyFolks checks Google when you mention someone new.\n"
         "Stop syncing: /myfolks sync off"
     )
@@ -217,7 +214,7 @@ def test_later_sync_is_the_first_line_only(google, run):
     google.fake.people = [person("Rositah Lim", "555 0102")]
     run("sync")
     google.fake.people.append(person("Ana Ruiz", "555 0104"))
-    assert run("sync") == "Google contacts synced: 1 people added, 0 matched to people already here."
+    assert run("sync") == "Google contacts synced: 1 person added, 0 matched to people already here."
 
 
 def test_sync_is_one_undo(google, run, vault):
@@ -227,88 +224,56 @@ def test_sync_is_one_undo(google, run, vault):
     assert card_names(vault) == []
 
 
-def test_expired_token_is_refreshed_in_memory_only(google, run, vault):
-    write_token(google.token, expiry="2000-01-01T00:00:00Z")
-    before = google.token.read_bytes()
-    google.fake.valid = {FRESH}
-    google.fake.people = [person("Rositah Lim", "555 0102")]
-    assert run("sync").startswith("Google contacts synced: 1 people added")
-    assert [method for method, _url, _t in google.fake.calls] == ["POST", "GET"]
-    assert google.token.read_bytes() == before
-    assert sorted(path.name for path in google.token.parent.iterdir()) == ["google_token.json"]
-
-
-def test_rejected_token_is_refreshed_once(google, run):
-    google.fake.valid = {FRESH}
-    google.fake.people = [person("Rositah Lim", "555 0102")]
-    assert run("sync").startswith("Google contacts synced: 1 people added")
-    assert [method for method, _url, _t in google.fake.calls] == ["GET", "POST", "GET"]
-
-
 NO_SIGN_IN = (
-    "Hermes isn't signed in to Google yet. Ask Hermes to set up Google Workspace, then send /myfolks sync again.\n"
-    "Or import a contacts file instead: hermes myfolks import <file>"
+    "MyFolks isn't signed in to Google yet. On the computer that runs Hermes, run:\n"
+    "  hermes auth add myfolks:google\n"
+    "then send /myfolks sync again. Or import a contacts file instead: hermes myfolks import <file>"
 )
 NO_CONTACTS = (
-    "Hermes's Google sign-in doesn't include your contacts. Ask Hermes to set up Google Workspace again and allow Contacts, then send /myfolks sync again.\n"
+    "MyFolks's Google sign-in doesn't include your contacts. Run hermes auth add myfolks:google again and allow Contacts, then send /myfolks sync again.\n"
     "Or import a contacts file instead: hermes myfolks import <file>"
 )
 UNREACHABLE = "Couldn't reach Google contacts. Nothing was changed. Try /myfolks sync again later."
 
 
-def _no_token(google):
-    google.token.unlink()
-
-
-def _not_json(google):
-    google.token.write_text("{not json")
-
-
-def _no_contacts_scope(google):
-    write_token(google.token, scopes=["https://www.googleapis.com/auth/gmail.readonly"])
-
-
-def _scope_refused_by_google(google):
-    write_token(google.token, scopes=None)
-    google.fake.fail = "403-scope"
-
-
-def _revoked(google):
-    write_token(google.token, expiry="2000-01-01T00:00:00Z")
-    google.fake.fail = "invalid_grant"
-
-
-def _still_unauthorized(google):
-    google.fake.fail = "401"
-
-
-def _network(google):
-    google.fake.fail = "network"
-
-
-def _timeout(google):
-    google.fake.fail = "timeout"
-
-
-def _google_error(google):
-    google.fake.fail = "500"
-
-
-@pytest.mark.parametrize("arrange, expected", [
-    (_no_token, NO_SIGN_IN), (_not_json, NO_SIGN_IN), (_revoked, NO_SIGN_IN), (_still_unauthorized, NO_SIGN_IN),
-    (_no_contacts_scope, NO_CONTACTS), (_scope_refused_by_google, NO_CONTACTS),
-    (_network, UNREACHABLE), (_timeout, UNREACHABLE), (_google_error, UNREACHABLE),
+@pytest.mark.parametrize("fail, expected", [
+    ("not_signed_in", NO_SIGN_IN), ("revoked", NO_SIGN_IN),
+    ("403-scope", NO_CONTACTS),
+    ("403-other", UNREACHABLE), ("401", UNREACHABLE), ("500", UNREACHABLE), ("302", UNREACHABLE),
+    ("network", UNREACHABLE), ("timeout", UNREACHABLE), ("refused", UNREACHABLE), ("refresh", UNREACHABLE),
 ])
-def test_each_failure_is_one_plain_reply_and_changes_nothing(google, run, vault, mod, caplog, arrange, expected):
+def test_each_failure_is_one_plain_reply_and_changes_nothing(google, run, vault, mod, caplog, fail, expected):
     google.fake.people = [person("Rositah Lim", "555 0102")]
-    arrange(google)
+    google.fake.fail = fail
     with caplog.at_level(logging.DEBUG):
         reply = run("sync")
     assert reply == expected
     assert card_names(vault) == []
     assert setting(vault, mod, "google_sync") is None  # a failed first sync leaves sync off
     assert no_secrets(reply) and all(no_secrets(record.getMessage()) for record in caplog.records)
-    assert all(no_secrets(str(record.exc_info)) for record in caplog.records)
+    assert all(record.exc_info is None for record in caplog.records)
+
+
+def test_outside_hermes_the_helper_is_missing_and_nothing_changes(run, vault, mod, monkeypatch):
+    monkeypatch.setitem(sys.modules, "hermes_cli.plugin_provider_requests", None)  # import fails
+    assert run("sync") == UNREACHABLE
+    assert card_names(vault) == [] and setting(vault, mod, "google_sync") is None
+
+
+def test_myfolks_never_handles_the_sign_in():
+    root = __import__("pathlib").Path(__file__).parent.parent
+    for path in root.glob("*.py"):
+        source = path.read_text()
+        for word in ("google_token", "refresh_token", "client_secret", "oauth2.googleapis.com", "urllib.request", "Authorization"):
+            assert word not in source, (path.name, word)
+
+
+def test_sync_failure_reason_is_never_chained(google, mod):
+    google.fake.fail = "network"
+    with pytest.raises(mod("google_sync").SyncFailed) as raised:
+        mod("google_sync").fetch_people(mod("google_sync")._Clock(None))
+    assert raised.value.__cause__ is None and raised.value.__suppress_context__
+    assert SECRET not in str(raised.value)
 
 
 def test_no_secret_in_any_reply_or_log(google, run, caplog):
@@ -325,13 +290,6 @@ def test_store_never_holds_the_sign_in(google, run, vault):
     with vault.read() as connection:
         dump = "\n".join(connection.iterdump())
     assert no_secrets(dump)
-
-
-def test_only_https_to_the_two_google_hosts(mod):
-    request = mod("google_sync")._https_request
-    for url in ["http://people.googleapis.com/v1/people/me/connections", "https://example.com/token", "https://people.googleapis.com.evil.test/x"]:
-        with pytest.raises(ValueError):
-            request("GET", url, {}, None, 1.0)
 
 
 def test_google_text_is_data(google, run, vault):
@@ -357,7 +315,7 @@ def test_myfolks_sync_in_the_terminal(google, vault, mod, capsys):
     google.fake.people = [person("Rositah Lim", "555 0102")]
     cli = mod("cli")
     assert cli.cmd_sync(SimpleNamespace(state=None), vault=vault) == 0
-    assert capsys.readouterr().out.startswith("Google contacts synced: 1 people added")
+    assert capsys.readouterr().out.startswith("Google contacts synced: 1 person added")
     assert cli.cmd_sync(SimpleNamespace(state="off"), vault=vault) == 0
     assert capsys.readouterr().out.startswith("Google sync is off.")
     google.fake.fail = "network"
@@ -367,7 +325,7 @@ def test_myfolks_sync_in_the_terminal(google, vault, mod, capsys):
 
 def test_sync_on_telegram_by_the_owner(google, shared):
     google.fake.people = [person("Rositah Lim", "555 0102")]
-    assert shared("sync", "111").startswith("Google contacts synced: 1 people added")
+    assert shared("sync", "111").startswith("Google contacts synced: 1 person added")
 
 
 # 4. Live: check Google before guessing.
@@ -444,7 +402,7 @@ def test_synced_store_asks_before_a_new_person(google, run, vault, mod):
     google.fake.people = [person("Ana Ruiz", "555 0104")]
     run("sync")
     _due(vault, mod)
-    assert run("save Zed is new") == "Zed isn't in your contacts yet. Nothing was saved. To go ahead, send:\nmyfolks save --new Zed is new"
+    assert run("save Zed is new") == "Zed isn't in your contacts yet. Nothing was saved. To go ahead, send:\n/myfolks save --new Zed is new"
 
 
 # 5. Point people to it.
