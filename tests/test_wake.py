@@ -208,3 +208,14 @@ def test_other_messages_are_not_blocked(wake, text):
 def test_mid_sentence_mention_keeps_the_note(wake):
     result = wake.llm_hook(wake.Settings(Reader()))(user_message="I installed myfolks yesterday", platform="telegram")
     assert "context" in result
+
+
+def test_busy_reply_without_a_wake_word(wake):
+    hook = wake.llm_hook(wake.Settings(Reader(wake_word="")))
+    assert hook(user_message="/myfolks priya", platform="telegram") == {"action": "block", "message": "Wait until Hermes finishes, then send /myfolks again."}
+
+
+@pytest.mark.parametrize("platform", ["cli", "tui", "local", "desktop", ""])
+def test_busy_veto_only_in_chat_apps(wake, platform):
+    result = wake.llm_hook(wake.Settings(Reader()))(user_message="/myfolks priya", platform=platform)
+    assert result is None or result.get("action") != "block"

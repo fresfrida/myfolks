@@ -139,7 +139,8 @@ def _text_of(message) -> str:
 def llm_hook(settings: Settings) -> Callable:
     def pre_llm_call(user_message=None, platform: str = "", **_kwargs):
         current = settings.current()
-        if _is_myfolks_command(_text_of(user_message)):
+        in_chat_app = bool(platform) and owner.local_surface(platform) is None
+        if in_chat_app and _is_myfolks_command(_text_of(user_message)):
             # A /myfolks or /contacts sent while Hermes is busy reaches the AI as plain text, because
             # Hermes doesn't let plugin commands skip its busy handling. Stop it before any model request.
             return {"action": "block", "message": messages.busy_use_wake_word(current.word)}
