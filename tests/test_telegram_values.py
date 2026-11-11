@@ -172,3 +172,28 @@ def test_ai_save_confirmation_on_telegram(vault, mod, monkeypatch):
     assert told and shows_literally(told[0]), told
     local = json.loads(mod("ai_tool").handle({"action": "save", "name": NAME, "text": "likes jam"}, vault=vault, tell_user=told.append, session=("cli", None)))
     assert local["tell_user"] == f'MyFolks saved to {NAME}: "likes jam"'
+
+
+@pytest.mark.parametrize("text, expected", [
+    ("likes tea", 'MyFolks saved to Mel: "likes tea"'),
+    ("uses_snake case", "MyFolks saved to Mel: `uses_snake case`"),
+    ("line one\nline two", "MyFolks saved to Mel:\n```\nline one\nline two\n```"),
+    ("has ```fence``` inside", "MyFolks saved to Mel:\n````\nhas ```fence``` inside\n````"),
+])
+def test_ai_save_notice_has_no_quotes_around_code(mod, text, expected):
+    messages = mod("messages")
+    with messages.replies_for("Telegram"):
+        assert messages.ai_saved("Mel", text) == expected
+    assert messages.ai_saved("Mel", text) == f'MyFolks saved to Mel: "{text}"'
+
+
+def test_ai_save_multiline_on_telegram_end_to_end(vault, mod, monkeypatch):
+    import json
+
+    monkeypatch.setattr(mod("owner"), "allowed_users", lambda platform: ({"111"}, False))
+    mod("commands").handle("save Mel likes tea", platform="cli", vault=vault)
+    told = []
+    sender = SimpleNamespace(user_id="111", chat_type="dm", is_bot=False)
+    reply = json.loads(mod("ai_tool").handle({"action": "save", "name": "Mel", "text": "first line\nsecond line"}, vault=vault, tell_user=told.append, session=("telegram", sender)))
+    assert reply["status"] == "saved"
+    assert told == ["MyFolks saved to Mel:\n```\nfirst line\nsecond line\n```"]

@@ -305,7 +305,12 @@ def did_you_mean_fallback(question: str, commands: list[str]) -> str:
 
 
 def ai_saved(name: str, text: str) -> str:
-    return f'MyFolks saved to {value(name)}: "{value(text)}"'
+    shown = value(text)
+    if shown == text:
+        return f'MyFolks saved to {value(name)}: "{text}"'
+    if shown.startswith("```"):
+        return f"MyFolks saved to {value(name)}:\n{shown}"
+    return f"MyFolks saved to {value(name)}: {shown}"
 
 
 def hidden_only(name: str) -> str:
