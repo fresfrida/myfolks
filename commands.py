@@ -100,6 +100,21 @@ def _pair(vault: Vault, platform: str, source, code: str) -> str:
     return messages.PAIRED if paired else messages.REFUSED
 
 
+def answers_at_ingress(raw_args: str, *, platform: str, source, shared=None, vault: Optional[Vault] = None) -> bool:
+    """Whether a chat message for MyFolks can be answered before Hermes sees it: the owner, or someone
+    the owner shares with, in a private chat, on a set-up store. Pairing and anyone else go on to Hermes."""
+    if not platform or owner.local_surface(platform) is not None or _is_pair_request(raw_args or "") is not None:
+        return False
+    try:
+        store = vault or Vault()
+        if not store.exists():
+            return False
+        name = platform.strip().lower()
+        return owner.is_messaging_owner(store, name, source) or owner.shared_access(name, source, shared) is not None
+    except Exception:
+        return False
+
+
 def handle(raw_args: str, *, platform: Optional[str] = None, source=None, ask: Optional[Callable] = None, vault: Optional[Vault] = None, shared=None) -> str:
     raw = raw_args or ""
     access = owner.FULL_ACCESS

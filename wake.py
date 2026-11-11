@@ -74,15 +74,50 @@ def rewrite(text: str, word: str) -> Optional[str]:
     return f"/contacts {rest}".rstrip()
 
 
-def gateway_hook(settings: Settings) -> Callable:
-    def pre_gateway_dispatch(event=None, **_kwargs):
+COMMAND_NAMES = frozenset({"contacts", "myfolks"})
+
+
+def command_args(text: str, word: str) -> Optional[str]:
+    """What follows /contacts, /myfolks (also /contacts@bot) or the wake word, or None. Strings only."""
+    if not text:
+        return None
+    if text[0] == "/" or (text[0].isspace() and text.lstrip()[:1] == "/"):
+        head, _, rest = text.strip().partition(" ")
+        name = head[1:].split("@", 1)[0].casefold()
+        return rest.strip() if name in COMMAND_NAMES else None
+    command = rewrite(text, word)
+    return command[len("/contacts"):].strip() if command else None
+
+
+def gateway_hook(settings: Settings, answer: Optional[Callable] = None) -> Callable:
+    """Messages for MyFolks are answered here, at ingress, and then skipped, so they never reach a
+    busy session, the transcript or the AI. Anything that isn't the owner's, or can't be answered
+    here, goes on unchanged (the wake word as /contacts). Other messages cost one string check."""
+
+    def pre_gateway_dispatch(event=None, gateway=None, **_kwargs):
         text = getattr(event, "text", None)
         if not isinstance(text, str):
             return None
-        command = rewrite(text, settings.current().word)
-        return {"action": "rewrite", "text": command} if command else None
+        word = settings.current().word
+        args = command_args(text, word)
+        if args is None:
+            return None
+        command = rewrite(text, word)
+        fallback = {"action": "rewrite", "text": command} if command else None
+        if answer is None or gateway is None:
+            return fallback
+        return _answer_or(answer, event, gateway, args, fallback)
 
     return pre_gateway_dispatch
+
+
+async def _answer_or(answer: Callable, event, gateway, args: str, fallback):
+    try:
+        if await answer(event, gateway, args):
+            return {"action": "skip", "reason": "answered by MyFolks"}
+    except Exception:
+        pass
+    return fallback
 
 
 def _text_of(message) -> str:
