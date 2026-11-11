@@ -191,3 +191,17 @@ def test_blocked_undo_changes_nothing_and_says_why(vault, mod):
     assert commands.handle("undo", platform="cli", vault=vault) == "Can't undo saved to Zed: something saved later still uses a card it made. Nothing was changed."
     assert vault.store_path.read_bytes() == before
     assert "likes jam" in commands.handle("zed jam", platform="cli", vault=vault)
+
+
+def test_merge_names_are_listed_in_the_summary(vault, mod, tmp_path):
+    card = tmp_path / "x.vcf"
+    card.write_text(
+        "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Priya\r\nTEL:+1 202 555 0101\r\nEND:VCARD\r\n"
+        "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Priya S\r\nNICKNAME:Pri\r\nTEL:+1 202 555 0101\r\nEND:VCARD\r\n"
+    )
+    out = Terminal()
+    assert mod("cli").cmd_import(argparse.Namespace(path=str(card)), vault=vault, stdin=Terminal(), stdout=out) == 0
+    assert out.getvalue().splitlines() == [
+        "Imported. New: 1. Merged: 1. To review: 0. Unchanged: 0. Skipped: 0.",
+        "Names added by merging: Pri (on Priya), Priya S (on Priya).",
+    ]

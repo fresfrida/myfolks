@@ -236,6 +236,10 @@ def import_stopped(applied: int, total: int) -> str:
     return f"The import stopped after {applied} of {total} contacts. Those are saved, and /contacts undo removes them."
 
 
+def import_aliases(added: list[tuple[str, str]]) -> str:
+    return "Names added by merging: " + ", ".join(f"{value(alias)} (on {value(card)})" for alias, card in added) + "."
+
+
 def import_summary(new: int, merged: int, review: int, unchanged: int, skipped: int, trimmed: int) -> str:
     text = f"Imported. New: {new}. Merged: {merged}. To review: {review}. Unchanged: {unchanged}. Skipped: {skipped}."
     return text + (f" Shortened to fit: {trimmed}." if trimmed else "")

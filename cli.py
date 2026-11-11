@@ -119,6 +119,8 @@ def cmd_import(args, *, vault=None, stdin=None, stdout=None) -> int:
         print({NotSetUp: messages.NOT_SET_UP, Refused: messages.LOCKED, Busy: messages.BUSY}.get(type(result.stopped), messages.IMPORT_FAILED), file=out)
         return 1
     print(messages.import_summary(summary.new, summary.merged, summary.review, summary.unchanged, summary.skipped, summary.trimmed), file=out)
+    if summary.aliases:
+        print(messages.import_aliases(summary.aliases), file=out)
     if result.stopped is not None:
         print(messages.import_stopped(result.applied, result.total), file=out)
         return 1

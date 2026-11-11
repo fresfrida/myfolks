@@ -74,12 +74,14 @@ def add_card(change: db.Change, name: str, source: str, kind: str = "person") ->
     return card_id
 
 
-def add_alias(change: db.Change, card_id: int, alias: str, automatic: bool = False) -> None:
+def add_alias(change: db.Change, card_id: int, alias: str, automatic: bool = False) -> bool:
     alias = clean_name(alias)
     norm = normalize(alias)
     exists = change.connection.execute("SELECT 1 FROM aliases WHERE card_id=? AND norm_alias=?", (card_id, norm)).fetchone()
-    if not exists:
-        change.insert("aliases", card_id=card_id, alias=alias, norm_alias=norm, automatic=int(automatic), created_at=db.now())
+    if exists:
+        return False
+    change.insert("aliases", card_id=card_id, alias=alias, norm_alias=norm, automatic=int(automatic), created_at=db.now())
+    return True
 
 
 def active_lines(connection: sqlite3.Connection, card_id: int, include_private: bool = True) -> list[sqlite3.Row]:

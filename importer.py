@@ -51,6 +51,7 @@ class Summary:
     unchanged: int = 0
     skipped: int = 0
     trimmed: int = 0
+    aliases: list = field(default_factory=list)
 
 
 def _clean(value: str) -> str:
@@ -328,7 +329,7 @@ def _existing_texts(connection: sqlite3.Connection, card_id: int) -> set[str]:
     return {row["text"] for row in cards.active_lines(connection, card_id)}
 
 
-def merge_into(change: db.Change, card_id: int, contact: Incoming, source: str, index: Optional[_Index] = None) -> int:
+def merge_into(change: db.Change, card_id: int, contact: Incoming, source: str, index: Optional[_Index] = None, added_names: Optional[list] = None) -> int:
     """Add what the card doesn't already have. Returns how many things were added."""
     connection = change.connection
     existing = _existing_texts(connection, card_id)
@@ -342,7 +343,8 @@ def merge_into(change: db.Change, card_id: int, contact: Incoming, source: str, 
                     index.add_value(parsed.field, parsed.norm_value, card_id)
     card = cards.card_by_id(connection, card_id)
     for alias in [*contact.aliases, *([contact.name] if contact.name and normalize(contact.name) != card["norm_name"] else [])]:
-        cards.add_alias(change, card_id, alias)
+        if cards.add_alias(change, card_id, alias) and added_names is not None:
+            added_names.append((cards.clean_name(alias), card["name"]))
     return len(change.ops) - before
 
 
@@ -381,7 +383,7 @@ def _apply_one(connection: sqlite3.Connection, change: db.Change, index: "_Index
         return
     by_value = index.by_contact_value(contact)
     if len(by_value) == 1:
-        added = merge_into(change, next(iter(by_value)), contact, source, index)
+        added = merge_into(change, next(iter(by_value)), contact, source, index, summary.aliases)
         if added:
             summary.merged += 1
         else:
@@ -451,6 +453,7 @@ def import_in_batches(vault, contacts: list[Incoming], source: str, batch_size: 
             return result
         for name in ("new", "merged", "review", "unchanged", "skipped", "trimmed"):
             setattr(result.summary, name, getattr(result.summary, name) + getattr(batch, name))
+        result.summary.aliases.extend(batch.aliases)
         result.applied += len(part)
     return result
 
