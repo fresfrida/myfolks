@@ -56,6 +56,8 @@ const COPY = {
   },
   deletedPersonToast: name => `Deleted ${name}.`,
   deletedLineToast: 'Deleted.',
+  savedToast: 'Saved.',
+  editLine: 'Edit',
   undo: 'Undo',
   couldNotUndo: 'That couldn’t be undone.',
   deletePerson: 'Delete person',
@@ -158,7 +160,43 @@ const Command = ({ children }) => jsx('code', { className: 'font-mono text-sm te
 const RecoveryCode = ({ children }) => jsx('code', { className: 'font-mono text-lg font-medium', children })
 
 // The signature element: the saved words first, then when and where they came from.
-function Receipt({ line, onToggleHidden, onDelete }) {
+// Edit a line in place. Save goes through the same path as /myfolks correct, so the old text stays in history.
+function EditLine({ ctx, line, onDone }) {
+  const [text, setText] = useState(line.text)
+  const [saving, setSaving] = useState(false)
+  const [failed, setFailed] = useState(false)
+  const save = () => {
+    setSaving(true)
+    setFailed(false)
+    ctx
+      .rest(`/lines/${line.id}/edit`, { body: { text }, method: 'POST' })
+      .then(result => {
+        if (result.state === 'ready' || result.state === 'unchanged') {
+          onDone(result)
+        } else {
+          setFailed(true)
+        }
+      })
+      .catch(() => setFailed(true))
+      .finally(() => setSaving(false))
+  }
+  return jsxs('div', {
+    className: 'flex flex-col gap-2 py-1',
+    children: [
+      jsx(Textarea, { 'aria-label': COPY.editLine, onChange: event => setText(event.target.value), value: text }),
+      failed ? jsx(Muted, { children: COPY.couldNotSave }) : null,
+      jsxs('div', {
+        className: 'flex gap-2 self-end',
+        children: [
+          jsx(Button, { onClick: () => onDone(null), size: 'sm', variant: 'ghost', children: COPY.cancel }),
+          jsx(Button, { disabled: saving || !text.trim(), onClick: save, size: 'sm', children: saving ? COPY.saving : COPY.save })
+        ]
+      })
+    ]
+  })
+}
+
+function Receipt({ line, onToggleHidden, onDelete, onEdit }) {
   return jsxs('div', {
     className: 'flex flex-col gap-1 border-l-2 py-1 pl-3',
     style: { borderColor: 'var(--ui-accent)' },
@@ -178,6 +216,7 @@ function Receipt({ line, onToggleHidden, onDelete }) {
           onToggleHidden
             ? jsx(Button, { onClick: () => onToggleHidden(line), size: 'inline', variant: 'text', children: line.private ? COPY.showInChat : COPY.hideFromChat })
             : null,
+          onEdit ? jsx(Button, { onClick: () => onEdit(line), size: 'inline', variant: 'text', children: COPY.editLine }) : null,
           onDelete ? jsx(Button, { onClick: () => onDelete(line), size: 'inline', variant: 'text', children: COPY.deleteLine }) : null
         ]
       })
@@ -363,6 +402,14 @@ function CardView({ ctx, trail, onCrumb, onFollow, onBack, onDeleted }) {
   const detail = useApi(ctx, `/cards/${current.id}`)
   const data = detail.data
   const [confirming, setConfirming] = useState(false)
+  const [editingId, setEditingId] = useState(null)
+  const edited = result => {
+    setEditingId(null)
+    if (result && result.state === 'ready') {
+      detail.reload()
+      offerUndo(ctx, COPY.savedToast, result.change_id, detail.reload)
+    }
+  }
   // ConfirmDialog shows a thrown error inline and keeps the dialog open; nothing is deleted then.
   const deletePerson = () =>
     ctx.rest(`/cards/${current.id}/delete`, { body: {}, method: 'POST' }).then(result => {
@@ -405,7 +452,11 @@ function CardView({ ctx, trail, onCrumb, onFollow, onBack, onDeleted }) {
         : jsxs('div', {
             className: 'flex flex-col',
             children: data.lines.length
-              ? data.lines.map(line => jsx(Receipt, { line, onDelete: deleteLine, onToggleHidden: toggleHidden }, line.number))
+              ? data.lines.map(line =>
+                  line.id === editingId
+                    ? jsx(EditLine, { ctx, line, onDone: edited }, line.number)
+                    : jsx(Receipt, { line, onDelete: deleteLine, onEdit: target => setEditingId(target.id), onToggleHidden: toggleHidden }, line.number)
+                )
               : [jsx(Muted, { children: COPY.noLines }, 'none')]
           }),
       data && data.links.length

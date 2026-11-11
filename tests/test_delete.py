@@ -317,3 +317,36 @@ def test_desktop_toast_wiring():
     assert "deletedPersonToast: name => `Deleted ${name}.`," in js and "undo: 'Undo'," in js
     assert ".rest('/undo', { body: { change_id: changeId }, method: 'POST' })" in js
     assert "host.notify({" in js
+
+
+# 4. Edit a line in Desktop.
+
+def test_desktop_edit_line_keeps_the_old_text_in_history_and_undoes(run, vault, mod):
+    run("save Priya likes tea")
+    service = mod("desktop_service")
+    line_id = service.card_detail(card_id(vault, "Priya"), vault=vault)["lines"][0]["id"]
+    result = service.edit_line(line_id, "likes green tea", vault=vault)
+    assert result["state"] == "ready" and isinstance(result["change_id"], int)
+    assert [line["text"] for line in service.card_detail(card_id(vault, "Priya"), vault=vault)["lines"]] == ["likes green tea"]
+    history = run("history priya")
+    assert "likes tea" in history and ", replaced " in history
+    assert service.undo(result["change_id"], vault=vault)["state"] == "ready"
+    assert [line["text"] for line in service.card_detail(card_id(vault, "Priya"), vault=vault)["lines"]] == ["likes tea"]
+
+
+def test_desktop_edit_line_refuses_empty_unchanged_and_closed(run, vault, mod):
+    run("save Priya likes tea")
+    service = mod("desktop_service")
+    line_id = service.card_detail(card_id(vault, "Priya"), vault=vault)["lines"][0]["id"]
+    assert service.edit_line(line_id, "  ", vault=vault) == {"state": "invalid"}
+    assert service.edit_line(line_id, "x" * 2001, vault=vault) == {"state": "invalid"}
+    assert service.edit_line(line_id, "likes tea", vault=vault) == {"state": "unchanged"}
+    service.edit_line(line_id, "likes coffee", vault=vault)
+    assert service.edit_line(line_id, "again", vault=vault) == {"state": "missing"}  # the old line is closed
+
+
+def test_desktop_edit_wiring():
+    from pathlib import Path
+
+    js = (Path(__file__).parent.parent / "desktop" / "plugin.js").read_text()
+    assert "editLine: 'Edit'," in js and "savedToast: 'Saved.'," in js and "`/lines/${line.id}/edit`" in js

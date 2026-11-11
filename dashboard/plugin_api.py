@@ -100,6 +100,11 @@ def delete_line(line_id: int):
     return _call(lambda s: s.delete_line(line_id))
 
 
+@router.post("/lines/{line_id}/edit")
+def edit_line(line_id: int, body: LineBody):
+    return _call(lambda s: s.edit_line(line_id, body.text))
+
+
 @router.post("/undo")
 def undo(body: UndoBody):
     return _call(lambda s: s.undo(body.change_id))

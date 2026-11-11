@@ -171,6 +171,24 @@ def delete_line(line_id: int, vault: Optional[Vault] = None) -> dict:
         return {"state": "ready", "change_id": change_id, "name": card["name"]}
 
 
+def edit_line(line_id: int, text: str, vault: Optional[Vault] = None) -> dict:
+    """Edit a line from the card page, the same way /myfolks correct does: the old text stays in history."""
+    cleaned = (text or "").strip()
+    if not cleaned or len(cleaned) > MAX_TEXT:
+        return {"state": "invalid"}
+    with (vault or Vault()).write() as connection:
+        line = connection.execute("SELECT * FROM details WHERE id=? AND closed_at IS NULL", (line_id,)).fetchone()
+        card = cards.card_by_id(connection, line["card_id"]) if line is not None else None
+        if card is None:
+            return {"state": "missing"}
+        if cleaned == line["text"]:
+            return {"state": "unchanged"}
+        change = db.Change(connection, "correct", SOURCE)
+        cards.correct_detail(change, line, cleaned, SOURCE)
+        change_id = change.finish(f"corrected a line on {card['name']}")
+        return {"state": "ready", "change_id": change_id, "name": card["name"]}
+
+
 def undo(change_id: int, vault: Optional[Vault] = None) -> dict:
     """The toast's Undo: undoes exactly *change_id*, and only while it is still the latest change."""
     try:
