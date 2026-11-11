@@ -275,3 +275,13 @@ def test_malformed_csv_is_a_plain_failure(vault, mod, tmp_path, monkeypatch):
     assert mod("cli").cmd_import(argparse.Namespace(path=str(bad)), vault=vault, stdin=Terminal(), stdout=out) == 1
     assert out.getvalue().strip() == "That file couldn't be imported. Nothing was changed."
     assert csv.field_size_limit() == 131072
+
+
+def test_reimport_never_queues_the_same_review_twice(vault, importer, mod):
+    mod("commands").handle('save "Mel Ortiz" likes tea', platform="desktop", vault=vault)
+    contact = lambda: importer.Incoming(name="Mel Ortiz", phones=["555 0103"])  # noqa: E731
+    assert do_import(vault, importer, [contact()]).review == 1
+    again = do_import(vault, importer, [contact()])
+    assert (again.review, again.unchanged) == (0, 1)
+    with vault.read() as connection:
+        assert connection.execute("SELECT count(*) FROM review WHERE status='pending'").fetchone()[0] == 1

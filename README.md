@@ -75,13 +75,14 @@ hermes myfolks recover
 | `/contacts` | Short help and how many cards you have |
 | `/contacts <name>` | A person's card |
 | `/contacts <name> <question>` | Find saved lines, such as `/contacts priya allergic` |
-| `/contacts save <name> <text>` | Save a line. An unknown name makes a new card |
+| `/contacts save <name> <text>` | Save a line. An unknown name makes a new card. Once you've imported or synced contacts, MyFolks asks first |
 | `/contacts link <name> <relation> <name>` | Link two cards, such as `/contacts link Priya dog Biscuit` |
 | `/contacts history <name>` | Every line, with exact dates, including corrected ones |
 | `/contacts correct <name>` | Numbered lines to pick from |
 | `/contacts correct <name> <number> <new text>` | Correct a line. The old value is kept in history |
 | `/contacts undo` | Undo the last change |
 | `/contacts review` | Imported contacts waiting for you to merge or keep |
+| `/contacts sync` | Bring in your Google contacts, read-only. `/contacts sync off` stops it |
 
 Use double quotes for a full name: `/contacts save "Priya Sharma" likes tea`.
 
@@ -133,6 +134,18 @@ hermes myfolks import <file>
 Takes vCard files (2.1, 3.0 and 4.0) and CSV exports from Google and Outlook. An exact phone or email match merges, and `/contacts undo` reverses the whole import. Anything else with a similar name waits in `/contacts review`.
 
 Imported text is stored as data and never treated as instructions.
+
+## Sync Google contacts
+
+```
+/myfolks sync
+```
+
+Brings in the people in your Google Contacts, read-only: names, phone numbers, emails and birthdays. It uses the Google sign-in Hermes already keeps. If Hermes isn't signed in to Google yet, ask Hermes to set up Google Workspace and allow Contacts. `hermes myfolks sync` does the same in the terminal.
+
+The first sync turns sync on. After that, when you save or ask about someone MyFolks doesn't have yet, it checks Google first, at most every 10 minutes. Matching works like an import: an exact phone or email merges, a similar name waits in `/contacts review`, and `/contacts undo` reverses the last sync.
+
+MyFolks never changes anything in Google, and deleting someone in Google never deletes their MyFolks card. `/myfolks sync off` stops every connection to Google. Your people stay.
 
 ## The Desktop page
 
@@ -210,9 +223,9 @@ On Desktop, use **Hide from chat** on any line. In the terminal, use `/contacts 
 
 ## Disclosures
 
-- **Network:** the plugin makes no network calls. Replies sent over a messaging platform pass through that platform.
+- **Network:** none unless you send /myfolks sync. Then MyFolks connects only to Google, read-only, using the Google sign-in Hermes keeps in your Hermes folder. It never stores that sign-in and never sends your MyFolks notes anywhere. Replies sent over a messaging platform pass through that platform.
 - **AI:** `/contacts` uses no model. The optional AI tool is off by default. When on, the lines it returns go to your model provider.
-- **Files:** it reads and writes only its own data folder, plus files you name for import, backup, restore or export.
+- **Files:** it reads and writes only its own data folder, plus files you name for import, backup, restore or export. When you sync, it also reads Hermes's Google sign-in file, `google_token.json`, and never writes it.
 - **Stored credentials:** a device key, in a file only your user can read, in the plugin's data folder. MyFolks uses the OS keychain instead only when Python's `keyring` package is available to Hermes, which a default Hermes install doesn't include.
 - **Hooks:** three.
   - `pre_tool_call` checks AI tool calls for direct access to its files. Tool arguments stay on your machine.

@@ -20,6 +20,7 @@ const COPY = {
   setUp: 'Set up MyFolks',
   settingUp: 'Setting up…',
   setupDone: 'MyFolks is ready.',
+  setupNext: 'Next, bring in your contacts: send /myfolks sync to use your Google contacts, or run hermes myfolks import <file>.',
   setupStoredHere: 'MyFolks keeps what you save only in your Hermes folder, on the computer that runs Hermes. If you use it from a chat app like Telegram, that app also keeps a copy of the chat. Your address book is separate, and MyFolks never changes it.',
   setupCodeIntro: 'Your recovery code. It is shown once. Keep it somewhere safe:',
   setupCodePurpose: 'You need it if MyFolks stops opening, and to back up or export.',
@@ -65,7 +66,7 @@ const COPY = {
   reviewNote: 'These came from an import and look like someone you already have.',
   settingsTitle: 'MyFolks',
   storeRow: 'Your data',
-  storeRowBody: 'Encrypted in this Hermes profile. MyFolks itself connects to nothing.',
+  storeRowBody: 'Encrypted in this Hermes profile. MyFolks connects only to Google, and only after you send /myfolks sync.',
   recoveryRow: 'If MyFolks stops opening',
   recoveryRowBody: 'Unlock it with your recovery code: hermes myfolks recover',
   importRow: 'Import',
@@ -528,7 +529,7 @@ function SetupPanel({ ctx, onDone }) {
     return jsxs('div', {
       className: 'flex h-full flex-col items-center justify-center gap-4 p-6',
       children: [
-        group([jsx(Note, { children: COPY.setupDone }), jsx(Note, { children: COPY.setupStoredHere })]),
+        group([jsx(Note, { children: COPY.setupDone }), jsx(Note, { children: COPY.setupNext }), jsx(Note, { children: COPY.setupStoredHere })]),
         group([
           jsx(Note, { children: COPY.setupCodeIntro }),
           jsx(RecoveryCode, { children: step.code }),

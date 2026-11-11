@@ -35,6 +35,7 @@ def test_terminal_setup_prints_exactly_the_approved_screen(fresh, mod):
     code = CODE.search(out.getvalue()).group(0)
     assert out.getvalue() == (
         "MyFolks is ready.\n"
+        "Next, bring in your contacts: send /myfolks sync to use your Google contacts, or run hermes myfolks import <file>.\n"
         "MyFolks keeps what you save only in your Hermes folder, on the computer that runs Hermes. If you use it from a chat app like Telegram, that app also keeps a copy of the chat. Your address book is separate, and MyFolks never changes it.\n"
         "\n"
         "Your recovery code. It is shown once. Keep it somewhere safe:\n"

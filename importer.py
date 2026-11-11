@@ -356,9 +356,14 @@ def create_from(change: db.Change, contact: Incoming, source: str, index: Option
     return card_id
 
 
-def _queue_review(change: db.Change, contact: Incoming, candidates: list[int], source: str) -> None:
+def _queue_review(change: db.Change, contact: Incoming, candidates: list[int], source: str, summary: Summary) -> None:
+    """Send a contact to /contacts review, unless the same one is already waiting there."""
     payload = json.dumps({"incoming": asdict(contact), "candidates": candidates}, ensure_ascii=False)
+    if change.connection.execute("SELECT 1 FROM review WHERE status='pending' AND payload=?", (payload,)).fetchone():
+        summary.unchanged += 1
+        return
     change.insert("review", payload=payload, created_at=db.now(), source=source)
+    summary.review += 1
 
 
 def _same_lines_already_there(connection: sqlite3.Connection, candidates: list[int], contact: Incoming) -> bool:
@@ -389,8 +394,7 @@ def _apply_one(connection: sqlite3.Connection, change: db.Change, index: "_Index
         else:
             summary.unchanged += 1
     elif by_value:
-        _queue_review(change, contact, sorted(by_value), source)
-        summary.review += 1
+        _queue_review(change, contact, sorted(by_value), source, summary)
     else:
         candidates = index.similar(normalize(contact.name))
         if not candidates:
@@ -399,8 +403,7 @@ def _apply_one(connection: sqlite3.Connection, change: db.Change, index: "_Index
         elif _same_lines_already_there(connection, candidates, contact):
             summary.unchanged += 1
         else:
-            _queue_review(change, contact, candidates, source)
-            summary.review += 1
+            _queue_review(change, contact, candidates, source, summary)
 
 
 def apply_contacts(connection: sqlite3.Connection, contacts: list[Incoming], source: str) -> Summary:

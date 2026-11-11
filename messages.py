@@ -165,6 +165,8 @@ def setup_note(at: Optional[str], surface: Optional[str]) -> str:
 
 
 def overview(count: int, set_up_at: Optional[str] = None, set_up_from: Optional[str] = None) -> str:
+    if not count:
+        return EMPTY_OVERVIEW
     noun = "card" if count == 1 else "cards"
     note = setup_note(set_up_at, set_up_from)
     return (
@@ -385,3 +387,44 @@ ALREADY_SHOWN = "That line is already showing in chat."
 
 def hide_list_line(number: int, text: str, hidden: bool) -> str:
     return f"{number}. {text}" + (f"{_SEPARATOR}hidden from chat" if hidden else "")
+
+
+# Google sync. New wording, TENTATIVE.
+SYNC_NO_SIGN_IN = (
+    "Hermes isn't signed in to Google yet. Ask Hermes to set up Google Workspace, then send /myfolks sync again.\n"
+    "Or import a contacts file instead: hermes myfolks import <file>"
+)
+SYNC_NO_CONTACTS = (
+    "Hermes's Google sign-in doesn't include your contacts. Ask Hermes to set up Google Workspace again and allow Contacts, then send /myfolks sync again.\n"
+    "Or import a contacts file instead: hermes myfolks import <file>"
+)
+SYNC_UNREACHABLE = "Couldn't reach Google contacts. Nothing was changed. Try /myfolks sync again later."
+SYNC_OFF = "Google sync is off. MyFolks won't connect to Google. Your people stay here. Turn it back on: /myfolks sync"
+SYNC_USAGE = "To sync Google contacts: /myfolks sync    To stop: /myfolks sync off"
+SYNC_CHECK_FAILED = "Couldn't check Google contacts just now."
+SYNC_FIRST_NOTE = "From now on, MyFolks checks Google when you mention someone new."
+SYNC_STOP = "Stop syncing: /myfolks sync off"
+SETUP_NEXT = "Next, bring in your contacts: send /myfolks sync to use your Google contacts, or run hermes myfolks import <file>."
+EMPTY_OVERVIEW = (
+    "MyFolks: no one saved yet.\n"
+    "\n"
+    "Bring in your contacts from Google:\n"
+    "  /myfolks sync\n"
+    "Or from a file, on the computer that runs Hermes:\n"
+    "  hermes myfolks import <file>\n"
+    "\n"
+    "Or save someone now:\n"
+    "  /myfolks save Priya is allergic to peanuts"
+)
+
+
+def sync_summary(added: int, matched: int, to_check: int) -> str:
+    if not (added or matched or to_check):
+        return "Google contacts synced: nothing new."
+    line = f"Google contacts synced: {added} people added, {matched} matched to people already here"
+    return line + (f", {to_check} to check." if to_check else ".")
+
+
+def sync_first(added: int, matched: int, to_check: int) -> str:
+    last = f"Check the {to_check}: /myfolks review    {SYNC_STOP}" if to_check else SYNC_STOP
+    return "\n".join([sync_summary(added, matched, to_check), SYNC_FIRST_NOTE, last])

@@ -69,6 +69,10 @@ RAW_BY_DESIGN = {
 }
 
 
+# Templates that take only numbers: no saved or typed value can reach them.
+NUMBERS_ONLY = {"sync_summary", "sync_first"}
+
+
 @pytest.mark.parametrize("template", sorted(TEMPLATES))
 def test_every_template_shows_values_literally(mod, template):
     messages = mod("messages")
@@ -81,7 +85,7 @@ def test_every_template_shows_values_literally(mod, template):
 def test_every_value_template_is_covered(mod):
     messages = mod("messages")
     public = {name for name, item in vars(messages).items() if inspect.isfunction(item) and not name.startswith("_") and item.__module__ == messages.__name__}
-    assert public - set(TEMPLATES) - RAW_BY_DESIGN == set()
+    assert public - set(TEMPLATES) - RAW_BY_DESIGN - NUMBERS_ONLY == set()
 
 
 def test_terminal_values_stay_plain(mod):

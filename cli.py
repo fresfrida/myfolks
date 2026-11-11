@@ -23,10 +23,12 @@ def setup_parser(parser) -> None:
         commands.add_parser(name, help=text).add_argument("path", help="File path")
     importing = commands.add_parser("import", help="Import contacts from a vCard or CSV file")
     importing.add_argument("path", help="Path to a .vcf or .csv file")
+    syncing = commands.add_parser("sync", help="Bring in your Google contacts, read-only, with Hermes's Google sign-in")
+    syncing.add_argument("state", nargs="?", choices=["off"], help="off: stop syncing")
 
 
 def run(args) -> int:
-    handlers = {"setup": cmd_setup, "recover": cmd_recover, "pair": cmd_pair, "import": cmd_import, "backup": cmd_backup, "restore": cmd_restore, "export": cmd_export}
+    handlers = {"setup": cmd_setup, "recover": cmd_recover, "pair": cmd_pair, "import": cmd_import, "backup": cmd_backup, "restore": cmd_restore, "export": cmd_export, "sync": cmd_sync}
     return handlers[args.myfolks_command](args)
 
 
@@ -58,6 +60,7 @@ def recovery_code_lines(code: str) -> list[str]:
 def setup_lines(code: str) -> list[str]:
     return [
         messages.SETUP_DONE,
+        messages.SETUP_NEXT,
         messages.SETUP_STORED_HERE,
         "",
         *recovery_code_lines(code),
@@ -341,3 +344,16 @@ def cmd_export(args, *, vault=None, read_line=None, read_secret=None, stdin=None
         return 1
     print(messages.EXPORT_DONE, file=out)
     return 0
+
+
+_SYNC_FAILURES = frozenset({messages.SYNC_NO_SIGN_IN, messages.SYNC_NO_CONTACTS, messages.SYNC_UNREACHABLE, messages.NOT_SET_UP, messages.LOCKED, messages.BUSY, messages.ERROR})
+
+
+def cmd_sync(args, *, vault=None, stdout=None) -> int:
+    """hermes myfolks sync [off]: the same command as /myfolks sync, from the terminal."""
+    from . import commands
+
+    out = stdout or sys.stdout
+    reply = commands.handle("sync off" if getattr(args, "state", None) == "off" else "sync", platform="cli", vault=vault)
+    print(reply, file=out)
+    return 1 if reply in _SYNC_FAILURES else 0

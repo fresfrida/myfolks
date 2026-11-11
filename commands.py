@@ -8,7 +8,7 @@ import sqlite3
 from dataclasses import dataclass
 from typing import Callable, Optional
 
-from . import cards, db, fields, guard, importer, lookup, messages, owner, search
+from . import cards, db, fields, google_sync, guard, importer, lookup, messages, owner, search
 from .text import STOPWORDS, Token, ascii_number, looks_numeric, normalize, one_edit_apart, query_words, tokens
 from .vault import Busy, NotSetUp, Refused, Vault, VaultError
 
@@ -19,9 +19,10 @@ _WARNED_SETTING = "terminal_warning_shown"
 _SELF_WORDS = {"me", "my", "i", "myself"}
 _ALIAS_WORDS = {"alias", "aka", "nickname"}
 _TYPO_VERBS = ("save", "link", "history", "correct", "undo", "review")
-_VERBS = {*_TYPO_VERBS, "hide", "unhide"}
+_VERBS = {*_TYPO_VERBS, "hide", "unhide", "sync"}
 _MAX_QUESTIONS = 4
 _OFFER_KEY = "offer:link"
+_GOOGLE_CHECKED_KEY = "google:checked"
 _BOLD_SURFACE = messages.TELEGRAM
 _POSSESSIVE = re.compile(r"(?:['\u2019][sS]|['\u2019])$")
 _NEW_FLAG = "--new"
@@ -40,6 +41,11 @@ class NeedsAnswer(Exception):
         self.fallback = fallback
 
 
+class CheckGoogle(Exception):
+    """The owner named someone with no card, exactly or nearly, and Google sync is due: sync first,
+    outside the lock, then run the command again. Raised inside the store lock, so nothing is saved."""
+
+
 @dataclass
 class Context:
     connection: sqlite3.Connection
@@ -49,6 +55,7 @@ class Context:
     answers: dict
     show_private: bool = True
     is_owner: bool = True
+    check_google: bool = False
 
 
 def _hint(connection: sqlite3.Connection, card: sqlite3.Row) -> str:
@@ -153,20 +160,63 @@ def handle(raw_args: str, *, platform: Optional[str] = None, source=None, ask: O
 
 def _dispatch(raw: str, vault: Vault, label: str, terminal: bool, ask: Optional[Callable], access: str = owner.FULL_ACCESS) -> str:
     answers: dict = {}
-    for _attempt in range(_MAX_QUESTIONS):
+    note = None
+    for _attempt in range(_MAX_QUESTIONS + 1):
         try:
             reply = _run(raw, vault, label, terminal, answers, access)
         except NeedsAnswer as need:
             answer = ask(need.question, need.choices) if ask is not None else None
             if answer is None:
-                return need.fallback
+                return _with_note(need.fallback, note)
             answers[need.key] = answer
+            continue
+        except CheckGoogle:
+            answers[_GOOGLE_CHECKED_KEY] = True
+            note = _check_google(vault)
             continue
         offer = answers.get(_OFFER_KEY)
         if offer is None or not _allowed_for(access, "link"):
-            return reply
-        return _offer_link(reply, offer, vault, label, terminal, ask, access)
+            return _with_note(reply, note)
+        return _with_note(_offer_link(reply, offer, vault, label, terminal, ask, access), note)
     return messages.ERROR
+
+
+def _with_note(reply: str, note: Optional[str]) -> str:
+    return f"{reply}\n{note}" if note else reply
+
+
+def _check_google(vault: Vault) -> Optional[str]:
+    """The live check: sync now, capped in time. None when it worked, else the one line to add."""
+    try:
+        result = google_sync.sync(vault, seconds=google_sync.LIVE_CHECK_SECONDS)
+    except google_sync.SyncFailed:
+        return messages.SYNC_CHECK_FAILED
+    return messages.SYNC_CHECK_FAILED if result.stopped is not None else None
+
+
+def _sync_command(vault: Vault, parts: list[Token]) -> str:
+    """/myfolks sync turns sync on with a sync that works; /myfolks sync off turns it off."""
+    words = [part.text.casefold() for part in parts]
+    if words == ["off"]:
+        with vault.write() as connection:
+            google_sync.set_on(connection, False)
+        return messages.SYNC_OFF
+    if words:
+        return messages.SYNC_USAGE
+    with vault.read() as connection:
+        was_on = google_sync.is_on(connection)
+    try:
+        result = google_sync.sync(vault)
+    except google_sync.SyncFailed as failure:
+        return {google_sync.NO_SIGN_IN: messages.SYNC_NO_SIGN_IN, google_sync.NO_CONTACTS: messages.SYNC_NO_CONTACTS}.get(failure.kind, messages.SYNC_UNREACHABLE)
+    if not was_on:
+        with vault.write() as connection:
+            google_sync.set_on(connection, True)
+    summary = result.summary
+    reply = (messages.sync_summary if was_on else messages.sync_first)(summary.new, summary.merged, summary.review)
+    if result.stopped is not None:
+        reply = f"{reply}\n{messages.import_stopped(result.applied, result.total)}"
+    return reply
 
 
 def _offer_link(reply: str, offer: tuple[str, str, str], vault: Vault, label: str, terminal: bool, ask: Optional[Callable], access: str) -> str:
@@ -183,7 +233,8 @@ def _offer_link(reply: str, offer: tuple[str, str, str], vault: Vault, label: st
 def _context(connection: sqlite3.Connection, label: str, terminal: bool, answers: dict, access: str = owner.FULL_ACCESS) -> Context:
     show_private = label in owner.LOCAL_SURFACES.values()
     is_owner = access == owner.FULL_ACCESS
-    return Context(connection, label, terminal, _picker(connection, answers, is_owner), answers, show_private, is_owner)
+    check_google = is_owner and not answers.get(_GOOGLE_CHECKED_KEY) and google_sync.check_due(connection)
+    return Context(connection, label, terminal, _picker(connection, answers, is_owner), answers, show_private, is_owner, check_google)
 
 
 def _closest_verb(word: str) -> Optional[str]:
@@ -236,6 +287,8 @@ def _run(raw: str, vault: Vault, label: str, terminal: bool, answers: dict, acce
     verb = _verb_for(vault, raw, parts, label, terminal, answers)
     if not _allowed_for(access, verb):
         return messages.REFUSED
+    if verb == "sync":
+        return _sync_command(vault, parts[1:])
     writers = {"save": _save, "link": _link, "correct": _correct, "undo": _undo, "review": _review, "hide": _hide, "unhide": _unhide}
     if verb in writers:
         try:
@@ -335,6 +388,8 @@ def _refuse_unknown_name(context: Context, raw: str, parts: list[Token]) -> Opti
     contacts are imported, a new person needs a yes. Returns the reply when nothing is saved, else None."""
     if fields.is_detail_word(parts[0].text):
         return messages.who_is_this_for(parts[0].text)
+    if context.check_google:
+        raise CheckGoogle()
     if not _has_import(context.connection):
         return None
     typed = _name_for(parts[:1], possessive=True)
@@ -737,6 +792,8 @@ def _query(context: Context, raw: str) -> str:
     if resolved is None:
         chosen = _chosen_close_card(context, words)
         if chosen is None:
+            if context.check_google:
+                raise CheckGoogle()
             typed = _unknown_name(raw)
             return messages.no_one_called(typed) if typed else messages.NOTHING
         if chosen[0] is None:

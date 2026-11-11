@@ -20,7 +20,11 @@ def run(vault, mod):
 
 
 def test_empty_shows_help_and_count(run):
-    assert run("").startswith("MyFolks: 0 cards.")
+    assert run("") == (
+        "MyFolks: no one saved yet.\n\nBring in your contacts from Google:\n  /myfolks sync\n"
+        "Or from a file, on the computer that runs Hermes:\n  hermes myfolks import <file>\n\n"
+        "Or save someone now:\n  /myfolks save Priya is allergic to peanuts"
+    )
     run("save Priya likes tea")
     assert run("").startswith("MyFolks: 1 card.")
 

@@ -52,8 +52,10 @@ def test_hermes_myfolks_setup_shows_the_code_and_records_terminal(fresh, mod):
     assert mod("cli").cmd_setup(None, vault=fresh, stdout=out) == 0
     code = CODE.search(out.getvalue()).group(0)
     assert fresh.check_recovery_code(code)
+    assert mod("commands").handle("", platform="cli", vault=fresh) == mod("messages").EMPTY_OVERVIEW
+    mod("commands").handle("save Priya likes tea", platform="cli", vault=fresh)
     overview = mod("commands").handle("", platform="cli", vault=fresh)
-    assert overview.split("\n")[:2] == ["MyFolks: 0 cards.", "Set up today from terminal."]
+    assert overview.split("\n")[:2] == ["MyFolks: 1 card.", "Set up today from terminal."]
     assert not CODE.search(overview)
 
 
@@ -67,12 +69,14 @@ def test_desktop_page_setup_shows_the_code_once_and_records_it(fresh, mod):
     first = service.setup(vault=fresh)
     assert CODE.fullmatch(first["code"]) and fresh.check_recovery_code(first["code"])
     assert service.setup(vault=fresh) == {"state": "ready"}
+    mod("commands").handle("save Priya likes tea", platform="cli", vault=fresh)
     assert "Set up today from Desktop page." in mod("commands").handle("", platform="cli", vault=fresh)
 
 
 def test_setup_note_on_telegram_is_protected(fresh, mod, monkeypatch):
     monkeypatch.setattr(mod("owner"), "allowed_users", lambda _platform: ({"111"}, False))
     mod("desktop_service").setup(vault=fresh)
+    mod("commands").handle("save Priya likes tea", platform="cli", vault=fresh)
     source = SimpleNamespace(user_id="111", chat_type="dm", is_bot=False)
     assert "Set up today from Desktop page." in mod("commands").handle("", platform="telegram", source=source, vault=fresh)
 
