@@ -210,8 +210,11 @@ def _run(raw: str, vault: Vault, label: str, terminal: bool, answers: dict, acce
         return messages.REFUSED
     writers = {"save": _save, "link": _link, "correct": _correct, "undo": _undo, "review": _review, "hide": _hide, "unhide": _unhide}
     if verb in writers:
-        with vault.write() as connection:
-            return writers[verb](_context(connection, label, terminal, answers, access), raw, parts[1:])
+        try:
+            with vault.write() as connection:
+                return writers[verb](_context(connection, label, terminal, answers, access), raw, parts[1:])
+        except db.UndoBlocked as blocked:  # raised inside the write, so the store is not saved
+            return messages.undo_blocked(blocked.summary)
     with vault.read() as connection:
         context = _context(connection, label, terminal, answers, access)
         if not parts:

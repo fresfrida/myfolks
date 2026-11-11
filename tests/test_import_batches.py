@@ -152,3 +152,38 @@ def test_first_undo_reverses_import_even_after_a_save_during_it(vault, mod, monk
     assert "likes jam" in commands.handle("priya jam", platform="cli", vault=vault)
     assert commands.handle("undo", platform="cli", vault=vault) == "Undone: saved to Priya."
     assert "likes jam" not in commands.handle("priya", platform="cli", vault=vault)
+
+
+def test_save_to_an_imported_card_before_the_last_batch_keeps_undo_working(vault, mod, monkeypatch):
+    importer, commands = mod("importer"), mod("commands")
+    contacts = [importer.Incoming(name="Alice Moon", phones=["+1 202 555 0199"])] + people(mod, 399)
+    original = vault.write
+    calls = {"n": 0}
+
+    def save_to_alice_before_last_batch():
+        calls["n"] += 1
+        if calls["n"] == 2:
+            assert commands.handle('save "Alice Moon" likes tea', platform="cli", vault=vault).startswith("Saved to Alice Moon.")
+        return original()
+
+    monkeypatch.setattr(vault, "write", save_to_alice_before_last_batch)
+    result = importer.import_in_batches(vault, contacts, "test import", batch_size=200)
+    monkeypatch.setattr(vault, "write", original)
+    assert result.applied == 400 and result.stopped is None
+    assert commands.handle("undo", platform="cli", vault=vault) == "Undone: saved to Alice Moon."
+    assert commands.handle("undo", platform="cli", vault=vault) == "Undone: imported from test import."
+    assert counts(vault)[0] == 0
+    assert commands.handle("undo", platform="cli", vault=vault) == "Nothing to undo."
+
+
+def test_blocked_undo_changes_nothing_and_says_why(vault, mod):
+    commands = mod("commands")
+    commands.handle("save Zed likes tea", platform="cli", vault=vault)
+    commands.handle("save Zed likes jam", platform="cli", vault=vault)
+    with vault.write() as connection:
+        first = connection.execute("SELECT min(id) FROM changes").fetchone()[0]
+        connection.execute("UPDATE changes SET id=999 WHERE id=?", (first,))
+    before = vault.store_path.read_bytes()
+    assert commands.handle("undo", platform="cli", vault=vault) == "Can't undo saved to Zed: something saved later still uses a card it made. Nothing was changed."
+    assert vault.store_path.read_bytes() == before
+    assert "likes jam" in commands.handle("zed jam", platform="cli", vault=vault)

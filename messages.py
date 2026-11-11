@@ -180,6 +180,10 @@ def undone(summary: str) -> str:
     return f"Undone: {value(summary)}."
 
 
+def undo_blocked(summary: str) -> str:
+    return f"Can't undo {value(summary)}: something saved later still uses a card it made. Nothing was changed."
+
+
 def link_line(relation: str, other: str, outgoing: bool) -> str:
     word = relation[:1].upper() + relation[1:]
     return f"{value(word)}: {value(other)}" if outgoing else f"{value(word)} of {value(other)}"

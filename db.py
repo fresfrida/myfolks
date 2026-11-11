@@ -179,13 +179,36 @@ class Change:
         return change_id
 
 
+def _touches_cards(connection: sqlite3.Connection, ops: list, card_ids: set[int]) -> bool:
+    """Whether these row changes point at any of *card_ids*."""
+    for op in ops:
+        table, row_id = op[1], op[2]
+        if table == "cards":
+            found = row_id in card_ids
+        elif table in ("details", "aliases"):
+            row = connection.execute(f"SELECT card_id FROM {table} WHERE id=?", (row_id,)).fetchone()
+            found = row is not None and row[0] in card_ids
+        elif table == "links":
+            row = connection.execute("SELECT from_card, to_card FROM links WHERE id=?", (row_id,)).fetchone()
+            found = row is not None and (row[0] in card_ids or row[1] in card_ids)
+        else:
+            found = False
+        if found:
+            return True
+    return False
+
+
 def make_newest(connection: sqlite3.Connection, change_id: int) -> int:
-    """Move a change to the end of the undo order, so the next undo reverses it first."""
-    newer = connection.execute("SELECT 1 FROM changes WHERE id>? LIMIT 1", (change_id,)).fetchone()
-    if newer is None:
+    """Move a change to the end of the undo order, so the next undo reverses it first. It stays where it
+    is when a newer change uses a card it created: newest-first undo then reverses that change first."""
+    newer = connection.execute("SELECT ops FROM changes WHERE id>? AND undone_at IS NULL", (change_id,)).fetchall()
+    if not newer:
         return change_id
     row = connection.execute("SELECT source,kind,summary,ops,undone_at FROM changes WHERE id=?", (change_id,)).fetchone()
     if row is None or row["undone_at"] is not None:
+        return change_id
+    created = {op[2] for op in json.loads(row["ops"]) if op[0] == "insert" and op[1] == "cards"}
+    if any(_touches_cards(connection, json.loads(later["ops"]), created) for later in newer):
         return change_id
     cursor = connection.execute(
         "INSERT INTO changes(at,source,kind,summary,ops) VALUES(?,?,?,?,?)", (now(), row["source"], row["kind"], row["summary"], row["ops"])
@@ -198,16 +221,32 @@ class ChangeClosed(Exception):
     """A change can't be extended because it was undone."""
 
 
+class UndoBlocked(Exception):
+    """Undoing would break something a later change still relies on. Nothing was changed."""
+
+    def __init__(self, summary: str):
+        super().__init__(summary)
+        self.summary = summary
+
+
 def undo_latest(connection: sqlite3.Connection) -> str | None:
-    """Reverse the most recent change that has not been undone. Returns its summary."""
+    """Reverse the most recent change that has not been undone. Returns its summary.
+    If the database refuses, nothing is changed and UndoBlocked says which change it was."""
     row = connection.execute("SELECT id,summary,ops FROM changes WHERE undone_at IS NULL ORDER BY id DESC LIMIT 1").fetchone()
     if row is None:
         return None
-    for op in reversed(json.loads(row["ops"])):
-        if op[0] == "insert":
-            connection.execute(f"DELETE FROM {op[1]} WHERE id=?", (op[2],))
-        else:
-            assignments = ",".join(f"{column}=?" for column in op[3])
-            connection.execute(f"UPDATE {op[1]} SET {assignments} WHERE id=?", (*op[3].values(), op[2]))
-    connection.execute("UPDATE changes SET undone_at=? WHERE id=?", (now(), row["id"]))
+    connection.execute("SAVEPOINT myfolks_undo")
+    try:
+        for op in reversed(json.loads(row["ops"])):
+            if op[0] == "insert":
+                connection.execute(f"DELETE FROM {op[1]} WHERE id=?", (op[2],))
+            else:
+                assignments = ",".join(f"{column}=?" for column in op[3])
+                connection.execute(f"UPDATE {op[1]} SET {assignments} WHERE id=?", (*op[3].values(), op[2]))
+        connection.execute("UPDATE changes SET undone_at=? WHERE id=?", (now(), row["id"]))
+    except sqlite3.DatabaseError as exc:
+        connection.execute("ROLLBACK TO myfolks_undo")
+        connection.execute("RELEASE myfolks_undo")
+        raise UndoBlocked(row["summary"]) from exc
+    connection.execute("RELEASE myfolks_undo")
     return row["summary"]

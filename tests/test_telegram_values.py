@@ -36,6 +36,7 @@ TEMPLATES = {
     "linked": lambda m: m.linked(NAME, RELATION, NAME, [NAME]),
     "alias_added": lambda m: m.alias_added(NAME, RELATION),
     "undone": lambda m: m.undone(f"linked {NAME}, {RELATION}, Ollie"),
+    "undo_blocked": lambda m: m.undo_blocked(f"imported from {NAME}.vcf import"),
     "done": lambda m: m.done(f"merged {NAME}"),
     "link_line": lambda m: m.link_line(RELATION, NAME, True) + "\n" + m.link_line(RELATION, NAME, False),
     "history_line": lambda m: m.history_line("likes tea", "2026-01-01T00:00:00+00:00", RELATION, None, m.telegram_plain),
