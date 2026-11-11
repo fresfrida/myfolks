@@ -430,3 +430,15 @@ def sync_summary(added: int, matched: int, to_check: int) -> str:
 def sync_first(added: int, matched: int, to_check: int) -> str:
     last = f"Check the {to_check}: /myfolks review    {SYNC_STOP}" if to_check else SYNC_STOP
     return "\n".join([sync_summary(added, matched, to_check), SYNC_FIRST_NOTE, last])
+
+
+# Delete. New wording, TENTATIVE.
+USAGE_DELETE = "To delete someone: /myfolks delete <name>"
+
+
+def deleted_person(name: str) -> str:
+    return f"Deleted {value(name)} from MyFolks. Undo: /myfolks undo"
+
+
+def did_you_mean_delete_fallback(question: str, commands: list[str]) -> str:
+    return "\n".join([question, "Nothing was deleted. To go ahead, send one of these:", *(value(command) for command in commands)])

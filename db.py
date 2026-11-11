@@ -8,7 +8,7 @@ import json
 import sqlite3
 from datetime import datetime, timezone
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 _SCHEMA = """
 CREATE TABLE cards(
@@ -17,7 +17,8 @@ CREATE TABLE cards(
   name TEXT NOT NULL,
   norm_name TEXT NOT NULL,
   created_at TEXT NOT NULL,
-  source TEXT NOT NULL
+  source TEXT NOT NULL,
+  closed_at TEXT
 );
 CREATE INDEX cards_norm ON cards(norm_name);
 
@@ -109,11 +110,16 @@ def check_schema(connection: sqlite3.Connection) -> None:
     from .vault import Refused
 
     version = connection.execute("PRAGMA user_version").fetchone()[0]
-    if version == 1:
+    if version == 1:  # v2: lines can be hidden from chat
         connection.execute("ALTER TABLE details ADD COLUMN private INTEGER NOT NULL DEFAULT 0")
-        connection.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
+        connection.execute("PRAGMA user_version=2")
         connection.commit()
-        version = SCHEMA_VERSION
+        version = 2
+    if version == 2:  # v3: a deleted person keeps everything and gets a close time, so undo brings them back
+        connection.execute("ALTER TABLE cards ADD COLUMN closed_at TEXT")
+        connection.execute("PRAGMA user_version=3")
+        connection.commit()
+        version = 3
     if version != SCHEMA_VERSION:
         raise Refused("store version is not supported")
 
@@ -152,13 +158,15 @@ class Change:
         self.connection.execute(f"UPDATE {table} SET {assignments} WHERE id=?", (*values.values(), row_id))
         self.ops.append(["update", table, row_id, dict(before)])
 
-    def finish(self, summary: str) -> None:
+    def finish(self, summary: str) -> Optional[int]:
+        """Record the change. Returns its id, or None when nothing changed."""
         if not self.ops:
-            return
-        self.connection.execute(
+            return None
+        cursor = self.connection.execute(
             "INSERT INTO changes(at,source,kind,summary,ops) VALUES(?,?,?,?,?)",
             (now(), self.source, self.kind, summary, json.dumps(self.ops, separators=(",", ":"))),
         )
+        return cursor.lastrowid
 
     def finish_into(self, summary: str, change_id: Optional[int]) -> Optional[int]:
         """Add this batch to an earlier change, so one undo reverses every batch. Returns the change id."""

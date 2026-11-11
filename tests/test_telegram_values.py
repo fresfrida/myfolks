@@ -44,6 +44,8 @@ TEMPLATES = {
     "history_title": lambda m: m.history_title(NAME),
     "review_entry": lambda m: m.review_entry(1, NAME, [f"phone {RELATION}"], [(2, NAME)]),
     "who_is_this_for": lambda m: m.who_is_this_for(NAME),
+    "deleted_person": lambda m: m.deleted_person(NAME),
+    "did_you_mean_delete_fallback": lambda m: m.did_you_mean_delete_fallback(m.did_you_mean(NAME), [f"/myfolks delete {NAME}"]),
     "not_in_contacts": lambda m: m.not_in_contacts(NAME),
     "new_person_choice": lambda m: m.new_person_choice(NAME),
     "not_in_contacts_fallback": lambda m: m.not_in_contacts_fallback(NAME, f"/myfolks save --new {NAME} {RELATION}"),

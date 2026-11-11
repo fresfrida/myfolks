@@ -68,7 +68,7 @@ def _matching_cards(connection: sqlite3.Connection, query: str) -> tuple[list, i
     needle = normalize(query)
     rows = connection.execute(
         """SELECT DISTINCT cards.* FROM cards LEFT JOIN aliases ON aliases.card_id=cards.id
-           WHERE ?='' OR instr(cards.norm_name, ?)>0 OR instr(aliases.norm_alias, ?)>0
+           WHERE cards.closed_at IS NULL AND (?='' OR instr(cards.norm_name, ?)>0 OR instr(aliases.norm_alias, ?)>0)
            ORDER BY cards.norm_name, cards.id""",
         (needle, needle, needle),
     ).fetchall()
@@ -146,13 +146,27 @@ def save_line(card_id: int, text: str, vault: Optional[Vault] = None) -> dict:
         return {"state": "ready", "message": messages.saved(card["name"])}
 
 
+def delete_person(card_id: int, vault: Optional[Vault] = None) -> dict:
+    """Delete a person from the card page. Undo brings them back."""
+    with (vault or Vault()).write() as connection:
+        card = cards.card_by_id(connection, card_id)
+        if card is None:
+            return {"state": "missing"}
+        change = db.Change(connection, "delete", SOURCE)
+        cards.delete_card(change, card)
+        change_id = change.finish(f"deleted {card['name']}")
+        return {"state": "ready", "change_id": change_id, "name": card["name"]}
+
+
 def set_hidden(line_id: int, hidden: bool, vault: Optional[Vault] = None) -> dict:
     with (vault or Vault()).write() as connection:
         line = connection.execute("SELECT * FROM details WHERE id=? AND closed_at IS NULL", (line_id,)).fetchone()
         if line is None:
             return {"state": "missing"}
+        card = cards.card_by_id(connection, line["card_id"])
+        if card is None:
+            return {"state": "missing"}
         if bool(line["private"]) != bool(hidden):
-            card = cards.card_by_id(connection, line["card_id"])
             change = db.Change(connection, "hide", SOURCE)
             change.update("details", line_id, private=int(bool(hidden)))
             change.finish(f"{'hid' if hidden else 'unhid'} a line on {card['name']}")
@@ -163,7 +177,7 @@ def review_list(vault: Optional[Vault] = None) -> dict:
     with (vault or Vault()).read() as connection:
         items = []
         for row in importer.pending_reviews(connection):
-            contact, candidates = importer.review_contact(row)
+            contact, candidates = importer.review_contact(row, connection)
             items.append({
                 "id": row["id"],
                 "name": contact.name,
@@ -181,7 +195,7 @@ def resolve_review(item_id: int, action: str, card_id: Optional[int], vault: Opt
         if row is None:
             return {"state": "missing"}
         if action == "merge":
-            _contact, candidates = importer.review_contact(row)
+            _contact, candidates = importer.review_contact(row, connection)
             if card_id is None and len(candidates) == 1:
                 card_id = candidates[0]
             if card_id not in candidates:

@@ -1,6 +1,6 @@
 // MyFolks Desktop page. Contact data stays in component memory: never in browser storage.
 import {
-  Badge, Button, EmptyState, ErrorState, ListRow, ROUTES_AREA, ScrollArea, SearchField, SegmentedControl, Separator,
+  Badge, Button, ConfirmDialog, EmptyState, ErrorState, ListRow, ROUTES_AREA, ScrollArea, SearchField, SegmentedControl, Separator,
   SIDEBAR_NAV_AREA, Skeleton, Textarea, host, useValue
 } from '@hermes/plugin-sdk'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -54,6 +54,12 @@ const COPY = {
     const word = relation.charAt(0).toUpperCase() + relation.slice(1)
     return outgoing ? `${word}: ${name}` : `${word} of ${name}`
   },
+  deletePerson: 'Delete person',
+  deletePersonTitle: name => `Delete ${name}?`,
+  deletePersonBody: 'They disappear from MyFolks. Their details stay in history, and Undo brings them back.',
+  delete: 'Delete',
+  cancel: 'Cancel',
+  couldNotDelete: 'That couldn’t be deleted.',
   addLine: 'Add a line',
   addPlaceholder: 'What do you want to remember?',
   save: 'Save',
@@ -324,10 +330,20 @@ function AddLine({ ctx, cardId, onSaved }) {
   })
 }
 
-function CardView({ ctx, trail, onCrumb, onFollow, onBack }) {
+function CardView({ ctx, trail, onCrumb, onFollow, onBack, onDeleted }) {
   const current = trail[trail.length - 1]
   const detail = useApi(ctx, `/cards/${current.id}`)
   const data = detail.data
+  const [confirming, setConfirming] = useState(false)
+  // ConfirmDialog shows a thrown error inline and keeps the dialog open; nothing is deleted then.
+  const deletePerson = () =>
+    ctx.rest(`/cards/${current.id}/delete`, { body: {}, method: 'POST' }).then(result => {
+      if (result.state !== 'ready') {
+        throw new Error(COPY.couldNotDelete)
+      }
+      setConfirming(false)
+      onDeleted(result)
+    })
   const toggleHidden = line =>
     ctx
       .rest(`/lines/${line.id}/hidden`, { body: { hidden: !line.private }, method: 'POST' })
@@ -379,7 +395,20 @@ function CardView({ ctx, trail, onCrumb, onFollow, onBack }) {
           })
         : null,
       jsx(Separator, {}),
-      jsx(AddLine, { cardId: current.id, ctx, onSaved: detail.reload })
+      jsx(AddLine, { cardId: current.id, ctx, onSaved: detail.reload }),
+      data
+        ? jsx(Button, { className: 'self-start', onClick: () => setConfirming(true), size: 'sm', variant: 'ghost', children: COPY.deletePerson })
+        : null,
+      jsx(ConfirmDialog, {
+        cancelLabel: COPY.cancel,
+        confirmLabel: COPY.delete,
+        description: COPY.deletePersonBody,
+        destructive: true,
+        onClose: () => setConfirming(false),
+        onConfirm: deletePerson,
+        open: confirming,
+        title: COPY.deletePersonTitle(current.name)
+      })
     ]
   })
 }
@@ -465,6 +494,10 @@ function Contacts({ ctx, narrow, tabs }) {
   const open = card => setTrail([card])
   const follow = card => setTrail(previous => [...previous, card])
   const crumb = index => setTrail(previous => previous.slice(0, index + 1))
+  const deleted = () => {
+    setTrail([])
+    found.reload()
+  }
   const showCard = trail.length > 0
 
   const search = jsx(SearchField, {
@@ -496,7 +529,7 @@ function Contacts({ ctx, narrow, tabs }) {
   const cardColumn = showCard
     ? jsx('div', {
         className: 'flex min-w-0 flex-1 flex-col',
-        children: jsx(CardView, { ctx, onBack: narrow ? () => setTrail([]) : null, onCrumb: crumb, onFollow: follow, trail })
+        children: jsx(CardView, { ctx, onBack: narrow ? () => setTrail([]) : null, onCrumb: crumb, onDeleted: deleted, onFollow: follow, trail })
       })
     : null
 

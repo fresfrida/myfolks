@@ -86,6 +86,11 @@ def save_line(card_id: int, body: LineBody):
     return _call(lambda s: s.save_line(card_id, body.text))
 
 
+@router.post("/cards/{card_id}/delete")
+def delete_person(card_id: int):
+    return _call(lambda s: s.delete_person(card_id))
+
+
 @router.post("/lines/{line_id}/hidden")
 def set_hidden(line_id: int, body: HiddenBody):
     return _call(lambda s: s.set_hidden(line_id, body.hidden))

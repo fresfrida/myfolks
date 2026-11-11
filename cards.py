@@ -35,11 +35,11 @@ def clean_name(name: str) -> str:
 
 
 def find_cards(connection: sqlite3.Connection, name: str) -> list[sqlite3.Row]:
-    """Every card whose name or alias is exactly *name*, case-insensitive."""
+    """Every card whose name or alias is exactly *name*, case-insensitive. A deleted card is never found."""
     norm = normalize(name)
     return connection.execute(
         """SELECT DISTINCT cards.* FROM cards LEFT JOIN aliases ON aliases.card_id=cards.id
-           WHERE cards.norm_name=? OR aliases.norm_alias=? ORDER BY cards.id""",
+           WHERE cards.closed_at IS NULL AND (cards.norm_name=? OR aliases.norm_alias=?) ORDER BY cards.id""",
         (norm, norm),
     ).fetchall()
 
@@ -51,18 +51,28 @@ def find_close_cards(connection: sqlite3.Connection, name: str) -> list[sqlite3.
     """Cards whose name or alias is one edit from *name*. Call only when there is no exact match."""
     norm = normalize(name)
     found = set()
-    for row in connection.execute("SELECT id, norm_name AS value FROM cards UNION ALL SELECT card_id, norm_alias FROM aliases"):
+    for row in connection.execute(
+        "SELECT id, norm_name AS value FROM cards WHERE closed_at IS NULL UNION ALL "
+        "SELECT card_id, norm_alias FROM aliases JOIN cards ON cards.id=aliases.card_id WHERE cards.closed_at IS NULL"
+    ):
         if one_edit_apart(norm, row["value"], MIN_TYPO_NAME):
             found.add(row["id"])
     return [card_by_id(connection, card_id) for card_id in sorted(found)]
 
 
-def card_by_id(connection: sqlite3.Connection, card_id: int) -> Optional[sqlite3.Row]:
-    return connection.execute("SELECT * FROM cards WHERE id=?", (card_id,)).fetchone()
+def card_by_id(connection: sqlite3.Connection, card_id: int, include_deleted: bool = False) -> Optional[sqlite3.Row]:
+    """The card, or None. A deleted card is None unless *include_deleted* (for history and undo only)."""
+    row = connection.execute("SELECT * FROM cards WHERE id=?", (card_id,)).fetchone()
+    return row if row is not None and (include_deleted or row["closed_at"] is None) else None
 
 
 def count_cards(connection: sqlite3.Connection) -> int:
-    return connection.execute("SELECT count(*) FROM cards").fetchone()[0]
+    return connection.execute("SELECT count(*) FROM cards WHERE closed_at IS NULL").fetchone()[0]
+
+
+def delete_card(change: db.Change, card: sqlite3.Row) -> None:
+    """Delete a person: everything stays, for history and undo; every read leaves the card out."""
+    change.update("cards", card["id"], closed_at=db.now())
 
 
 def add_card(change: db.Change, name: str, source: str, kind: str = "person") -> int:
@@ -140,7 +150,7 @@ def has_link(connection: sqlite3.Connection, from_card: int, relation: str, to_n
     norm = normalize(to_name)
     return connection.execute(
         """SELECT 1 FROM links JOIN cards ON cards.id=links.to_card LEFT JOIN aliases ON aliases.card_id=cards.id
-           WHERE links.from_card=? AND links.norm_relation=? AND links.closed_at IS NULL
+           WHERE links.from_card=? AND links.norm_relation=? AND links.closed_at IS NULL AND cards.closed_at IS NULL
            AND (cards.norm_name=? OR aliases.norm_alias=?)""",
         (from_card, relation_key(relation), norm, norm),
     ).fetchone() is not None
@@ -200,7 +210,7 @@ def certain_cards(connection: sqlite3.Connection, name: str) -> list[sqlite3.Row
     norm = normalize(name)
     return connection.execute(
         """SELECT DISTINCT cards.* FROM cards LEFT JOIN aliases ON aliases.card_id=cards.id AND aliases.automatic=0
-           WHERE cards.norm_name=? OR aliases.norm_alias=? ORDER BY cards.id""",
+           WHERE cards.closed_at IS NULL AND (cards.norm_name=? OR aliases.norm_alias=?) ORDER BY cards.id""",
         (norm, norm),
     ).fetchall()
 
@@ -216,11 +226,12 @@ def link_offer_in(text: str) -> Optional[tuple[str, str]]:
 
 
 def open_links(connection: sqlite3.Connection, card_id: int) -> list[sqlite3.Row]:
-    """Links touching a card, in either direction, with the other card's name."""
+    """Links touching a card, in either direction, with the other card's name. A link to a deleted card is left out."""
     return connection.execute(
         """SELECT links.*, a.name AS from_name, b.name AS to_name FROM links
            JOIN cards a ON a.id=links.from_card JOIN cards b ON b.id=links.to_card
-           WHERE (from_card=? OR to_card=?) AND links.closed_at IS NULL ORDER BY links.id""",
+           WHERE (from_card=? OR to_card=?) AND links.closed_at IS NULL AND a.closed_at IS NULL AND b.closed_at IS NULL
+           ORDER BY links.id""",
         (card_id, card_id),
     ).fetchall()
 

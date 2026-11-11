@@ -1,0 +1,202 @@
+"""Delete a person or a line: gone from everything, kept for history, and Undo brings it back."""
+import json
+from types import SimpleNamespace
+
+import pytest
+
+
+@pytest.fixture
+def run(vault, mod):
+    def run(text, answer=None, platform="desktop"):
+        return mod("commands").handle(text, platform=platform, vault=vault, ask=lambda _q, _c: answer)
+
+    return run
+
+
+def live_names(vault):
+    with vault.read() as connection:
+        return sorted(row[0] for row in connection.execute("SELECT name FROM cards WHERE closed_at IS NULL"))
+
+
+def card_id(vault, name):
+    with vault.read() as connection:
+        return connection.execute("SELECT id FROM cards WHERE name=?", (name,)).fetchone()[0]
+
+
+# Store upgrade.
+
+def test_v2_store_is_upgraded_with_its_data_unchanged(tmp_path, mod):
+    vault = mod("vault").Vault(tmp_path, keys=mod("device_key").DeviceKeys(tmp_path, use_keychain=False))
+    vault.setup()
+    mod("commands").handle('save "Sis Nel" lives on Elm Street', platform="cli", vault=vault)
+    mod("commands").handle("link Priya sister \"Sis Nel\"", platform="cli", vault=vault)
+    with vault.write() as connection:
+        connection.execute("ALTER TABLE cards DROP COLUMN closed_at")  # the v2 shape
+        connection.execute("PRAGMA user_version=2")
+        before = {table: [tuple(row) for row in connection.execute(f"SELECT * FROM {table} ORDER BY id")] for table in ("cards", "details", "links", "aliases", "changes")}
+    with vault.read() as connection:
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == 3 == mod("db").SCHEMA_VERSION
+        after = {table: [tuple(row) for row in connection.execute(f"SELECT * FROM {table} ORDER BY id")] for table in before}
+    assert [row[:-1] for row in after["cards"]] == before["cards"] and all(row[-1] is None for row in after["cards"])
+    assert {t: after[t] for t in ("details", "links", "aliases", "changes")} == {t: before[t] for t in ("details", "links", "aliases", "changes")}
+
+
+# Delete a person in chat.
+
+def test_delete_then_undo(run, vault):
+    run('save "Sis Nel" lives on Elm Street')
+    assert run('delete Sis Nel') == "Deleted Sis Nel from MyFolks. Undo: /myfolks undo"
+    assert live_names(vault) == []
+    assert run("undo") == "Undone: deleted Sis Nel."
+    assert live_names(vault) == ["Sis Nel"]
+    assert "lives on Elm Street" in run("sis nel")
+
+
+def test_delete_keeps_every_row(run, vault):
+    run('save "Sis Nel" lives on Elm Street')
+    run("link Priya sister \"Sis Nel\"")
+    run("delete Sis Nel")
+    with vault.read() as connection:
+        assert connection.execute("SELECT count(*) FROM details WHERE closed_at IS NULL").fetchone()[0] == 1
+        assert connection.execute("SELECT count(*) FROM links WHERE closed_at IS NULL").fetchone()[0] == 1
+        assert connection.execute("SELECT count(*) FROM aliases").fetchone()[0] >= 1
+
+
+def test_deleted_person_is_gone_from_every_read(run, vault, mod):
+    run('save "Sis Nel" phone 555 0100')
+    run("save Priya likes tea")
+    run("link Priya sister \"Sis Nel\"")
+    deleted_id = card_id(vault, "Sis Nel")
+    run("delete Sis Nel")
+    assert run("sis nel") == "Nothing saved about that."
+    assert run("nel") == "No one called nel yet."
+    assert run("priya") == "Priya\nlikes tea\n1 note · last saved today"  # the link to a deleted person is left out
+    assert run("priya sister") == "Nothing saved about that."
+    assert run(f"#{deleted_id}") == "Nothing saved about that."
+    assert run("sis nell") == "Nothing saved about that."  # no "Did you mean" for a deleted person
+    assert run("").startswith("MyFolks: 1 card.")
+    service = mod("desktop_service")
+    assert [c["name"] for c in service.find("", vault=vault)["cards"]] == ["Priya"]
+    assert service.find("nel", vault=vault)["cards"] == []
+    assert service.card_detail(deleted_id, vault=vault) == {"state": "missing"}
+    assert [link for link in service.card_detail(card_id(vault, "Priya"), vault=vault)["links"]] == []
+    assert service.status(vault=vault)["cards"] == 1
+    reply = json.loads(mod("ai_tool").handle({"action": "lookup", "question": "sis nel phone"}, vault=vault, session=("cli", None)))
+    assert reply["status"] != "found"
+    with vault.read() as connection:
+        exported = mod("backup").export_document(connection)
+    assert [card["name"] for card in exported["cards"]] == ["Priya"]
+
+
+def test_saving_to_a_deleted_name_is_an_unknown_name(run, vault):
+    run('save "Sis Nel" lives on Elm Street')
+    run("delete Sis Nel")
+    assert run('save "Sis Nel" likes figs') == "New card for Sis Nel. Saved."
+    assert live_names(vault) == ["Sis Nel"]
+    with vault.read() as connection:
+        assert connection.execute("SELECT count(*) FROM cards WHERE name='Sis Nel'").fetchone()[0] == 2
+
+
+def test_close_name_asks_first(run, vault):
+    run("save Rositah likes tea")
+    assert run("delete Rositha", answer="cancel") == "Nothing was changed."
+    assert live_names(vault) == ["Rositah"]
+    assert run("delete Rositha", answer=str(card_id(vault, "Rositah"))).startswith("Deleted Rositah")
+
+
+def test_close_name_on_telegram_gives_the_commands(vault, mod, monkeypatch):
+    monkeypatch.setattr(mod("owner"), "allowed_users", lambda platform: ({"111"}, False))
+    with vault.write() as connection:
+        connection.execute("INSERT INTO owners(platform,user_id,created_at) VALUES('telegram','111','2026-01-01')")
+    mod("commands").handle("save Rositah likes tea", platform="cli", vault=vault)
+    source = SimpleNamespace(user_id="111", chat_type="dm", is_bot=False)
+    reply = mod("commands").handle("delete Rositha", platform="telegram", source=source, vault=vault)
+    assert reply == "Did you mean Rositah?\nNothing was deleted. To go ahead, send one of these:\n/myfolks delete Rositah"
+    assert live_names(vault) == ["Rositah"]
+
+
+def test_unknown_name_and_usage(run):
+    assert run("delete Zed") == "No one called Zed yet."
+    assert run("delete") == "To delete someone: /myfolks delete <name>"
+
+
+def test_shared_people_and_the_ai_can_never_delete(vault, mod, monkeypatch):
+    monkeypatch.setattr(mod("owner"), "allowed_users", lambda platform: ({"111", "222"}, False))
+    with vault.write() as connection:
+        connection.execute("INSERT INTO owners(platform,user_id,created_at) VALUES('telegram','111','2026-01-01')")
+    mod("commands").handle("save Priya likes tea", platform="cli", vault=vault)
+    source = SimpleNamespace(user_id="222", chat_type="dm", is_bot=False)
+    assert mod("commands").handle("delete Priya", platform="telegram", source=source, vault=vault, shared="telegram:222:add") == "MyFolks isn't available here."
+    reply = json.loads(mod("ai_tool").handle({"action": "delete", "name": "Priya"}, vault=vault, session=("cli", None)))
+    assert reply["status"] not in ("saved", "deleted")
+    assert live_names(vault) == ["Priya"]
+
+
+# Import and Google sync never bring a deleted person back.
+
+def _import(vault, mod, *contacts):
+    importer = mod("importer")
+    return importer.import_in_batches(vault, [importer.Incoming(**c) for c in contacts], "test import").summary
+
+
+def test_import_skips_a_deleted_person_by_phone_email_or_name(run, vault, mod):
+    run('save "Sis Nel" phone 555 0100')
+    run('save Bo email bo@example.com')
+    run('save Cy likes tea')
+    for name in ("Sis Nel", "Bo", "Cy"):
+        run(f'delete {name}')
+    summary = _import(vault, mod, {"name": "Nelly S", "phones": ["555 0100"]}, {"name": "Robert", "emails": ["bo@example.com"]}, {"name": "Cy"}, {"name": "Dee"})
+    assert (summary.skipped, summary.new) == (3, 1)
+    assert live_names(vault) == ["Dee"]
+
+
+def test_review_never_offers_a_deleted_person(run, vault, mod):
+    run('save "Mel Ortiz" likes tea')
+    _import(vault, mod, {"name": "Mel Ortiz", "phones": ["555 0103"]})
+    run('delete Mel Ortiz')
+    assert mod("commands").handle("review", platform="cli", vault=vault).splitlines()[1] == "1. Mel Ortiz [phone 555 0103] could be: "
+    items = mod("desktop_service").review_list(vault=vault)["items"]
+    assert items and items[0]["candidates"] == []
+
+
+# Desktop.
+
+def test_desktop_delete_person_and_undo(run, vault, mod):
+    run('save "Sis Nel" lives on Elm Street')
+    service = mod("desktop_service")
+    result = service.delete_person(card_id(vault, "Sis Nel"), vault=vault)
+    assert result["state"] == "ready" and isinstance(result["change_id"], int) and result["name"] == "Sis Nel"
+    assert live_names(vault) == []
+    assert service.delete_person(card_id(vault, "Sis Nel"), vault=vault) == {"state": "missing"}
+    assert run("undo") == "Undone: deleted Sis Nel."
+    assert live_names(vault) == ["Sis Nel"]
+
+
+def test_desktop_copy_for_delete():
+    from pathlib import Path
+
+    js = (Path(__file__).parent.parent / "desktop" / "plugin.js").read_text()
+    for line in ("deletePerson: 'Delete person',", "deletePersonTitle: name => `Delete ${name}?`,",
+                 "deletePersonBody: 'They disappear from MyFolks. Their details stay in history, and Undo brings them back.',",
+                 "delete: 'Delete',", "cancel: 'Cancel',"):
+        assert line in js
+    assert "jsx(ConfirmDialog, {" in js and "destructive: true" in js
+
+
+def test_google_sync_never_brings_a_deleted_person_back(run, vault, monkeypatch, mod):
+    import sys
+    import types
+
+    from test_google_sync import FakeHermes, ProviderNotSignedIn, person
+
+    fake = FakeHermes()
+    helper = types.ModuleType("hermes_cli.plugin_provider_requests")
+    helper.ProviderNotSignedIn, helper.credentialed_provider_request = ProviderNotSignedIn, fake
+    if "hermes_cli" not in sys.modules:
+        monkeypatch.setitem(sys.modules, "hermes_cli", types.ModuleType("hermes_cli"))
+    monkeypatch.setitem(sys.modules, "hermes_cli.plugin_provider_requests", helper)
+    fake.people = [person("Sis Nel", "555 0100"), person("Dee", "555 0104")]
+    run("sync")
+    run("delete Sis Nel")
+    assert run("sync") == "Google contacts synced: nothing new."
+    assert live_names(vault) == ["Dee"]

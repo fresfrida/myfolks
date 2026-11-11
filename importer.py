@@ -293,10 +293,20 @@ class _Index:
         self.values: dict[tuple[str, str], set[int]] = {}
         self.names: dict[int, str] = {}
         self.buckets: dict[str, set[int]] = {}
+        self.deleted: set[int] = set()
+        self.deleted_names: set[str] = set()
         for row in connection.execute("SELECT card_id,field,norm_value FROM details WHERE closed_at IS NULL AND norm_value IS NOT NULL"):
             self.add_value(row["field"], row["norm_value"], row["card_id"])
-        for row in connection.execute("SELECT id,norm_name FROM cards"):
-            self.add_name(row["id"], row["norm_name"])
+        for row in connection.execute("SELECT id,norm_name,closed_at FROM cards"):
+            if row["closed_at"] is None:
+                self.add_name(row["id"], row["norm_name"])
+            else:
+                self.deleted.add(row["id"])
+                self.deleted_names.add(row["norm_name"])
+
+    def is_deleted(self, contact: Incoming, by_value: set[int]) -> bool:
+        """A contact that matches a deleted person by phone, email or exact name: never brought back."""
+        return bool(by_value & self.deleted) or normalize(contact.name) in self.deleted_names
 
     def add_value(self, kind: str, value: str, card_id: int) -> None:
         self.values.setdefault((kind, value), set()).add(card_id)
@@ -387,6 +397,9 @@ def _apply_one(connection: sqlite3.Connection, change: db.Change, index: "_Index
         summary.skipped += 1
         return
     by_value = index.by_contact_value(contact)
+    if index.is_deleted(contact, by_value):
+        summary.skipped += 1
+        return
     if len(by_value) == 1:
         added = merge_into(change, next(iter(by_value)), contact, source, index, summary.aliases)
         if added:
@@ -468,13 +481,15 @@ def pending_reviews(connection: sqlite3.Connection) -> list[sqlite3.Row]:
     return connection.execute("SELECT * FROM review WHERE status='pending' ORDER BY id").fetchall()
 
 
-def review_contact(row: sqlite3.Row) -> tuple[Incoming, list[int]]:
+def review_contact(row: sqlite3.Row, connection: sqlite3.Connection) -> tuple[Incoming, list[int]]:
+    """The waiting contact and its candidate cards, leaving out any card deleted since."""
     payload = json.loads(row["payload"])
-    return Incoming(**payload["incoming"]), payload["candidates"]
+    live = [card_id for card_id in payload["candidates"] if cards.card_by_id(connection, card_id) is not None]
+    return Incoming(**payload["incoming"]), live
 
 
 def resolve_review(connection: sqlite3.Connection, row: sqlite3.Row, action: str, card_id: Optional[int], source: str) -> str:
-    contact, _candidates = review_contact(row)
+    contact, _candidates = review_contact(row, connection)
     change = db.Change(connection, "review", source)
     if action == "merge":
         merge_into(change, card_id, contact, row["source"])

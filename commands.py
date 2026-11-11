@@ -19,7 +19,7 @@ _WARNED_SETTING = "terminal_warning_shown"
 _SELF_WORDS = {"me", "my", "i", "myself"}
 _ALIAS_WORDS = {"alias", "aka", "nickname"}
 _TYPO_VERBS = ("save", "link", "history", "correct", "undo", "review")
-_VERBS = {*_TYPO_VERBS, "hide", "unhide", "sync"}
+_VERBS = {*_TYPO_VERBS, "hide", "unhide", "sync", "delete"}
 _MAX_QUESTIONS = 4
 _OFFER_KEY = "offer:link"
 _GOOGLE_CHECKED_KEY = "google:checked"
@@ -289,7 +289,7 @@ def _run(raw: str, vault: Vault, label: str, terminal: bool, answers: dict, acce
         return messages.REFUSED
     if verb == "sync":
         return _sync_command(vault, parts[1:])
-    writers = {"save": _save, "link": _link, "correct": _correct, "undo": _undo, "review": _review, "hide": _hide, "unhide": _unhide}
+    writers = {"save": _save, "link": _link, "correct": _correct, "undo": _undo, "review": _review, "hide": _hide, "unhide": _unhide, "delete": _delete}
     if verb in writers:
         try:
             with vault.write() as connection:
@@ -670,7 +670,7 @@ def _review_list(context: Context) -> str:
         return messages.REVIEW_EMPTY
     entries = []
     for row in rows[:10]:
-        contact, candidates = importer.review_contact(row)
+        contact, candidates = importer.review_contact(row, context.connection)
         names = [(card_id, cards.card_by_id(context.connection, card_id)["name"]) for card_id in candidates]
         entries.append(messages.review_entry(row["id"], contact.name, contact.lines()[:2], names))
     return "\n".join([messages.review_title(len(rows)), *entries, messages.REVIEW_HOW])
@@ -688,7 +688,7 @@ def _review(context: Context, _raw: str, parts: list[Token]) -> str:
         return messages.REVIEW_NOT_FOUND
     card_id = None
     if action == "merge":
-        _contact, candidates = importer.review_contact(row)
+        _contact, candidates = importer.review_contact(row, context.connection)
         if len(parts) >= 3:
             card_id = ascii_number(parts[2].text.lstrip("#"))
         elif len(candidates) == 1:
@@ -696,6 +696,27 @@ def _review(context: Context, _raw: str, parts: list[Token]) -> str:
         if card_id not in candidates:
             return messages.REVIEW_WHICH_CARD
     return messages.done(importer.resolve_review(context.connection, row, action, card_id, context.source_label))
+
+
+def _delete(context: Context, _raw: str, parts: list[Token]) -> str:
+    """`/myfolks delete <name>`: the person leaves MyFolks, everything kept for history and undo."""
+    typed = " ".join(p.text for p in parts)
+    if not typed:
+        return messages.USAGE_DELETE
+    matches = lookup.cards_for_words(context.connection, [typed])
+    if matches:
+        card = context.pick(matches, typed)
+    else:
+        close = cards.find_close_cards(context.connection, typed)
+        if not close:
+            return messages.no_one_called(typed)
+        card = _confirm_or_cancel(context, typed, close, lambda name: f"/myfolks delete {name}", messages.did_you_mean_delete_fallback)
+        if card is None:
+            return messages.CANCELLED
+    change = db.Change(context.connection, "delete", context.source_label)
+    cards.delete_card(change, card)
+    change.finish(f"deleted {card['name']}")
+    return messages.deleted_person(card["name"])
 
 
 def _undo(context: Context, _raw: str, _parts: list[Token]) -> str:

@@ -60,7 +60,7 @@ def unseal(blob: bytes, passphrase: str) -> bytes:
 def export_document(connection) -> dict:
     """Everything saved, readable, for the terminal-only plaintext export."""
     people = []
-    for card in connection.execute("SELECT * FROM cards ORDER BY norm_name, id"):
+    for card in connection.execute("SELECT * FROM cards WHERE closed_at IS NULL ORDER BY norm_name, id"):  # a deleted person isn't exported
         aliases = [row["alias"] for row in connection.execute("SELECT alias FROM aliases WHERE card_id=? ORDER BY id", (card["id"],))]
         lines = [
             {"text": line["text"], "saved_at": line["saved_at"], "source": line["source"], "closed_at": line["closed_at"], "private": bool(line["private"])}

@@ -251,6 +251,7 @@ def test_old_store_is_updated_on_open(tmp_path, mod):
     instance.setup()
     with instance.write() as connection:
         connection.execute("ALTER TABLE details DROP COLUMN private")
+        connection.execute("ALTER TABLE cards DROP COLUMN closed_at")  # a real v1 store had neither
         connection.execute("PRAGMA user_version=1")
         connection.execute("INSERT INTO settings(key,value) VALUES('old','store')")
     with instance.read() as connection:
