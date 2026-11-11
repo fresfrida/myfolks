@@ -207,7 +207,7 @@ def test_refuses_when_platform_missing(run):
 
 def test_not_set_up_message(tmp_path, mod):
     instance = mod("vault").Vault(tmp_path, keys=mod("device_key").DeviceKeys(tmp_path, use_keychain=False))
-    assert "send /myfolks in the terminal" in mod("commands").handle("", platform="desktop", vault=instance)
+    assert "send /myfolks in the terminal" in mod("commands").handle("", platform="cli", vault=instance)
 
 
 def test_handler_needs_no_import_after_register(monkeypatch):

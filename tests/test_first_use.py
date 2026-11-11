@@ -14,8 +14,8 @@ def fresh(tmp_path, mod):
 
 
 @pytest.fixture
-def terminal():
-    """First use needs no terminal check inside Hermes chat: the surface decides."""
+def terminal(mod, monkeypatch):
+    monkeypatch.setattr(mod("cli"), "_in_terminal", lambda _streams: True)
 
 
 def test_first_use_in_terminal_sets_up_and_answers(fresh, mod, terminal):
@@ -35,8 +35,8 @@ def test_myfolks_command_in_the_terminal_too(fresh, mod, terminal):
     assert reply.startswith("MyFolks is ready.") and "MyFolks: 0 cards" in reply
 
 
-def test_no_platform_does_not_set_up(fresh, mod):
-    assert mod("commands").handle("priya", platform=None, vault=fresh) == "MyFolks isn't available here."
+def test_not_a_real_terminal_does_not_set_up(fresh, mod):
+    assert mod("commands").handle("priya", platform="cli", vault=fresh).startswith("MyFolks isn't set up yet.")
     assert not fresh.exists()
 
 
