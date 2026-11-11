@@ -137,3 +137,16 @@ def test_unknown_name_says_no_one_by_that_name(setup):
 def test_known_name_shows_the_card_through_the_hook(setup):
     setup.send("/myfolks priya")
     assert setup.adapter.sent[0][1].startswith("Priya\n")
+
+
+def test_shared_person_not_on_the_bot_allow_list_passes_through(setup, mod, monkeypatch):
+    monkeypatch.setattr(mod("owner"), "allowed_users", lambda platform: ({"111"}, False))
+    assert setup.send("/myfolks priya allergy", user="222") is None
+    assert setup.send("myfolks priya allergy", user="222") == {"action": "rewrite", "text": "/contacts priya allergy"}
+    assert setup.adapter.sent == []
+    assert setup.send("/myfolks priya allergy", user="111")["action"] == "skip"
+
+
+def test_open_bot_lets_a_shared_person_through_ingress(setup, mod, monkeypatch):
+    monkeypatch.setattr(mod("owner"), "allowed_users", lambda platform: (set(), True))
+    assert setup.send("/myfolks priya allergy", user="222")["action"] == "skip"

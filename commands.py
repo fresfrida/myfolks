@@ -110,6 +110,8 @@ def answers_at_ingress(raw_args: str, *, platform: str, source, shared=None, vau
         if not store.exists():
             return False
         name = platform.strip().lower()
+        if not owner.hermes_allows(name, getattr(source, "user_id", None)):
+            return False  # Hermes would turn this sender away: leave it to Hermes, unchanged
         return owner.is_messaging_owner(store, name, source) or owner.shared_access(name, source, shared) is not None
     except Exception:
         return False

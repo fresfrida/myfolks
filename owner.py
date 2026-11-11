@@ -89,6 +89,14 @@ def allowed_users(platform: str) -> tuple[set[str], bool]:
     return users, open_to_all or "*" in users
 
 
+def hermes_allows(platform: str, user_id) -> bool:
+    """Whether Hermes itself lets this sender in on this platform: on its allow list, or open to all."""
+    if user_id is None:
+        return False
+    users, open_to_all = allowed_users(platform)
+    return open_to_all or str(user_id) in users
+
+
 def sole_allowed_user(platform: str) -> Optional[str]:
     users, open_to_all = allowed_users(platform)
     return next(iter(users)) if len(users) == 1 and not open_to_all else None
