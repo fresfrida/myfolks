@@ -106,7 +106,9 @@ In chat apps such as Telegram, start a message with `myfolks`:
 - `myfolks remember Mel's dog's name Ollie` saves, and links Ollie as Mel's dog, because the words can't mean anything else. `save`, `keep` and `note` work too.
 - `Myfolks, mel dog` looks something up.
 
-The wake word works only at the start of a chat app message. A mention mid-sentence goes to the AI. In the terminal and Desktop, use `/myfolks`. You can change the wake word, or turn it off, in Settings, then Plugins, then MyFolks, then Agent settings, or in `config.yaml`:
+The wake word works only at the start of a chat app message. A mention mid-sentence goes to the AI.
+
+In chat apps, the wake word is how to ask while Hermes is busy. A `/myfolks` or `/contacts` sent while Hermes is still replying interrupts Hermes's current task and gets "Use myfolks <question> while Hermes is busy." instead, because Hermes doesn't let plugin commands skip its busy handling. In the terminal and Desktop, use `/myfolks`. You can change the wake word, or turn it off, in Settings, then Plugins, then MyFolks, then Agent settings, or in `config.yaml`:
 
 ```yaml
 plugins:
@@ -237,7 +239,7 @@ Run these yourself from a checkout, with a Python that has `cryptography`. Measu
 | Save at the same size | 14.5 ms median, 21.5 ms slowest | `python3 tests/benchmark.py` |
 | Wake word check on each chat message | 0.38 microseconds median for an ordinary message | `python3 tests/benchmark.py` |
 | Lookup while 5,000 contacts import | 1.8 ms median, 68 ms slowest | `python3 tests/benchmark.py` |
-| Full test suite | 835 passed on macOS, and 835 passed on Linux in a container | `python3 -m pytest tests` |
+| Full test suite | 846 passed on macOS, and 846 passed on Linux in a container | `python3 -m pytest tests` |
 | Plugin check | Passed, security scan `safe` | `hermes plugins validate .` |
 
 ## License
