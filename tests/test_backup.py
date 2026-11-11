@@ -132,7 +132,7 @@ def test_overwrite_after_typed_confirmation(filled, cli, tmp_path, mod):
     run_backup(cli, filled, path)
     mod("commands").handle("save Marco likes jazz", platform="cli", vault=filled)
     assert run_restore(cli, filled, path, typed="REPLACE")[0] == 0
-    assert lookup(mod, filled, "marco") == "Nothing saved about that."
+    assert lookup(mod, filled, "marco") == "No one called marco yet."
     assert "allergic" in lookup(mod, filled, "priya allergic")
 
 

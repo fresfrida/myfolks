@@ -5,6 +5,7 @@ import pytest
 
 SET = json.loads((Path(__file__).parent / "search_set.json").read_text())
 NOTHING = "Nothing saved about that."
+NO_ONE = "No one called "
 
 
 @pytest.fixture
@@ -45,13 +46,13 @@ def outcome(item, reply):
     if expect == "ask":
         return reply.startswith(find) and '"' not in reply.split("To see it")[0]
     if expect == "direct":
-        return not is_unsure(reply) and find in reply and reply != NOTHING
+        return not is_unsure(reply) and find in reply and not (reply == NOTHING or reply.startswith(NO_ONE))
     if expect == "related":
         return is_unsure(reply) and find in reply
     if expect == "nothing":
-        return reply == NOTHING
+        return (reply == NOTHING or reply.startswith(NO_ONE))
     if expect == "not_direct":
-        return is_unsure(reply) or reply == NOTHING
+        return is_unsure(reply) or (reply == NOTHING or reply.startswith(NO_ONE))
     if expect == "card":
         return find in reply.split("\n")[0]
     raise AssertionError(expect)
@@ -68,7 +69,7 @@ def test_question_set_prints_score(loaded):
     print(f"\nSEARCH SCORE: {total - len(misses)}/{total} correct, {len(misses)} misses")
     for item, reply in misses:
         print(f"MISS [{item['expect']}] {item['q']!r}" + (f" choose={item['choose']}" if "choose" in item else "") + f" -> {reply.splitlines()[0]!r}" + (f" | {reply.splitlines()[1]!r}" if len(reply.splitlines()) > 1 else ""))
-    wrong_direct = [(item, reply) for item, reply in misses if item["expect"] in ("nothing", "not_direct") and not is_unsure(reply) and body_of(reply) != NOTHING]
+    wrong_direct = [(item, reply) for item, reply in misses if item["expect"] in ("nothing", "not_direct") and not is_unsure(reply) and not (body_of(reply) == NOTHING or body_of(reply).startswith(NO_ONE))]
     for item, reply in wrong_direct:
         print(f"WRONG ANSWER LABELED DIRECT: {item['q']!r} -> {reply.splitlines()[0]!r}")
     assert not wrong_direct, "a question with no answer returned a direct answer"
@@ -81,7 +82,7 @@ def test_known_case_allergy_finds_line(loaded, question):
 
 def test_known_case_favorite_food_is_not_direct(loaded):
     reply = loaded("priya favorite food")
-    assert is_unsure(reply) or reply == NOTHING
+    assert is_unsure(reply) or (reply == NOTHING or reply.startswith(NO_ONE))
 
 
 def test_known_case_shoe_size_is_nothing(loaded):

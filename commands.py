@@ -709,7 +709,8 @@ def _query(context: Context, raw: str) -> str:
     if resolved is None:
         chosen = _chosen_close_card(context, words)
         if chosen is None:
-            return messages.NOTHING
+            typed = next((part.text for part in tokens(raw) if part.text.casefold() not in STOPWORDS and not part.text.startswith("#")), "")
+            return messages.no_one_called(typed) if typed else messages.NOTHING
         if chosen[0] is None:
             return messages.CANCELLED
         linked, left = lookup.follow_links(context.connection, chosen[0], chosen[1], context.pick)

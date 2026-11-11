@@ -127,3 +127,13 @@ def test_other_messages_are_untouched_and_instant(setup, text):
         hook(event=event(text), gateway=setup.gateway)
         samples.append(time.perf_counter() - started)
     assert statistics.median(samples) < 0.001 and max(samples) < 0.01
+
+
+def test_unknown_name_says_no_one_by_that_name(setup):
+    assert setup.send("/myfolks zed")["action"] == "skip"
+    assert setup.adapter.sent == [("c1", "No one called zed yet.")]
+
+
+def test_known_name_shows_the_card_through_the_hook(setup):
+    setup.send("/myfolks priya")
+    assert setup.adapter.sent[0][1].startswith("Priya\n")

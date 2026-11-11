@@ -105,6 +105,10 @@ def answer(name: str, lines: list[tuple[str, str, str]], unsure: bool, render: C
 
 
 NOTHING = "Nothing saved about that."
+
+
+def no_one_called(name: str) -> str:
+    return f"No one called {value(name)} yet."
 REFUSED = "MyFolks isn't available here."
 TERMINAL_WARNING = "Heads up: Hermes keeps a plain-text history of what you type in this terminal, including this command."
 
