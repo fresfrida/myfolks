@@ -19,11 +19,18 @@ const COPY = {
   notSetUpCommand: 'hermes myfolks setup',
   setUp: 'Set up MyFolks',
   settingUp: 'Setting up…',
+  setupDone: 'MyFolks is ready.',
+  setupStoredHere: 'What you save in MyFolks is stored only on this device. Your address book is separate, and MyFolks never changes it.',
   setupCodeIntro: 'Your recovery code. It is shown once. Keep it somewhere safe:',
-  setupCodeNeeded: 'If you lose both this device and this code, your contacts are gone.',
+  setupCodePurpose: 'It unlocks MyFolks after you restore a Hermes backup, or if MyFolks stops opening.',
+  setupBackupIntro: 'To keep what you saved in MyFolks if you lose this device, back up and keep the file somewhere else:',
+  setupBackupHermes: 'hermes backup',
+  setupBackupHermesNote: 'all of Hermes, MyFolks included',
+  setupBackupMyfolks: 'hermes myfolks backup',
+  setupBackupMyfolksNote: 'only MyFolks, with a passphrase you choose',
   savedIt: 'I’ve saved it',
   lockedTitle: 'MyFolks can’t open its data',
-  lockedBody: 'Nothing was changed. If you moved to a new device, run this in your terminal.',
+  lockedBody: 'Nothing was changed. To unlock it with your recovery code, run this in your terminal.',
   lockedCommand: 'hermes myfolks recover',
   busyTitle: 'MyFolks is busy',
   busyBody: 'Try again in a moment.',
@@ -113,6 +120,8 @@ function useNarrow() {
 const Muted = ({ children }) => jsx('div', { className: 'text-xs text-(--ui-text-tertiary)', children })
 const Note = ({ children }) => jsx('div', { className: 'text-sm text-(--ui-text-secondary)', children })
 const Command = ({ children }) => jsx('code', { className: 'font-mono text-sm text-(--ui-text-secondary)', children })
+// The one thing the setup screen must get across: the card title's size on the command font.
+const RecoveryCode = ({ children }) => jsx('code', { className: 'font-mono text-lg font-medium', children })
 
 // The signature element: the saved words first, then when and where they came from.
 function Receipt({ line, onToggleHidden }) {
@@ -515,12 +524,23 @@ function SetupPanel({ ctx, onDone }) {
     return jsx(Failure, { body: COPY.errorBody, onRetry: start, title: COPY.errorTitle })
   }
   if (step.name === 'code') {
+    const group = children => jsx('div', { className: 'flex flex-col items-center gap-2', children })
     return jsxs('div', {
-      className: 'flex h-full flex-col items-center justify-center gap-3 p-6',
+      className: 'flex h-full flex-col items-center justify-center gap-4 p-6',
       children: [
-        jsx(Note, { children: COPY.setupCodeIntro }),
-        jsx(Command, { children: step.code }),
-        jsx(Note, { children: COPY.setupCodeNeeded }),
+        group([jsx(Note, { children: COPY.setupDone }), jsx(Note, { children: COPY.setupStoredHere })]),
+        group([
+          jsx(Note, { children: COPY.setupCodeIntro }),
+          jsx(RecoveryCode, { children: step.code }),
+          jsx(Note, { children: COPY.setupCodePurpose })
+        ]),
+        group([
+          jsx(Note, { children: COPY.setupBackupIntro }),
+          jsx(Command, { children: COPY.setupBackupHermes }),
+          jsx(Note, { children: COPY.setupBackupHermesNote }),
+          jsx(Command, { children: COPY.setupBackupMyfolks }),
+          jsx(Note, { children: COPY.setupBackupMyfolksNote })
+        ]),
         jsx(Button, { onClick: onDone, size: 'sm', children: COPY.savedIt })
       ]
     })

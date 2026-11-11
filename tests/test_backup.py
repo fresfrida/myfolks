@@ -33,7 +33,7 @@ def cli(mod):
 
 
 def args(path):
-    return argparse.Namespace(path=str(path))
+    return argparse.Namespace(path=str(path), output=str(path))
 
 
 def run_backup(cli, vault, path, secret=PASS):

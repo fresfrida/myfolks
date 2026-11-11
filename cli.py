@@ -14,8 +14,9 @@ def setup_parser(parser) -> None:
     commands.add_parser("setup", help="Create the encrypted store and show the recovery code once")
     commands.add_parser("recover", help="Open the store on this device with the recovery code")
     commands.add_parser("pair", help="Make a one-time code to link your messaging account")
+    backing_up = commands.add_parser("backup", help="Write an encrypted backup of MyFolks, protected by a passphrase")
+    backing_up.add_argument("-o", "--output", help=f"File or folder for the backup (default: ~/{BACKUP_PREFIX}<timestamp>{BACKUP_SUFFIX})")
     for name, text in (
-        ("backup", "Write an encrypted backup, protected by a passphrase"),
         ("restore", "Load an encrypted backup"),
         ("export", "Write an unencrypted copy after a typed confirmation"),
     ):
@@ -30,6 +31,7 @@ def run(args) -> int:
 
 
 SETUP_AT, SETUP_FROM = "set_up_at", "set_up_from"
+BACKUP_PREFIX, BACKUP_SUFFIX = "myfolks-backup-", ".mfbk"
 
 
 def create_store(vault, surface: str = "terminal") -> Optional[str]:
@@ -48,8 +50,27 @@ def create_store(vault, surface: str = "terminal") -> Optional[str]:
     return code
 
 
+def recovery_code_lines(code: str) -> list[str]:
+    """How a new recovery code is shown in the terminal: after setup, and after a restore into a new store."""
+    return [messages.SETUP_CODE_INTRO, code, messages.SETUP_CODE_PURPOSE]
+
+
 def setup_lines(code: str) -> list[str]:
-    return [messages.SETUP_DONE, messages.SETUP_CODE_INTRO, code, messages.SETUP_CODE_NEEDED]
+    return [
+        messages.SETUP_DONE,
+        messages.SETUP_STORED_HERE,
+        "",
+        *recovery_code_lines(code),
+        "",
+        messages.SETUP_BACKUP_INTRO,
+        *_aligned_rows([(messages.SETUP_BACKUP_HERMES, messages.SETUP_BACKUP_HERMES_NOTE), (messages.SETUP_BACKUP_MYFOLKS, messages.SETUP_BACKUP_MYFOLKS_NOTE)]),
+    ]
+
+
+def _aligned_rows(rows: list[tuple[str, str]]) -> list[str]:
+    """Indented command rows with their notes lined up in one column, as in a help listing."""
+    width = max(len(command) for command, _note in rows)
+    return [f"  {command.ljust(width)}    {note}" for command, note in rows]
 
 
 def cmd_setup(_args, *, vault=None, stdout=None) -> int:
@@ -180,9 +201,20 @@ def _write_new_file(path, data: bytes) -> None:
         os.fsync(handle.fileno())
 
 
-def cmd_backup(args, *, vault=None, read_secret=None, stdin=None, stdout=None) -> int:
+def backup_path(output: Optional[str], now=None):
+    """Where hermes myfolks backup writes, following hermes backup: no -o means the home folder,
+    a folder gets the default name inside it, anything else is the file itself. Always absolute."""
+    from datetime import datetime
     from pathlib import Path
 
+    name = f"{BACKUP_PREFIX}{(now or datetime.now()).strftime('%Y-%m-%d-%H%M%S')}{BACKUP_SUFFIX}"
+    if not output:
+        return Path.home() / name
+    path = Path(output).expanduser().resolve()
+    return path / name if path.is_dir() else path
+
+
+def cmd_backup(args, *, vault=None, read_secret=None, stdin=None, stdout=None) -> int:
     from . import backup
     from .vault import NotSetUp, Refused, Vault
 
@@ -194,7 +226,7 @@ def cmd_backup(args, *, vault=None, read_secret=None, stdin=None, stdout=None) -
     vault = vault or Vault()
     if not _recovery_code_ok(vault, ask, out):
         return 1
-    path = Path(args.path).expanduser()
+    path = backup_path(args.output)
     if path.exists():
         print(messages.FILE_EXISTS, file=out)
         return 1
@@ -214,11 +246,15 @@ def cmd_backup(args, *, vault=None, read_secret=None, stdin=None, stdout=None) -
         print(messages.LOCKED, file=out)
         return 1
     try:
+        path.parent.mkdir(parents=True, exist_ok=True)
         _write_new_file(path, backup.seal(database, passphrase))
     except FileExistsError:
         print(messages.FILE_EXISTS, file=out)
         return 1
-    print(messages.BACKUP_DONE, file=out)
+    except OSError:
+        print(messages.BACKUP_UNWRITABLE, file=out)
+        return 1
+    print(messages.backup_done(path), file=out)
     return 0
 
 
@@ -258,9 +294,8 @@ def cmd_restore(args, *, vault=None, read_secret=None, read_line=None, stdin=Non
         return 1
     print(messages.RESTORE_DONE, file=out)
     if code:
-        print(messages.SETUP_CODE_INTRO, file=out)
-        print(code, file=out)
-        print(messages.SETUP_CODE_NEEDED, file=out)
+        for line in recovery_code_lines(code):
+            print(line, file=out)
     return 0
 
 

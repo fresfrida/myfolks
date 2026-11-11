@@ -122,11 +122,18 @@ def new_card(name: str) -> str:
 
 
 NOT_SET_UP = "Run hermes myfolks setup in your own terminal."
-LOCKED = "MyFolks can't open its data. Nothing was changed. If you moved to a new device, run: hermes myfolks recover"
+LOCKED = "MyFolks can't open its data. Nothing was changed. To unlock it with your recovery code, run: hermes myfolks recover"
 BUSY = "MyFolks is busy. Try again in a moment."
 SETUP_DONE = "MyFolks is ready."
+SETUP_STORED_HERE = "What you save in MyFolks is stored only on this device. Your address book is separate, and MyFolks never changes it."
 SETUP_CODE_INTRO = "Your recovery code. It is shown once. Keep it somewhere safe:"
-SETUP_CODE_NEEDED = "If you lose both this device and this code, your contacts are gone."
+SETUP_CODE_PURPOSE = "It unlocks MyFolks after you restore a Hermes backup, or if MyFolks stops opening."
+SETUP_BACKUP_INTRO = "To keep what you saved in MyFolks if you lose this device, back up and keep the file somewhere else:"
+SETUP_BACKUP_HERMES = "hermes backup"
+SETUP_BACKUP_HERMES_NOTE = "all of Hermes, MyFolks included"
+SETUP_BACKUP_MYFOLKS = "hermes myfolks backup"
+SETUP_BACKUP_MYFOLKS_NOTE = "only MyFolks, with a passphrase you choose"
+SETUP_KEY_IS_FILE = "This machine has no keychain, so the MyFolks key is a file in your Hermes folder. Anyone with a copy of that folder, including a hermes backup, can read what you saved in MyFolks."
 SETUP_ALREADY = "MyFolks is already set up."
 SETUP_NEEDS_TERMINAL = "Run this directly in your own terminal, so the recovery code is not captured."
 RECOVER_PROMPT = "Recovery code: "
@@ -311,7 +318,13 @@ BACKUP_PROMPT = "Backup passphrase: "
 BACKUP_PROMPT_AGAIN = "Type it again: "
 BACKUP_MISMATCH = "Those didn't match. Nothing was written."
 BACKUP_SHORT = "Use at least 8 characters. Nothing was written."
-BACKUP_DONE = "Backup saved. Keep the passphrase safe: without it, this file can't be opened."
+
+
+def backup_done(path) -> str:
+    return f"Backup saved to {path}. Keep it somewhere other than this device. Keep the passphrase safe: without it, this file can't be opened."
+
+
+BACKUP_UNWRITABLE = "MyFolks can't write a file there. Nothing was written."
 FILE_EXISTS = "That file already exists. Choose a new name. Nothing was written."
 RESTORE_PROMPT = "Passphrase for this backup: "
 RESTORE_REFUSED = "That passphrase doesn't open this backup, or the file is damaged. Nothing was changed."

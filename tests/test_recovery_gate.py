@@ -32,7 +32,8 @@ def _args(tmp_path, command, stored, mod):
         backup = tmp_path / "in.mfbk"
         backup.write_bytes(mod("backup").seal(stored.database_bytes(), "correct horse battery"))
         return argparse.Namespace(path=str(backup))
-    return argparse.Namespace(path=str(tmp_path / f"out-{command}"))
+    out = str(tmp_path / f"out-{command}")
+    return argparse.Namespace(path=out, output=out)
 
 
 @pytest.mark.parametrize("command", SENSITIVE)
