@@ -50,15 +50,29 @@ class DeviceKeys:
         return hashlib.sha256(str(self.directory.resolve()).encode()).hexdigest()[:32]
 
     def load(self) -> Optional[bytes]:
-        if self.file_path.exists():
-            return self._decode(self.file_path.read_text(encoding="ascii"))
+        """The first key found. Opening the store uses candidates(), which tries every key."""
+        found = self.candidates()
+        return found[0] if found else None
+
+    def candidates(self) -> list[bytes]:
+        """Every device key on this machine for this folder: the keychain's and the file's.
+        The store decides which one is right, so a stale file never hides a working keychain key."""
+        found: list[bytes] = []
         if self._keyring is not None:
             try:
                 stored = self._keyring.get_password(SERVICE, self._account)
             except Exception:
-                return None
-            return self._decode(stored) if stored else None
-        return None
+                stored = None
+            key = self._decode(stored) if stored else None
+            if key is not None:
+                found.append(key)
+        try:
+            from_file = self._decode(self.file_path.read_text(encoding="ascii")) if self.file_path.exists() else None
+        except (OSError, UnicodeDecodeError):
+            from_file = None
+        if from_file is not None and from_file not in found:
+            found.append(from_file)
+        return found
 
     def create(self) -> bytes:
         """Make a new device key, replacing any earlier one."""

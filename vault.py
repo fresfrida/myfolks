@@ -313,12 +313,21 @@ class Vault:
             finally:
                 connection.close()
 
+    def _data_key(self, header: dict) -> bytes:
+        """Try each device key on this machine and use whichever opens the store."""
+        candidates = self.keys.candidates() if hasattr(self.keys, "candidates") else [k for k in [self.keys.load()] if k]
+        if not candidates:
+            raise Refused("device key is missing")
+        for device_key in candidates:
+            try:
+                return _unwrap(device_key, header.get("device") or {}, _DEVICE_AAD)
+            except Refused:
+                continue
+        raise Refused("no device key opens this store")
+
     def _open(self) -> tuple[sqlite3.Connection, bytes, dict]:
         header, nonce, ciphertext, prefix = self._read_file()
-        device_key = self.keys.load()
-        if device_key is None:
-            raise Refused("device key is missing")
-        data_key = _unwrap(device_key, header.get("device") or {}, _DEVICE_AAD)
+        data_key = self._data_key(header)
         return self._decrypt(data_key, nonce, ciphertext, prefix), data_key, header
 
     def _read_file(self) -> tuple[dict, bytes, bytes, bytes]:
