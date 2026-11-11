@@ -14,6 +14,7 @@ Pick = Callable[[list, str], sqlite3.Row]
 _CARD_ID = re.compile(r"^#([0-9]{1,9})$")
 _MAX_HOPS = 4
 _MAX_NAME_WORDS = 3
+MAX_SPAN_WORDS = 12  # a name is looked for in the first 12 words only, so long messages stay fast
 
 
 @dataclass
@@ -47,6 +48,7 @@ def cards_for_words(connection: sqlite3.Connection, words: list[str]) -> list:
 
 def find_span(connection: sqlite3.Connection, words: list[str]) -> Optional[tuple[int, int, list]]:
     """The earliest, then longest, run of words naming at least one card."""
+    words = words[:MAX_SPAN_WORDS]
     for start in range(len(words)):
         for end in range(len(words), start, -1):
             matches = cards_for_words(connection, words[start:end])
@@ -57,6 +59,7 @@ def find_span(connection: sqlite3.Connection, words: list[str]) -> Optional[tupl
 
 def find_close_span(connection: sqlite3.Connection, words: list[str]) -> Optional[tuple[int, int, list]]:
     """Names one edit from what was typed. These never open a card: the user must choose first."""
+    words = words[:MAX_SPAN_WORDS]
     for start in range(len(words)):
         if words[start] in STOPWORDS:
             continue
