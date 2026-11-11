@@ -233,11 +233,11 @@ Run these yourself from a checkout, with a Python that has `cryptography`. Measu
 | Wrong key, wrong recovery code, tampered file | Refused, file untouched | `python3 tests/evidence_pack.py` |
 | Non-owner, group chat, missing sender | Refused | `python3 tests/evidence_pack.py` |
 | Near name | No details shown until you choose | `python3 tests/evidence_pack.py` |
-| Lookup at 5,000 cards and 20,000 details | 7.9 ms median, 8.8 ms slowest | `python3 tests/benchmark.py` |
-| Save at the same size | 14.1 ms median, 18.0 ms slowest | `python3 tests/benchmark.py` |
-| Wake word check on each chat message | 0.33 microseconds median for an ordinary message | `python3 tests/benchmark.py` |
-| Lookup while 5,000 contacts import | 1.1 ms median, 68 ms slowest | `python3 tests/benchmark.py` |
-| Full test suite | 685 passed on macOS, and 685 passed on Linux in a container | `python3 -m pytest tests` |
+| Lookup at 5,000 cards and 20,000 details | 8.3 ms median, 11.5 ms slowest | `python3 tests/benchmark.py` |
+| Save at the same size | 14.5 ms median, 21.5 ms slowest | `python3 tests/benchmark.py` |
+| Wake word check on each chat message | 0.38 microseconds median for an ordinary message | `python3 tests/benchmark.py` |
+| Lookup while 5,000 contacts import | 1.8 ms median, 68 ms slowest | `python3 tests/benchmark.py` |
+| Full test suite | 835 passed on macOS, and 835 passed on Linux in a container | `python3 -m pytest tests` |
 | Plugin check | Passed, security scan `safe` | `hermes plugins validate .` |
 
 ## License
