@@ -119,7 +119,8 @@ def handle(args: dict, *, vault: Optional[Vault] = None, enabled: bool = True, t
         if action == "lookup":
             return _lookup(store, args.get("question", ""))
         if action == "save":
-            return _save(store, args.get("name", ""), args.get("text", ""), tell_user)
+            with messages.replies_for(owner.local_surface(platform) or owner.messaging_label(platform or "")):
+                return _save(store, args.get("name", ""), args.get("text", ""), tell_user)
         return _reply(status="invalid")
     except NotSetUp:
         return _reply(status="not_set_up")

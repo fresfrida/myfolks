@@ -78,7 +78,7 @@ def _answer(connection: sqlite3.Connection, words: list[str]) -> Optional[dict]:
         close = lookup.find_close_span(connection, words)
         if close is None:
             return {"kind": "nothing"}
-        return {"kind": "did_you_mean", "question": messages.did_you_mean(" or ".join(card["name"] for card in close[2])), "choices": [_summary(card) for card in close[2]]}
+        return {"kind": "did_you_mean", "question": messages.did_you_mean([card["name"] for card in close[2]]), "choices": [_summary(card) for card in close[2]]}
     wanted = search.important_words(resolved.words)
     if not wanted:
         return {"kind": "card", "card": _summary(resolved.card)}

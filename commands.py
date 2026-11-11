@@ -68,7 +68,7 @@ def _picker(connection: sqlite3.Connection, answers: dict) -> Callable:
         raise NeedsAnswer(
             key,
             messages.CHOOSE_QUESTION,
-            [{"value": str(card_id), "label": f"{name} (#{card_id})", "description": hint} for card_id, name, hint in options],
+            [{"value": str(card_id), "label": messages.choice_label(name, card_id), "description": messages.value(hint)} for card_id, name, hint in options],
             messages.choose_fallback(options),
         )
 
@@ -287,8 +287,8 @@ def _confirm_close_name(context: Context, typed: str, close: list, command_for: 
     for card in close:
         if answer == str(card["id"]):
             return card
-    question = messages.did_you_mean(close[0]["name"] if len(close) == 1 else " or ".join(card["name"] for card in close))
-    choices = [{"value": str(card["id"]), "label": card["name"]} for card in close]
+    question = messages.did_you_mean([card["name"] for card in close])
+    choices = [{"value": str(card["id"]), "label": messages.choice_label(card["name"])} for card in close]
     choices.append({"value": "new", "label": messages.new_card_choice(typed)})
     commands = [command_for(_display_token(card["name"])) for card in close] + [new_command]
     raise NeedsAnswer(key, question, choices, messages.did_you_mean_fallback(question, commands))
@@ -425,8 +425,8 @@ def _confirm_or_cancel(context: Context, typed: str, close: list, command_for: C
     for card in close:
         if answer == str(card["id"]):
             return card
-    question = messages.did_you_mean(" or ".join(card["name"] for card in close))
-    choices = [{"value": str(card["id"]), "label": card["name"]} for card in close]
+    question = messages.did_you_mean([card["name"] for card in close])
+    choices = [{"value": str(card["id"]), "label": messages.choice_label(card["name"])} for card in close]
     choices.append({"value": "cancel", "label": messages.CANCEL_CHOICE})
     raise NeedsAnswer(key, question, choices, fallback(question, [command_for(_display_token(card["name"])) for card in close]))
 

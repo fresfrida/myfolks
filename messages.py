@@ -235,16 +235,21 @@ def import_summary(new: int, merged: int, review: int, unchanged: int, skipped: 
 # New wording below is TENTATIVE.
 
 
-def did_you_mean(name: str) -> str:
-    return f"Did you mean {name}?"
+def did_you_mean(names) -> str:
+    names = [names] if isinstance(names, str) else list(names)
+    return f"Did you mean {' or '.join(value(name) for name in names)}?"
 
 
 def new_card_choice(name: str) -> str:
-    return f"New card for {name}"
+    return f"New card for {value(name)}"
+
+
+def choice_label(name: str, card_id: Optional[int] = None) -> str:
+    return value(name) if card_id is None else f"{value(name)} (#{card_id})"
 
 
 def link_offer(right: str, left: str, relation: str) -> str:
-    return f"Also link {right} as {left}'s {relation}?"
+    return f"Also link {value(right)} as {value(left)}'s {value(relation)}?"
 
 
 def ai_wake_note(word: str, in_chat_app: bool) -> str:
@@ -288,15 +293,15 @@ CANCELLED = "Nothing was changed."
 
 
 def did_you_mean_open(question: str, commands: list[str]) -> str:
-    return "\n".join([value(question), "To see it, send:", *(value(command) for command in commands)])
+    return "\n".join([question, "To see it, send:", *(value(command) for command in commands)])
 
 
 def did_you_mean_fallback(question: str, commands: list[str]) -> str:
-    return "\n".join([value(question), "Nothing was saved. To go ahead, send one of these:", *(value(command) for command in commands)])
+    return "\n".join([question, "Nothing was saved. To go ahead, send one of these:", *(value(command) for command in commands)])
 
 
 def ai_saved(name: str, text: str) -> str:
-    return f'MyFolks saved to {name}: "{text}"'
+    return f'MyFolks saved to {value(name)}: "{value(text)}"'
 
 
 def hidden_only(name: str) -> str:

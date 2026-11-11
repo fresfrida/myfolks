@@ -45,12 +45,16 @@ TEMPLATES = {
     "did_you_mean_open": lambda m: m.did_you_mean_open(m.did_you_mean(NAME), [f"/contacts {NAME}"]),
     "did_you_mean_fallback": lambda m: m.did_you_mean_fallback(m.did_you_mean(NAME), [f"/contacts save {NAME} x"]),
     "hidden_only": lambda m: m.hidden_only(NAME),
+    "did_you_mean": lambda m: m.did_you_mean([NAME, NAME + "s"]),
+    "new_card_choice": lambda m: m.new_card_choice(NAME),
+    "choice_label": lambda m: m.choice_label(NAME, 3) + "\n" + m.choice_label(NAME),
+    "link_offer": lambda m: m.link_offer(NAME, NAME, RELATION),
+    "ai_saved": lambda m: m.ai_saved(NAME, f"{RELATION} is Ollie"),
 }
 
-# Text that never reaches a Telegram reply through Markdown: button questions and labels (Hermes
-# escapes them as HTML), terminal prompts, the AI's note and tool replies, and Desktop JSON.
+# Text that never reaches Telegram: terminal prompts, the AI's own note, and Desktop JSON.
 RAW_BY_DESIGN = {
-    "did_you_mean", "new_card_choice", "link_offer", "ai_wake_note", "ai_saved", "pair_ask_replace",
+    "ai_wake_note", "pair_ask_replace",
     "pair_instruction", "receipt", "telegram_words", "telegram_plain", "value", "replies_for", "date_label",
     "import_summary", "import_stopped", "overview", "notes_line", "numbered_line", "hidden_count_line",
     "hide_list_line", "review_title",
@@ -134,3 +138,36 @@ def test_review_and_choose_on_telegram(phone, vault, mod, tmp_path):
     literal(phone("review"))
     mod("commands").handle(f'save --new "{NAME}" second card', platform="cli", vault=vault)
     literal(phone(f'"{NAME}"'))
+
+
+def test_questions_and_buttons_on_telegram(phone, vault, mod):
+    mod("commands").handle(f'save "{NAME}" likes tea', platform="cli", vault=vault)
+    mod("commands").handle(f'save --new "{NAME}s" likes jam', platform="cli", vault=vault)
+    asked = []
+
+    def ask(question, choices):
+        asked.append(question)
+        asked.extend(choice["label"] for choice in choices)
+        asked.extend(choice.get("description") or "" for choice in choices)
+        return None
+
+    phone(f'"{NAME}z" tea', ask=ask)
+    phone(f'save "{NAME}z" likes cake', ask=ask)
+    phone(f'save "{NAME}" dog is Ollie', ask=ask)
+    assert asked and all(shows_literally(text) for text in asked), asked
+    assert f"Also link Ollie as `{NAME}`'s dog?" in asked
+    assert any(text.startswith("Did you mean `") for text in asked)
+
+
+def test_ai_save_confirmation_on_telegram(vault, mod, monkeypatch):
+    import json
+
+    monkeypatch.setattr(mod("owner"), "allowed_users", lambda platform: ({"111"}, False))
+    mod("commands").handle(f'save "{NAME}" likes tea', platform="cli", vault=vault)
+    told = []
+    sender = SimpleNamespace(user_id="111", chat_type="dm", is_bot=False)
+    reply = json.loads(mod("ai_tool").handle({"action": "save", "name": NAME, "text": f"{RELATION} is Ollie"}, vault=vault, tell_user=told.append, session=("telegram", sender)))
+    assert reply["status"] == "saved"
+    assert told and shows_literally(told[0]), told
+    local = json.loads(mod("ai_tool").handle({"action": "save", "name": NAME, "text": "likes jam"}, vault=vault, tell_user=told.append, session=("cli", None)))
+    assert local["tell_user"] == f'MyFolks saved to {NAME}: "likes jam"'
