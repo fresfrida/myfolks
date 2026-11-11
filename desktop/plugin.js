@@ -53,7 +53,7 @@ const COPY = {
   reviewNote: 'These came from an import and look like someone you already have.',
   settingsTitle: 'MyFolks',
   storeRow: 'Your data',
-  storeRowBody: 'Encrypted in this Hermes profile. Nothing is sent anywhere.',
+  storeRowBody: 'Encrypted in this Hermes profile. MyFolks itself connects to nothing.',
   recoveryRow: 'New device',
   recoveryRowBody: 'Use your recovery code with: hermes myfolks recover',
   importRow: 'Import',
