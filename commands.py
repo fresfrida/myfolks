@@ -555,7 +555,7 @@ def _plain_render(context: Context) -> Callable[[str], str]:
 def _card_view(context: Context, card: sqlite3.Row) -> str:
     lines = cards.active_lines(context.connection, card["id"], context.show_private)
     render = _plain_render(context)
-    out = [card["name"], *(render(line["text"]) for line in lines)]
+    out = [card["name"], *(render(line["text"]) + (messages.HIDDEN_SUFFIX if context.terminal and line["private"] else "") for line in lines)]
     for link in cards.open_links(context.connection, card["id"]):
         outgoing = link["from_card"] == card["id"]
         out.append(messages.link_line(link["relation"], link["to_name"] if outgoing else link["from_name"], outgoing))

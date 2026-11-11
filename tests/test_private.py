@@ -268,3 +268,17 @@ def test_future_store_is_refused(tmp_path, mod):
     with pytest.raises(mod("vault").Refused):
         with instance.read():
             pass
+
+
+def test_terminal_card_marks_hidden_lines(desk):
+    assert desk("priya").split("\n")[1:4] == ["likes tea", "sees a therapist on Tuesdays · hidden from chat", "plays tennis on Tuesdays"]
+
+
+def test_hidden_label_only_in_the_terminal(seeded, mod, phone):
+    assert "· hidden from chat" not in mod("commands").handle("priya", platform="desktop", vault=seeded)
+    assert "· hidden from chat" not in phone("priya")
+    assert "· hidden from chat" not in phone("history priya")
+
+
+def test_terminal_answer_lines_are_unlabelled(desk):
+    assert "· hidden from chat" not in desk("priya therapist")

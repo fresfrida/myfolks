@@ -249,6 +249,7 @@ def hidden_count_line(count: int) -> str:
 HIDE_ON_COMPUTER = "To hide a note from chat, use your computer."
 USAGE_HIDE = "To hide: /contacts hide <name> <line number>. To show again: /contacts unhide <name> <line number>."
 HIDDEN_DONE = "Hidden from chat."
+HIDDEN_SUFFIX = " · hidden from chat"
 SHOWN_DONE = "Showing in chat again."
 ALREADY_HIDDEN = "That line is already hidden from chat."
 ALREADY_SHOWN = "That line is already showing in chat."
