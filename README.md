@@ -6,6 +6,14 @@ Your people, their folks, the details that matter.
 
 A contact book your agent can't misremember.
 
+## Quick start
+
+1. Install: `hermes plugins install myfolks`
+2. On your computer, send `/myfolks` in the terminal, or open the MyFolks page in Hermes Desktop. The first time, it sets MyFolks up and shows your recovery code once.
+3. From anywhere Hermes works, send `myfolks remember Priya is allergic to peanuts`, then `myfolks priya allergy`.
+
+MyFolks acts on its own only when the result can't be wrong, tells you exactly what it did and how to undo it, and asks you first whenever a guess could be wrong.
+
 Ask about anyone, from anywhere Hermes works, and get back exactly what you saved, word for word, with when and where it came from. If it isn't saved, MyFolks says so. `/contacts` never calls a model, so it keeps answering when your AI is down.
 
 ```
@@ -30,6 +38,7 @@ June this year · Telegram
 - **Forgiving search.** Most one-letter typos and common synonyms find the right line, with no AI model.
 - **Encrypted and local.** One encrypted file on your machine. No account and no cloud.
 - **Yours only.** Only you, unless you change a setting. Group chats are refused.
+- **Your own words.** Use /contacts, /myfolks, a [wake word](#the-wake-word) you choose with no slash, or [your own short command](#choose-your-own-command).
 
 It works alongside any Hermes memory plugin. It does a different job: exact records, not recall.
 
@@ -43,13 +52,13 @@ Hermes asks whether to enable the plugin and whether to prepare its one Python d
 
 ## First setup and your recovery code
 
-Run this in your own terminal:
+The first `/myfolks` or `/contacts` in the terminal sets MyFolks up, and so does the MyFolks page in Hermes Desktop. You can also run this in your own terminal:
 
 ```bash
 hermes myfolks setup
 ```
 
-It shows a recovery code **once**. Keep it somewhere safe. If you lose both this device and this code, your contacts are gone.
+Each shows a recovery code **once**. Keep it somewhere safe. If you lose both this device and this code, your contacts are gone.
 
 On a new device, or if the device key is lost:
 
@@ -88,16 +97,26 @@ Saving needs `/contacts save`, `/myfolks save`, or the wake word at the start of
 /contacts mel dog
 ```
 
-`Mel's` saves to Mel. When the saved words name someone's dog, mom and so on, MyFolks offers to link them for you.
+`Mel's` saves to Mel. When the saved words are exactly one of these, and the name belongs to one card or to nobody yet, MyFolks links them without asking: `dog's name Ollie`, `dog's name is Ollie`, `dog is Ollie`, `dog Ollie`. The reply says `Linked Ollie as Mel's dog. Undo: /contacts undo`. In every other case, such as a name one letter away from another card, it asks first.
 
 ### The wake word
 
 In chat apps such as Telegram, start a message with `myfolks`:
 
-- `myfolks remember Mel's dog's name Ollie` saves. `save`, `keep` and `note` work too.
+- `myfolks remember Mel's dog's name Ollie` saves, and links Ollie as Mel's dog, because the words can't mean anything else. `save`, `keep` and `note` work too.
 - `Myfolks, mel dog` looks something up.
 
-The wake word works only at the start of a chat app message. A mention mid-sentence goes to the AI. In the terminal and Desktop, use `/myfolks`. You can change the wake word, or turn it off, in Settings, then Plugins, then MyFolks, then Agent settings.
+The wake word works only at the start of a chat app message. A mention mid-sentence goes to the AI. In the terminal and Desktop, use `/myfolks`. You can change the wake word, or turn it off, in Settings, then Plugins, then MyFolks, then Agent settings, or in `config.yaml`:
+
+```yaml
+plugins:
+  entries:
+    myfolks:
+      settings:
+        wake_word: folks
+```
+
+Leave it empty (`wake_word: ""`) to turn it off.
 
 ### Choose your own command
 
