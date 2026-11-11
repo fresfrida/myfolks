@@ -340,7 +340,7 @@
     },
     {
       "q": "sam ong spouse",
-      "expect": "related",
+      "expect": "card",
       "find": "Joanne"
     },
     {
