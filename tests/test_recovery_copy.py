@@ -41,10 +41,14 @@ def test_terminal_setup_prints_exactly_the_approved_screen(fresh, mod):
         f"{code}\n"
         "You need it if MyFolks stops opening, and to back up or export.\n"
         "\n"
-        "To keep what you saved if you lose that computer, back up and keep the file somewhere else:\n"
-        "  hermes myfolks backup    only MyFolks, locked with a passphrase you choose\n"
-        "  hermes backup            all of Hermes, MyFolks included. Treat the file like a password\n"
+        "Back up what you've saved, in case you lose that computer:\n"
+        "  hermes myfolks backup\n"
+        "You'll get one file, locked with a passphrase you choose. Keep it somewhere else, like a USB drive.\n"
+        "\n"
+        "About Hermes's own backups\n"
+        "If you also run hermes backup, those files include MyFolks.\n"
     )
+    assert "password" not in out.getvalue().lower()
 
 
 def test_desktop_setup_screen_has_the_same_text():
@@ -53,11 +57,11 @@ def test_desktop_setup_screen_has_the_same_text():
         "setupStoredHere: 'MyFolks keeps what you save only in your Hermes folder, on the computer that runs Hermes. If you use it from a chat app like Telegram, that app also keeps a copy of the chat. Your address book is separate, and MyFolks never changes it.',",
         "setupCodeIntro: 'Your recovery code. It is shown once. Keep it somewhere safe:',",
         "setupCodePurpose: 'You need it if MyFolks stops opening, and to back up or export.',",
-        "setupBackupIntro: 'To keep what you saved if you lose that computer, back up and keep the file somewhere else:',",
-        "setupBackupHermes: 'hermes backup',",
-        "setupBackupHermesNote: 'all of Hermes, MyFolks included. Treat the file like a password',",
-        "setupBackupMyfolks: 'hermes myfolks backup',",
-        "setupBackupMyfolksNote: 'only MyFolks, locked with a passphrase you choose',",
+        "setupBackupIntro: 'Back up what you’ve saved, in case you lose that computer:',",
+        "setupBackupCommand: 'hermes myfolks backup',",
+        "setupBackupResult: 'You’ll get one file, locked with a passphrase you choose. Keep it somewhere else, like a USB drive.',",
+        "setupHermesBackupHeading: 'About Hermes’s own backups',",
+        "setupHermesBackupNote: 'If you also run hermes backup, those files include MyFolks.',",
     ]:
         assert line in PLUGIN_JS
 
@@ -66,12 +70,13 @@ def test_desktop_setup_screen_keeps_the_terminal_order_and_ends_with_the_button(
     panel = PLUGIN_JS[PLUGIN_JS.index("function SetupPanel"):PLUGIN_JS.index("function Page(")]
     order = [
         "COPY.setupDone", "COPY.setupStoredHere", "COPY.setupCodeIntro", "RecoveryCode, { children: step.code }",
-        "COPY.setupCodePurpose", "COPY.setupBackupIntro", "row(COPY.setupBackupMyfolks, COPY.setupBackupMyfolksNote)",
-        "row(COPY.setupBackupHermes, COPY.setupBackupHermesNote)",
+        "COPY.setupCodePurpose", "COPY.setupBackupIntro", "Command, { children: COPY.setupBackupCommand }",
+        "COPY.setupBackupResult", "'text-sm font-medium', children: COPY.setupHermesBackupHeading", "COPY.setupHermesBackupNote",
         "COPY.savedIt",
     ]
     positions = [panel.index(item) for item in order]
-    assert "jsx(Command, { children: command }), jsx(Note, { children: note })" in panel  # each backup row: command, then its note
+    assert "password" not in panel.lower()
+    assert "password" not in "".join(line for line in PLUGIN_JS.splitlines() if line.strip().startswith("setup")).lower()
     assert positions == sorted(positions)
     assert panel.count("jsx(Button") == 2  # the set-up button before, and only "I've saved it" on the code screen
 

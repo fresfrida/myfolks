@@ -5,6 +5,9 @@ PLUGIN_JS = (Path(__file__).parent.parent / "desktop" / "plugin.js").read_text()
 
 def test_settings_row_says_what_myfolks_connects_to():
     assert "storeRowBody: 'Encrypted in this Hermes profile. MyFolks itself connects to nothing.'," in PLUGIN_JS
+    assert "recoveryRow: 'If MyFolks stops opening'," in PLUGIN_JS
+    assert "recoveryRowBody: 'Unlock it with your recovery code: hermes myfolks recover'," in PLUGIN_JS
+    assert "New device" not in PLUGIN_JS
 
 
 def test_old_settings_wording_is_gone():

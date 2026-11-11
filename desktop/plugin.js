@@ -23,11 +23,11 @@ const COPY = {
   setupStoredHere: 'MyFolks keeps what you save only in your Hermes folder, on the computer that runs Hermes. If you use it from a chat app like Telegram, that app also keeps a copy of the chat. Your address book is separate, and MyFolks never changes it.',
   setupCodeIntro: 'Your recovery code. It is shown once. Keep it somewhere safe:',
   setupCodePurpose: 'You need it if MyFolks stops opening, and to back up or export.',
-  setupBackupIntro: 'To keep what you saved if you lose that computer, back up and keep the file somewhere else:',
-  setupBackupHermes: 'hermes backup',
-  setupBackupHermesNote: 'all of Hermes, MyFolks included. Treat the file like a password',
-  setupBackupMyfolks: 'hermes myfolks backup',
-  setupBackupMyfolksNote: 'only MyFolks, locked with a passphrase you choose',
+  setupBackupIntro: 'Back up what you’ve saved, in case you lose that computer:',
+  setupBackupCommand: 'hermes myfolks backup',
+  setupBackupResult: 'You’ll get one file, locked with a passphrase you choose. Keep it somewhere else, like a USB drive.',
+  setupHermesBackupHeading: 'About Hermes’s own backups',
+  setupHermesBackupNote: 'If you also run hermes backup, those files include MyFolks.',
   savedIt: 'I’ve saved it',
   lockedTitle: 'MyFolks can’t open its data',
   lockedBody: 'Nothing was changed. To unlock it with your recovery code, run this in your terminal.',
@@ -66,8 +66,8 @@ const COPY = {
   settingsTitle: 'MyFolks',
   storeRow: 'Your data',
   storeRowBody: 'Encrypted in this Hermes profile. MyFolks itself connects to nothing.',
-  recoveryRow: 'New device',
-  recoveryRowBody: 'Use your recovery code with: hermes myfolks recover',
+  recoveryRow: 'If MyFolks stops opening',
+  recoveryRowBody: 'Unlock it with your recovery code: hermes myfolks recover',
   importRow: 'Import',
   importRowBody: 'Bring in a vCard or CSV with: hermes myfolks import <file>'
 }
@@ -525,7 +525,6 @@ function SetupPanel({ ctx, onDone }) {
   }
   if (step.name === 'code') {
     const group = children => jsx('div', { className: 'flex flex-col items-center gap-2 text-center', children })
-    const row = (command, note) => jsx('div', { className: 'flex flex-col items-center gap-1', children: [jsx(Command, { children: command }), jsx(Note, { children: note })] })
     return jsxs('div', {
       className: 'flex h-full flex-col items-center justify-center gap-4 p-6',
       children: [
@@ -537,8 +536,12 @@ function SetupPanel({ ctx, onDone }) {
         ]),
         group([
           jsx(Note, { children: COPY.setupBackupIntro }),
-          row(COPY.setupBackupMyfolks, COPY.setupBackupMyfolksNote),
-          row(COPY.setupBackupHermes, COPY.setupBackupHermesNote)
+          jsx(Command, { children: COPY.setupBackupCommand }),
+          jsx(Note, { children: COPY.setupBackupResult })
+        ]),
+        group([
+          jsx('div', { className: 'text-sm font-medium', children: COPY.setupHermesBackupHeading }),
+          jsx(Note, { children: COPY.setupHermesBackupNote })
         ]),
         jsx(Button, { onClick: onDone, size: 'sm', children: COPY.savedIt })
       ]

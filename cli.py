@@ -63,14 +63,12 @@ def setup_lines(code: str) -> list[str]:
         *recovery_code_lines(code),
         "",
         messages.SETUP_BACKUP_INTRO,
-        *_aligned_rows([(messages.SETUP_BACKUP_MYFOLKS, messages.SETUP_BACKUP_MYFOLKS_NOTE), (messages.SETUP_BACKUP_HERMES, messages.SETUP_BACKUP_HERMES_NOTE)]),
+        f"  {messages.SETUP_BACKUP_COMMAND}",
+        messages.SETUP_BACKUP_RESULT,
+        "",
+        messages.SETUP_HERMES_BACKUP_HEADING,
+        messages.SETUP_HERMES_BACKUP_NOTE,
     ]
-
-
-def _aligned_rows(rows: list[tuple[str, str]]) -> list[str]:
-    """Indented command rows with their notes lined up in one column, as in a help listing."""
-    width = max(len(command) for command, _note in rows)
-    return [f"  {command.ljust(width)}    {note}" for command, note in rows]
 
 
 def cmd_setup(_args, *, vault=None, stdout=None) -> int:
