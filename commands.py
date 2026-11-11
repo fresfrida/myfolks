@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import Callable, Optional
 
 from . import cards, db, importer, lookup, messages, owner, search
-from .text import STOPWORDS, Token, normalize, one_edit_apart, query_words, tokens
+from .text import STOPWORDS, Token, ascii_number, looks_numeric, normalize, one_edit_apart, query_words, tokens
 from .vault import Busy, NotSetUp, Refused, Vault, VaultError
 
 logger = logging.getLogger(__name__)
@@ -449,7 +449,9 @@ def _set_hidden(context: Context, parts: list[Token], hidden: bool) -> str:
     if not parts:
         return messages.USAGE_HIDE
     verb = "hide" if hidden else "unhide"
-    number = int(parts[-1].text) if len(parts) > 1 and parts[-1].text.isdigit() else None
+    if len(parts) > 1 and looks_numeric(parts[-1].text):
+        return messages.USAGE_HIDE
+    number = ascii_number(parts[-1].text) if len(parts) > 1 else None
     name_parts = parts[:-1] if number is not None else parts
     typed = " ".join(p.text for p in name_parts)
     matches = lookup.cards_for_words(context.connection, [typed])
@@ -502,7 +504,9 @@ def _correct_list(context: Context, parts: list[Token]) -> str:
 
 
 def _correct(context: Context, raw: str, parts: list[Token]) -> str:
-    position = next((i for i, part in enumerate(parts) if i and re.fullmatch(r"\d+", part.text)), None)
+    if any(i and looks_numeric(part.text) for i, part in enumerate(parts[:3])):
+        return messages.USAGE_CORRECT
+    position = next((i for i, part in enumerate(parts) if i and ascii_number(part.text) is not None), None)
     if position is None:
         return _correct_list(context, parts)
     if position + 1 >= len(parts):
@@ -523,7 +527,7 @@ def _correct(context: Context, raw: str, parts: list[Token]) -> str:
         if card is None:
             return messages.CANCELLED
     lines = cards.active_lines(context.connection, card["id"], context.show_private)
-    number = int(parts[position].text)
+    number = ascii_number(parts[position].text)
     if not 1 <= number <= len(lines):
         return messages.NO_SUCH_LINE
     change = db.Change(context.connection, "correct", context.source_label)
@@ -548,16 +552,17 @@ def _review(context: Context, _raw: str, parts: list[Token]) -> str:
     if not parts:
         return _review_list(context)
     action = parts[0].text.casefold()
-    if action not in ("merge", "keep") or len(parts) < 2 or not parts[1].text.isdigit():
+    item = ascii_number(parts[1].text) if len(parts) >= 2 else None
+    if action not in ("merge", "keep") or item is None:
         return messages.REVIEW_HOW
-    row = context.connection.execute("SELECT * FROM review WHERE id=? AND status='pending'", (int(parts[1].text),)).fetchone()
+    row = context.connection.execute("SELECT * FROM review WHERE id=? AND status='pending'", (item,)).fetchone()
     if row is None:
         return messages.REVIEW_NOT_FOUND
     card_id = None
     if action == "merge":
         _contact, candidates = importer.review_contact(row)
-        if len(parts) >= 3 and parts[2].text.lstrip("#").isdigit():
-            card_id = int(parts[2].text.lstrip("#"))
+        if len(parts) >= 3:
+            card_id = ascii_number(parts[2].text.lstrip("#"))
         elif len(candidates) == 1:
             card_id = candidates[0]
         if card_id not in candidates:
@@ -640,6 +645,8 @@ def _chosen_close_card(context: Context, words: list[str]) -> Optional[tuple[sql
 
 
 def _query(context: Context, raw: str) -> str:
+    if any(part.text.startswith("#") and looks_numeric(part.text[1:]) for part in tokens(raw)):
+        return messages.NOTHING  # card numbers are ASCII 0-9 only, before any text folding
     words = query_words(raw)
     if not words:
         return messages.NOTHING

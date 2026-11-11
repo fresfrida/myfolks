@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Optional
+
 import json
 import re
 import unicodedata
@@ -33,6 +35,19 @@ class Token:
 
 
 _TOKEN = re.compile(r'"([^"]*)"|(\S+)')
+
+
+_ASCII_NUMBER = re.compile(r"[0-9]{1,9}")
+
+
+def ascii_number(text: str) -> Optional[int]:
+    """A line, review or card number: ASCII 0-9 only, so superscripts and other scripts' digits never parse."""
+    return int(text) if _ASCII_NUMBER.fullmatch(text) else None
+
+
+def looks_numeric(text: str) -> bool:
+    """Digits of any script, such as ² or ٣: meant as a number, but not one MyFolks accepts."""
+    return any(ch.isdigit() or ch.isnumeric() for ch in text) and ascii_number(text) is None and not any(ch.isalpha() for ch in text)
 
 
 def tokens(raw: str) -> list[Token]:

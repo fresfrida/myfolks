@@ -11,7 +11,7 @@ from . import cards, search
 from .text import STOPWORDS
 
 Pick = Callable[[list, str], sqlite3.Row]
-_CARD_ID = re.compile(r"^#(\d+)$")
+_CARD_ID = re.compile(r"^#([0-9]{1,9})$")
 _MAX_HOPS = 4
 _MAX_NAME_WORDS = 3
 
