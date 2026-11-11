@@ -38,13 +38,18 @@ def args(path):
 
 def run_backup(cli, vault, path, secret=PASS):
     out = Terminal()
-    return cli.cmd_backup(args(path), vault=vault, read_secret=lambda _p: secret, stdin=Terminal(), stdout=out), out.getvalue()
+    return cli.cmd_backup(args(path), vault=vault, read_secret=with_code(vault, lambda _p: secret), stdin=Terminal(), stdout=out), out.getvalue()
 
 
 def run_restore(cli, vault, path, secret=PASS, typed=None):
     out = Terminal()
-    code = cli.cmd_restore(args(path), vault=vault, read_secret=lambda _p: secret, read_line=(lambda _p: typed) if typed is not None else _fail, stdin=Terminal(), stdout=out)
+    code = cli.cmd_restore(args(path), vault=vault, read_secret=with_code(vault, lambda _p: secret), read_line=(lambda _p: typed) if typed is not None else _fail, stdin=Terminal(), stdout=out)
     return code, out.getvalue()
+
+
+def with_code(vault, then):
+    """Answer the recovery-code prompt with the store's code, every other secret prompt with *then*."""
+    return lambda prompt: getattr(vault, "recovery_code", "") if prompt == "Recovery code: " else then(prompt)
 
 
 def _fail(_prompt):
@@ -135,7 +140,7 @@ def test_restore_into_empty_store_needs_no_confirmation(filled, cli, tmp_path, m
     path = tmp_path / "b.mfbk"
     run_backup(cli, filled, path)
     target = fresh(tmp_path, mod, "empty")
-    target.setup()
+    target.recovery_code = target.setup()
     code, output = run_restore(cli, target, path)
     assert code == 0 and "recovery code" not in output
     assert "allergic" in lookup(mod, target, "priya allergic")
@@ -151,7 +156,7 @@ def test_backup_refuses_existing_file_and_short_passphrase(filled, cli, tmp_path
 def test_backup_needs_matching_passphrase(filled, cli, tmp_path):
     answers = iter([PASS, "something else"])
     out = Terminal()
-    assert cli.cmd_backup(args(tmp_path / "x"), vault=filled, read_secret=lambda _p: next(answers), stdin=Terminal(), stdout=out) == 1
+    assert cli.cmd_backup(args(tmp_path / "x"), vault=filled, read_secret=with_code(filled, lambda _p: next(answers)), stdin=Terminal(), stdout=out) == 1
     assert not (tmp_path / "x").exists()
 
 
@@ -163,14 +168,14 @@ def test_terminal_only(filled, cli, tmp_path, name):
 def test_export_needs_typed_confirmation(filled, cli, tmp_path):
     out = Terminal()
     path = tmp_path / "e.json"
-    assert cli.cmd_export(args(path), vault=filled, read_line=lambda _p: "no", stdin=Terminal(), stdout=out) == 1
+    assert cli.cmd_export(args(path), vault=filled, read_secret=with_code(filled, _fail), read_line=lambda _p: "no", stdin=Terminal(), stdout=out) == 1
     assert not path.exists()
 
 
 def test_export_writes_everything_private_file(filled, cli, tmp_path):
     out = Terminal()
     path = tmp_path / "e.json"
-    assert cli.cmd_export(args(path), vault=filled, read_line=lambda _p: "EXPORT", stdin=Terminal(), stdout=out) == 0
+    assert cli.cmd_export(args(path), vault=filled, read_secret=with_code(filled, _fail), read_line=lambda _p: "EXPORT", stdin=Terminal(), stdout=out) == 0
     document = json.loads(path.read_text())
     lines = document["cards"][0]["lines"]
     assert [l["text"] for l in lines] == ["is allergic to peanuts", "sees a therapist"] and lines[1]["private"] is True
@@ -180,5 +185,5 @@ def test_export_writes_everything_private_file(filled, cli, tmp_path):
 def test_export_refuses_existing_file(filled, cli, tmp_path):
     path = tmp_path / "e.json"
     path.write_text("keep")
-    assert cli.cmd_export(args(path), vault=filled, read_line=_fail, stdin=Terminal(), stdout=Terminal()) == 1
+    assert cli.cmd_export(args(path), vault=filled, read_secret=with_code(filled, _fail), read_line=_fail, stdin=Terminal(), stdout=Terminal()) == 1
     assert path.read_text() == "keep"

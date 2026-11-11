@@ -230,6 +230,19 @@ class Vault:
             device_key = self.keys.create()
             self._save(connection, data_key, {**header, "device": _wrap(device_key, data_key, _DEVICE_AAD)})
 
+    def check_recovery_code(self, code: str) -> bool:
+        """Whether *code* is this store's recovery code. Reads only; changes nothing."""
+        with self._locked():
+            header, _nonce, _ciphertext, _prefix = self._read_file()
+        recovery = header.get("recovery") or {}
+        try:
+            if len(normalize_recovery_code(code)) != _RECOVERY_CHARS:
+                return False
+            _unwrap(self._recovery_key(code, recovery), recovery, _RECOVERY_AAD)
+        except (Refused, ValueError, TypeError, UnicodeError):
+            return False
+        return True
+
     @staticmethod
     def _recovery_key(code: str, recovery: dict) -> bytes:
         try:

@@ -66,7 +66,7 @@ def cmd_recover(_args, *, vault=None, read_code=None, stdout=None) -> int:
     return 0
 
 
-def cmd_pair(_args, *, vault=None, read_line=None, stdin=None, stdout=None) -> int:
+def cmd_pair(_args, *, vault=None, read_line=None, read_secret=None, stdin=None, stdout=None) -> int:
     from . import owner
     from .vault import NotSetUp, Refused, Vault
 
@@ -75,6 +75,8 @@ def cmd_pair(_args, *, vault=None, read_line=None, stdin=None, stdout=None) -> i
         print(messages.TERMINAL_ONLY, file=sys.stderr)
         return 1
     vault = vault or Vault()
+    if not _recovery_code_ok(vault, read_secret or getpass.getpass, out):
+        return 1
     try:
         with vault.read() as connection:
             linked = owner.linked_owners(connection)
@@ -123,6 +125,24 @@ def cmd_import(args, *, vault=None, stdin=None, stdout=None) -> int:
     return 0
 
 
+def _recovery_code_ok(vault, ask, out) -> bool:
+    """Sensitive commands need the recovery code, typed privately, before they do anything.
+    An AI driving a terminal never saw the code, so it can't pass this step."""
+    from .vault import NotSetUp
+
+    if not vault.exists():
+        print(messages.NOT_SET_UP, file=out)
+        return False
+    try:
+        ok = vault.check_recovery_code(ask(messages.RECOVER_PROMPT))
+    except NotSetUp:
+        print(messages.NOT_SET_UP, file=out)
+        return False
+    if not ok:
+        print(messages.RECOVER_REFUSED, file=out)
+    return ok
+
+
 def _in_terminal(streams) -> bool:
     return all(stream.isatty() for stream in streams)
 
@@ -149,6 +169,9 @@ def cmd_backup(args, *, vault=None, read_secret=None, stdin=None, stdout=None) -
         print(messages.TERMINAL_ONLY, file=sys.stderr)
         return 1
     ask = read_secret or getpass.getpass
+    vault = vault or Vault()
+    if not _recovery_code_ok(vault, ask, out):
+        return 1
     path = Path(args.path).expanduser()
     if path.exists():
         print(messages.FILE_EXISTS, file=out)
@@ -161,7 +184,7 @@ def cmd_backup(args, *, vault=None, read_secret=None, stdin=None, stdout=None) -
         print(messages.BACKUP_MISMATCH, file=out)
         return 1
     try:
-        database = (vault or Vault()).database_bytes()
+        database = vault.database_bytes()
     except NotSetUp:
         print(messages.NOT_SET_UP, file=out)
         return 1
@@ -187,6 +210,9 @@ def cmd_restore(args, *, vault=None, read_secret=None, read_line=None, stdin=Non
     if not _in_terminal((source, out)):
         print(messages.TERMINAL_ONLY, file=sys.stderr)
         return 1
+    vault = vault or Vault()
+    if vault.exists() and not _recovery_code_ok(vault, read_secret or getpass.getpass, out):
+        return 1
     try:
         blob = Path(args.path).expanduser().read_bytes()
     except OSError:
@@ -197,7 +223,6 @@ def cmd_restore(args, *, vault=None, read_secret=None, read_line=None, stdin=Non
     except backup.BackupRefused:
         print(messages.RESTORE_REFUSED, file=out)
         return 1
-    vault = vault or Vault()
     try:
         try:
             code = vault.restore_database(database)
@@ -217,7 +242,7 @@ def cmd_restore(args, *, vault=None, read_secret=None, read_line=None, stdin=Non
     return 0
 
 
-def cmd_export(args, *, vault=None, read_line=None, stdin=None, stdout=None) -> int:
+def cmd_export(args, *, vault=None, read_line=None, read_secret=None, stdin=None, stdout=None) -> int:
     import json
     from pathlib import Path
 
@@ -228,6 +253,9 @@ def cmd_export(args, *, vault=None, read_line=None, stdin=None, stdout=None) -> 
     if not _in_terminal((source, out)):
         print(messages.TERMINAL_ONLY, file=sys.stderr)
         return 1
+    vault = vault or Vault()
+    if not _recovery_code_ok(vault, read_secret or getpass.getpass, out):
+        return 1
     path = Path(args.path).expanduser()
     if path.exists():
         print(messages.FILE_EXISTS, file=out)
@@ -236,7 +264,7 @@ def cmd_export(args, *, vault=None, read_line=None, stdin=None, stdout=None) -> 
         print(messages.RESTORE_CANCELLED, file=out)
         return 1
     try:
-        with (vault or Vault()).read() as connection:
+        with vault.read() as connection:
             document = backup.export_document(connection)
     except NotSetUp:
         print(messages.NOT_SET_UP, file=out)

@@ -46,7 +46,7 @@ def code_from_cli(vault, mod):
     import io
 
     out = Terminal()
-    assert mod("cli").cmd_pair(None, vault=vault, stdin=Terminal(), stdout=out, read_line=lambda _prompt: "REPLACE") == 0
+    assert mod("cli").cmd_pair(None, vault=vault, read_secret=lambda _p: vault.recovery_code, stdin=Terminal(), stdout=out, read_line=lambda _prompt: "REPLACE") == 0
     return out.getvalue().strip().splitlines()[-1].split()[-1]
 
 
@@ -270,7 +270,7 @@ def test_pair_refuses_without_a_terminal(seeded, mod, capsys):
 def test_first_pair_needs_no_replace(seeded, mod):
     asked = []
     out = Terminal()
-    assert mod("cli").cmd_pair(None, vault=seeded, stdin=Terminal(), stdout=out, read_line=asked.append) == 0
+    assert mod("cli").cmd_pair(None, vault=seeded, read_secret=lambda _p: seeded.recovery_code, stdin=Terminal(), stdout=out, read_line=asked.append) == 0
     assert asked == []
 
 
@@ -283,7 +283,7 @@ def test_pair_shows_owner_and_needs_replace(seeded, mod):
     _link_owner(seeded, mod)
     prompts = []
     out = Terminal()
-    assert mod("cli").cmd_pair(None, vault=seeded, stdin=Terminal(), stdout=out, read_line=lambda p: prompts.append(p) or "no") == 1
+    assert mod("cli").cmd_pair(None, vault=seeded, read_secret=lambda _p: seeded.recovery_code, stdin=Terminal(), stdout=out, read_line=lambda p: prompts.append(p) or "no") == 1
     assert prompts == ["Already linked: telegram sender 111. A new code replaces that link on its platform once used. Type REPLACE to continue: "]
     assert out.getvalue().strip() == "Nothing was changed."
     with seeded.read() as connection:
@@ -293,5 +293,5 @@ def test_pair_shows_owner_and_needs_replace(seeded, mod):
 def test_pair_replace_makes_a_code(seeded, mod):
     _link_owner(seeded, mod)
     out = Terminal()
-    assert mod("cli").cmd_pair(None, vault=seeded, stdin=Terminal(), stdout=out, read_line=lambda _p: "REPLACE") == 0
+    assert mod("cli").cmd_pair(None, vault=seeded, read_secret=lambda _p: seeded.recovery_code, stdin=Terminal(), stdout=out, read_line=lambda _p: "REPLACE") == 0
     assert "Send this in a private chat" in out.getvalue()
