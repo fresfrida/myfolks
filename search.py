@@ -19,6 +19,8 @@ TOPIC_STRENGTH = 0.8
 RELATED_CUTOFF = 0.5
 LAST_WORD_WEIGHT = 2
 MIN_PREFIX = 4
+ORDINARY_ENDINGS = frozenset({"s", "es", "ed", "d", "ing", "er", "ers", "ly"})
+_MIN_LY_WORD = 5  # quick, quickly. A four-letter word plus ly is usually another word: name, namely.
 MIN_TYPO_LENGTH = 5
 MAX_DIRECT = 8
 MAX_RELATED = 3
@@ -80,13 +82,25 @@ def spelled_alike(question_word: str, line_word: str) -> bool:
         return True
     left, right = _spelling_form(question_word), _spelling_form(line_word)
     if len(left) >= MIN_PREFIX and right.startswith(left):
-        return True
+        return _ordinary_ending(left, right[len(left):])
     left, right = _stem(left), _stem(right)
     if left == right:
         return True
     if min(len(left), len(right)) < MIN_PREFIX:
         return False
     return cosine(chunk_vector(left), chunk_vector(right)) >= SPELLING_THRESHOLD
+
+
+def _ordinary_ending(word: str, ending: str) -> bool:
+    if ending == "ly":
+        return len(word) >= _MIN_LY_WORD
+    return ending == "" or ending in ORDINARY_ENDINGS
+
+
+def _prefix_only(question_word: str, line_word: str) -> bool:
+    """The line word starts with the question word but goes on past an ordinary ending: phone, phonetic."""
+    left, right = _spelling_form(question_word), _spelling_form(line_word)
+    return len(left) >= MIN_PREFIX and right.startswith(left) and not _ordinary_ending(left, right[len(left):])
 
 
 def _shares_group(groups: list[frozenset], question_word: str, line_words_: list[str]) -> bool:
@@ -108,7 +122,7 @@ def _strength(question_word: str, words_on_line: list[str]) -> tuple[float, bool
         return 1.0, True
     if _shares_group(_TOPIC_GROUPS, question_word, words_on_line):
         return TOPIC_STRENGTH, False
-    if any(changed_one_letter(question_word, w, MIN_TYPO_LENGTH) for w in words_on_line):
+    if any(changed_one_letter(question_word, w, MIN_TYPO_LENGTH) or _prefix_only(question_word, w) for w in words_on_line):
         return TOPIC_STRENGTH, False
     return 0.0, False
 

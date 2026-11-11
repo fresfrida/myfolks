@@ -205,3 +205,13 @@ def test_a_topic_never_counts_as_direct(ask_run):
 def test_synonym_and_topic_lists_are_separate(mod):
     data = mod("text").load_data("concepts.json")
     assert set(data) >= {"synonyms", "topics"} and "groups" not in data
+
+
+@pytest.mark.parametrize("question, line", [("phone", "phonetic"), ("mail", "mailbox"), ("home", "homeless"), ("name", "namely")])
+def test_prefix_with_other_ending_is_not_a_spelling_match(mod, question, line):
+    assert not mod("search").spelled_alike(question, line)
+
+
+@pytest.mark.parametrize("question, line", [("phone", "phones"), ("walk", "walked"), ("walk", "walking"), ("bake", "baked"), ("play", "players"), ("quick", "quickly"), ("box", "boxes"), ("teach", "teacher")])
+def test_prefix_with_ordinary_ending_still_matches(mod, question, line):
+    assert mod("search").spelled_alike(question, line) == (len(question) >= 4)

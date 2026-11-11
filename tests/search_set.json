@@ -34,7 +34,11 @@
     "save Marla likes hiking",
     "save --new Maria likes painting",
     "save Priya likes ginger tea",
-    "save Priya prefers aisle seats"
+    "save Priya prefers aisle seats",
+    "save Kofi studies phonetic alphabets",
+    "save Kofi mailbox is number 12",
+    "save Kofi volunteers at a homeless shelter",
+    "save Kofi is namely the best cook in town"
   ],
   "questions": [
     {
@@ -544,6 +548,26 @@
       "q": "what can priya eat",
       "expect": "related",
       "find": "allergic to peanuts"
+    },
+    {
+      "q": "kofi phone",
+      "expect": "related",
+      "find": "phonetic alphabets"
+    },
+    {
+      "q": "kofi mail",
+      "expect": "related",
+      "find": "mailbox is number 12"
+    },
+    {
+      "q": "kofi home",
+      "expect": "related",
+      "find": "homeless shelter"
+    },
+    {
+      "q": "kofi name",
+      "expect": "related",
+      "find": "namely the best cook"
     }
   ]
 }
