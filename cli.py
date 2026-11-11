@@ -191,14 +191,19 @@ def _in_terminal(streams) -> bool:
 
 
 def _write_new_file(path, data: bytes) -> None:
-    """Write straight to the final path, private to this user. There is never a temporary copy."""
+    """Write straight to the final path, private to this user. There is never a temporary copy,
+    and a write that fails part way removes what it made."""
     import os
 
     descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    with os.fdopen(descriptor, "wb") as handle:
-        handle.write(data)
-        handle.flush()
-        os.fsync(handle.fileno())
+    try:
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+    except BaseException:
+        os.unlink(path)
+        raise
 
 
 def backup_path(output: Optional[str], now=None):

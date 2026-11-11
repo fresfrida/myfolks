@@ -179,6 +179,16 @@ def test_a_file_in_the_way_of_a_folder_prints_one_line_and_writes_nothing(vault,
     assert (tmp_path / "taken").read_text() == "a file, not a folder"
 
 
+def test_a_write_that_fails_part_way_leaves_no_file(vault, mod, tmp_path, monkeypatch):
+    def full_disk(_fd):
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(os, "fsync", full_disk)
+    code, output = _backup(mod, vault, str(tmp_path / "b.mfbk"))
+    assert code == 1 and output == "MyFolks can't write a file there. Nothing was written.\n"
+    assert not (tmp_path / "b.mfbk").exists()
+
+
 @pytest.mark.skipif(os.geteuid() == 0, reason="root ignores folder permissions")
 def test_an_unwritable_place_prints_one_line_and_writes_nothing(vault, mod, tmp_path):
     locked = tmp_path / "locked"
