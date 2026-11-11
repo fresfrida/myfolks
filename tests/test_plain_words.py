@@ -229,11 +229,11 @@ def _readme_guide():
     return text.split("## User guide\n", 1)[1].split("\n## ", 1)[0]
 
 
-def test_readme_user_guide_comes_first_and_every_word_works(mod):
+def test_readme_user_guide_follows_quick_start_and_every_word_works(mod):
     import re
 
     readme = (__import__("pathlib").Path(__file__).parent.parent / "README.md").read_text()
-    assert readme.index("## User guide") < readme.index("## Quick start")
+    assert readme.index("## Quick start") < readme.index("## User guide") < readme.index("## Install")
     guide = _readme_guide()
     assert guide.lstrip().startswith("Start a chat message with **myfolks** (or /myfolks), then use plain words.")
     verbs = mod("commands")._VERB_WORDS
@@ -282,7 +282,7 @@ def test_where_it_works_follows_the_user_guide():
     from pathlib import Path
 
     readme = (Path(__file__).parent.parent / "README.md").read_text()
-    assert readme.index("## User guide") < readme.index("## Where it works") < readme.index("## Quick start")
+    assert readme.index("## Quick start") < readme.index("## User guide") < readme.index("## Where it works") < readme.index("## Install")
     assert "Tested in Telegram, the Hermes terminal and Hermes Desktop. Other chat apps that Hermes connects to, such as WhatsApp, Discord or Slack, reach MyFolks the same way and should work, but haven't been tested yet." in readme
 
 

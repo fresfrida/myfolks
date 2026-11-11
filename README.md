@@ -2,9 +2,108 @@
 
 ![MyFolks for Hermes](assets/banner.png)
 
+MyFolks is a Hermes Agent plugin that gives Hermes persistent, exact memory about the people in your life: addresses, birthdays, allergies, a friend's child's name. Saving and recall are deterministic code and never call a model, so answers are word for word, carry their source, and keep working when the model is down.
+
 Your people, their folks, the details that matter.
 
-A contact book your agent can't misremember.
+| | |
+|---|---|
+| **Surfaces** | Telegram (wake word or `/myfolks`), Hermes terminal, Hermes Desktop page. Tested on all three. |
+| **Storage** | One SQLite database per Hermes profile, encrypted at rest with AES-256-GCM, decrypted only in memory |
+| **Model calls** | None in saving, recall, search, import or sync. Optional AI tool, off by default |
+| **Network** | None, unless you run `myfolks sync`: then Google People API, read-only, through Hermes's own OAuth |
+| **Dependencies** | Python standard library plus `cryptography` |
+| **Quality** | 1,055 automated tests, an evidence pack with 0 failed safety checks, benchmarks at 5,000 people |
+| **License** | MIT |
+
+Built for the Nous Research Hermes Agent Plugin Hackathon, Nov 10 to 12, 2026.
+
+## The problem
+
+Agent memory is built for conversation, not records. Summaries and vector recall paraphrase, merge similar people, drop details, and can't say where a fact came from. That is acceptable for "what were we discussing", and not acceptable for "what is Mel's new address".
+
+A typical case: a friend sends their new address. A year later you need it for their baby shower, and you need exactly that address, for exactly that friend, with confidence that it is the latest one. Facts about people need five properties that agent memory does not give:
+
+1. **Exact text**, never a paraphrase.
+2. **Provenance**: when and where each fact was saved.
+3. **Identity**: the right person, or a question, never a guess.
+4. **Correction and deletion** with history and undo.
+5. **Privacy**: encrypted, owner only, and out of the model's context by default.
+
+## Requirements and how they are met
+
+| ID | Requirement | Design | Verified by |
+|---|---|---|---|
+| R1 | Answers are the saved words, with when and where they were saved | Stored text is never rewritten; every answer quotes the line, its time and its source | `tests/test_answer_format.py`, search set in `tests/evidence_pack.py` |
+| R2 | Never answer about the wrong person | Only an exact name or alias opens a card; a close spelling asks "Did you mean …?" and shows nothing until chosen | Evidence pack, section 6 |
+| R3 | Works without the model | Wake-word messages are answered in Hermes's `pre_gateway_dispatch` hook and skipped, so they never reach the session or the model; no model library is imported | `tests/test_ingress.py`, `test_no_network_or_model_imports` |
+| R4 | Survives crashes and concurrent writers | Exclusive lock; decrypt, change, re-encrypt, atomic replace | Evidence pack, sections 2 and 3 |
+| R5 | Confidential at rest | AES-256-GCM over the whole database; data key wrapped by a device key and by a recovery code through scrypt; plaintext never written to disk | Evidence pack, section 4; `tests/test_vault.py` |
+| R6 | Owner only by default | Private chats only; group chats refused for everyone; optional per-person sharing at `read` or `add` | Evidence pack, section 5; `tests/test_owner.py` |
+| R7 | Contacts arrive without typing | vCard and CSV import; Google sync through Hermes's OAuth helper; exact phone or email merges, similar names go to review | `tests/test_import.py`, `tests/test_google_sync.py` |
+| R8 | Every change is reversible | Change log; delete closes a record instead of erasing it; Desktop Undo reverses only its own change | `tests/test_delete.py` |
+| R9 | No commands to learn | Plain words map to actions (remember, fix, forget, undo); every reply shows the next step | `tests/test_plain_words.py` |
+| R10 | Fast at personal scale | In-memory SQLite, character-trigram search | `tests/benchmark.py`: lookup 8.3 ms median at 5,000 people and 20,000 details |
+
+## Architecture
+
+```mermaid
+flowchart LR
+  T["Telegram message: myfolks Mel address"] --> G["Hermes gateway"]
+  G --> H["pre_gateway_dispatch hook"]
+  H --> C["Command and plain-words parser"]
+  C --> V["Vault: lock, decrypt to in-memory SQLite"]
+  V --> A["Answer: exact line, saved-at, source"]
+  A --> T
+  H -. "skipped" .-> M["Session, transcript, model: never see it"]
+  D["Hermes Desktop page"] --> R["/api/plugins/myfolks"] --> C
+  S["myfolks sync"] --> O["Hermes credentialed_provider_request"] --> P["Google People API, contacts.readonly"] --> I["Importer"] --> V
+```
+
+| Module | Responsibility |
+|---|---|
+| `wake.py`, `__init__.py` | Hermes hooks: answer at ingress, block MyFolks commands from the model (`pre_llm_call`), block AI tools that name the store (`pre_tool_call`) |
+| `commands.py`, `lookup.py`, `search.py` | Parsing, identity resolution, trigram search with direct and "not sure" answers |
+| `vault.py`, `device_key.py`, `db.py` | Encrypted store, key hierarchy, schema and migrations, change log |
+| `importer.py`, `google_sync.py` | vCard and CSV import, Google sync, merge and review |
+| `desktop_service.py`, `desktop/plugin.js` | Desktop page backend and UI |
+| `owner.py`, `guard.py`, `ai_tool.py` | Ownership and sharing, file guard, the optional AI tool |
+
+### Design decisions
+
+| Decision | Why | Trade-off |
+|---|---|---|
+| Deterministic search on character trigrams, no embedding model | Explainable, no download, no model call, same answer every time | Misses some paraphrases: 6 of 108 in the test set, all printed by the evidence pack |
+| Answer inside the gateway hook | Works while the model is busy or down; the message never enters the transcript | Depends on Hermes's hook contract |
+| Close records instead of erasing | Undo and full history | Not an erase; permanent deletion is on the roadmap |
+| Google through Hermes's OAuth helper | The plugin never holds a token; follows Hermes catalog rule 11 | Each user creates their own Google Cloud client once |
+| Ask before creating a new person once contacts are imported | A typo can't create a fake person | One extra step for a genuinely new person |
+
+## Quality
+
+- **Automated tests:** 1,055 pass on macOS; 1,054 on Linux in a container (one root-only test skipped). `python3 -m pytest tests`
+- **Evidence pack**, re-runnable, made-up data: search 102 of 108 with no unanswerable question given a direct answer; 25 process kills during a save, file always the old or new version; 3 concurrent writers, 120 of 120 saves kept; wrong key, wrong recovery code and tampering at 5 positions all refused with the file untouched; non-owner, group chat and missing sender refused. `python3 tests/evidence_pack.py`
+- **Performance:** lookup 8.3 ms median and save 14.5 ms median at 5,000 people and 20,000 details; lookup during a 5,000-contact import 1.8 ms median. `python3 tests/benchmark.py`
+- **Hermes plugin check:** passed, security scan `safe`, OAuth client valid. `hermes plugins validate .`
+- **Independent review:** change sets were reviewed by a separate reviewer before release, and no release went out with an open blocker.
+- **Acceptance testing on a real install** (Nov 11 to 12) found two defects, both fixed with regression tests: a detail word after `save` became a person's name ("address"); and a Google sync failure didn't say its cause. Sync failures now log the HTTP status and Google's reason code, never a token. A first sync design that read another tool's Google token was caught in review and rebuilt on Hermes's OAuth helper.
+
+**Not yet verified:** Windows; chat apps other than Telegram (they use the same hook); Google sync beyond one real account.
+
+## Scope
+
+**In 1.0:** save, ask, fix, delete and undo in plain words; Telegram, terminal and Desktop; vCard, CSV and Google import; review of possible duplicates; hide a note from chat apps; owner-only access with optional sharing; encrypted backup and restore.
+
+**Next:** iCloud and other CardDAV address books; share one person's card without private notes; one-step merge of exact-name duplicates; permanent erase; Windows support.
+
+## Quick start
+
+1. Install: `hermes plugins install fresfrida/myfolks`
+2. Set up in your terminal: `hermes myfolks setup` (or on the MyFolks page in Hermes Desktop). It shows a recovery code once.
+3. Bring your people in: `myfolks sync` after [Google setup](#sync-google-contacts), or `hermes myfolks import <file>`.
+4. Use it: `myfolks remember Priya is allergic to peanuts`, then `myfolks Priya allergy`. See the [User guide](#user-guide).
+
+Built solo with Claude Code. The final build sessions ran Claude Opus 5.5 at high effort.
 
 ## User guide
 
@@ -27,42 +126,6 @@ In Hermes Desktop, open MyFolks to search, add, edit, delete and undo with butto
 ## Where it works
 
 Tested in Telegram, the Hermes terminal and Hermes Desktop. Other chat apps that Hermes connects to, such as WhatsApp, Discord or Slack, reach MyFolks the same way and should work, but haven't been tested yet.
-
-## Quick start
-
-1. Install: `hermes plugins install myfolks`
-2. Set up once, in your own terminal with `hermes myfolks setup`, or on the MyFolks page in Hermes Desktop. It shows your recovery code once. Chats never show it.
-3. From anywhere Hermes works, send `myfolks remember Priya is allergic to peanuts`, then `myfolks priya allergy`.
-
-MyFolks acts on its own only when the result can't be wrong, tells you exactly what it did and how to undo it, and asks you first whenever a guess could be wrong.
-
-Ask about anyone, from anywhere Hermes works, and get back exactly what you saved, word for word, with when and where it came from. If it isn't saved, MyFolks says so. `/contacts` never calls a model, so it keeps answering when your AI is down.
-
-```
-/contacts priya allergic
-
-Priya
-is allergic to peanuts
-June this year · Telegram
-```
-
-## What it does
-
-![Answers in a chat app](assets/phone.png)
-
-- **Exact answers.** You get back the words you saved.
-- **Receipts.** Every answer shows when and where it came from.
-- **No guessing.** If it isn't saved: `Nothing saved about that.` If MyFolks is unsure, the answer is marked `not sure`.
-- **The right person.** Only an exact name or nickname opens a card. A close spelling asks "Did you mean…?" and shows nothing until you choose.
-
-  ![A close spelling asks first](assets/didyoumean.png)
-- **Linked cards.** Priya links to their dog Biscuit, so `/contacts priya dog birthday` finds it.
-- **Forgiving search.** Most one-letter typos and common synonyms find the right line, with no AI model.
-- **Encrypted and local.** One encrypted file in your Hermes folder. No account and no cloud.
-- **Yours only.** Only you, unless you change a setting. Group chats are refused.
-- **Your own words.** Use /contacts, /myfolks, a [wake word](#the-wake-word) you choose with no slash, or [your own short command](#choose-your-own-command).
-
-It works alongside any Hermes memory plugin. It does a different job: exact records, not recall.
 
 ## Install
 
