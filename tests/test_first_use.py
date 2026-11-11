@@ -1,4 +1,6 @@
-"""The first /contacts or /myfolks in a real terminal sets MyFolks up; nowhere else does."""
+"""The recovery code appears only from hermes myfolks setup and the Desktop page's setup screen.
+No chat, including terminal chat and Desktop chat, ever sets MyFolks up or prints the code."""
+import io
 import json
 import re
 from types import SimpleNamespace
@@ -6,6 +8,12 @@ from types import SimpleNamespace
 import pytest
 
 CODE = re.compile(r"[A-Z2-7]{4}(?:-[A-Z2-7]{4}){7}")
+NOT_SET_UP = "Run hermes myfolks setup in your own terminal."
+
+
+class Terminal(io.StringIO):
+    def isatty(self):
+        return True
 
 
 @pytest.fixture
@@ -13,78 +21,61 @@ def fresh(tmp_path, mod):
     return mod("vault").Vault(tmp_path / "data", keys=mod("device_key").DeviceKeys(tmp_path / "data", use_keychain=False))
 
 
-@pytest.fixture
-def terminal(mod, monkeypatch):
-    monkeypatch.setattr(mod("cli"), "_in_terminal", lambda _streams: True)
-
-
-def test_first_use_in_terminal_sets_up_and_answers(fresh, mod, terminal):
-    reply = mod("commands").handle("save Priya likes tea", platform="cli", vault=fresh)
-    lines = reply.split("\n")
-    assert lines[:2] == ["MyFolks is ready.", "Your recovery code. It is shown once. Keep it somewhere safe:"]
-    assert CODE.fullmatch(lines[2])
-    assert lines[3] == "If you lose both this device and this code, your contacts are gone."
-    assert lines[5].startswith("New card for Priya. Saved.")
-    assert fresh.check_recovery_code(lines[2])
-    second = mod("commands").handle("priya tea", platform="cli", vault=fresh)
-    assert not CODE.search(second) and "likes tea" in second
-
-
-def test_myfolks_command_in_the_terminal_too(fresh, mod, terminal):
-    reply = mod("commands").handle("", platform="tui", vault=fresh)
-    assert reply.startswith("MyFolks is ready.") and "MyFolks: 0 cards" in reply
-
-
-def test_not_a_real_terminal_does_not_set_up(fresh, mod):
-    assert mod("commands").handle("priya", platform="cli", vault=fresh).startswith("MyFolks isn't set up yet.")
-    assert not fresh.exists()
-
-
-@pytest.mark.parametrize("platform", ["desktop", "telegram"])
-def test_desktop_chat_and_messaging_point_to_the_computer(fresh, mod, terminal, monkeypatch, platform):
+@pytest.mark.parametrize("platform", ["cli", "tui", "local", "desktop", "telegram", "discord"])
+@pytest.mark.parametrize("text", ["", "priya", "save Priya likes tea", "pair ABCD"])
+def test_no_chat_surface_sets_up_or_prints_a_code(fresh, mod, monkeypatch, platform, text):
     monkeypatch.setattr(mod("owner"), "allowed_users", lambda _platform: ({"111"}, False))
+    monkeypatch.setattr(mod("cli"), "_in_terminal", lambda _streams: True)
     source = SimpleNamespace(user_id="111", chat_type="dm", is_bot=False)
-    reply = mod("commands").handle("priya", platform=platform, source=source, vault=fresh)
-    assert reply == "MyFolks isn't set up yet. On your computer, send /myfolks in the terminal, or open the MyFolks page in Hermes Desktop."
+    reply = mod("commands").handle(text, platform=platform, source=source, vault=fresh)
     assert not CODE.search(reply) and not fresh.exists()
+    if not text.startswith("pair"):
+        assert reply == NOT_SET_UP
 
 
-def test_ai_tool_never_sets_up_or_sees_a_code(fresh, mod, terminal):
-    reply = mod("ai_tool").handle({"action": "lookup", "question": "priya"}, vault=fresh, session=("cli", None))
-    assert json.loads(reply)["status"] == "not_set_up" and not CODE.search(reply) and not fresh.exists()
-
-
-def test_wake_word_on_messaging_never_sets_up(fresh, mod, terminal, monkeypatch):
+def test_wake_word_never_sets_up(fresh, mod, monkeypatch):
     monkeypatch.setattr(mod("owner"), "allowed_users", lambda _platform: ({"111"}, False))
     wake = mod("wake")
     command = wake.gateway_hook(wake.Settings(lambda key, default=None: default))(event=SimpleNamespace(text="myfolks remember Priya likes tea"))["text"]
     source = SimpleNamespace(user_id="111", chat_type="dm", is_bot=False)
     reply = mod("commands").handle(command[len("/contacts"):].strip(), platform="telegram", source=source, vault=fresh)
-    assert not CODE.search(reply) and not fresh.exists()
+    assert reply == NOT_SET_UP and not fresh.exists()
 
 
-def test_desktop_page_setup_shows_the_code_once(fresh, mod):
-    service = mod("desktop_service")
-    first = service.setup(vault=fresh)
-    assert first["state"] == "ready" and CODE.fullmatch(first["code"]) and fresh.check_recovery_code(first["code"])
-    assert service.setup(vault=fresh) == {"state": "ready"}
+def test_ai_tool_never_sets_up(fresh, mod):
+    reply = mod("ai_tool").handle({"action": "lookup", "question": "priya"}, vault=fresh, session=("cli", None))
+    assert json.loads(reply)["status"] == "not_set_up" and not CODE.search(reply) and not fresh.exists()
 
 
-def test_hermes_myfolks_setup_still_works(fresh, mod):
-    import io
-
-    class Terminal(io.StringIO):
-        def isatty(self):
-            return True
-
+def test_hermes_myfolks_setup_shows_the_code_and_records_terminal(fresh, mod):
     out = Terminal()
     assert mod("cli").cmd_setup(None, vault=fresh, stdout=out) == 0
-    assert CODE.search(out.getvalue())
-    out = Terminal()
-    assert mod("cli").cmd_setup(None, vault=fresh, stdout=out) == 1
-    assert out.getvalue().strip() == "MyFolks is already set up."
+    code = CODE.search(out.getvalue()).group(0)
+    assert fresh.check_recovery_code(code)
+    overview = mod("commands").handle("", platform="cli", vault=fresh)
+    assert overview.split("\n")[:2] == ["MyFolks: 0 cards.", "Set up today from terminal."]
+    assert not CODE.search(overview)
 
 
-def test_first_use_when_already_set_up_is_normal(vault, mod, terminal):
-    reply = mod("commands").handle("", platform="cli", vault=vault)
-    assert not reply.startswith("MyFolks is ready.")
+def test_hermes_myfolks_setup_still_needs_a_real_terminal(fresh, mod):
+    assert mod("cli").cmd_setup(None, vault=fresh, stdout=io.StringIO()) == 1
+    assert not fresh.exists()
+
+
+def test_desktop_page_setup_shows_the_code_once_and_records_it(fresh, mod):
+    service = mod("desktop_service")
+    first = service.setup(vault=fresh)
+    assert CODE.fullmatch(first["code"]) and fresh.check_recovery_code(first["code"])
+    assert service.setup(vault=fresh) == {"state": "ready"}
+    assert "Set up today from Desktop page." in mod("commands").handle("", platform="cli", vault=fresh)
+
+
+def test_setup_note_on_telegram_is_protected(fresh, mod, monkeypatch):
+    monkeypatch.setattr(mod("owner"), "allowed_users", lambda _platform: ({"111"}, False))
+    mod("desktop_service").setup(vault=fresh)
+    source = SimpleNamespace(user_id="111", chat_type="dm", is_bot=False)
+    assert "Set up today from Desktop page." in mod("commands").handle("", platform="telegram", source=source, vault=fresh)
+
+
+def test_old_store_without_a_record_shows_no_setup_line(vault, mod):
+    assert "Set up" not in mod("commands").handle("", platform="cli", vault=vault)

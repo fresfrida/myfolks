@@ -29,27 +29,27 @@ def run(args) -> int:
     return handlers[args.myfolks_command](args)
 
 
-def create_store(vault) -> Optional[str]:
-    """The one setup path, for hermes myfolks setup, the first /myfolks in the terminal and the
-    Desktop page. Returns the recovery code, shown once, or None when the store already exists."""
+SETUP_AT, SETUP_FROM = "set_up_at", "set_up_from"
+
+
+def create_store(vault, surface: str = "terminal") -> Optional[str]:
+    """The one setup path, for hermes myfolks setup and the Desktop page's setup screen. Never a chat.
+    Records when and from where it ran. Returns the recovery code, shown once, or None if set up."""
+    from . import db
     from .vault import AlreadySetUp
 
     try:
-        return vault.setup()
+        code = vault.setup()
     except AlreadySetUp:
         return None
+    with vault.write() as connection:
+        db.set_setting(connection, SETUP_AT, db.now())
+        db.set_setting(connection, SETUP_FROM, surface)
+    return code
 
 
 def setup_lines(code: str) -> list[str]:
     return [messages.SETUP_DONE, messages.SETUP_CODE_INTRO, code, messages.SETUP_CODE_NEEDED]
-
-
-def first_use_setup(vault, streams=None) -> Optional[str]:
-    """In a real terminal, set up a store that doesn't exist yet. Same checks as hermes myfolks setup."""
-    if not _in_terminal(streams or (sys.stdin, sys.stdout)):
-        return None
-    code = create_store(vault)
-    return "\n".join(setup_lines(code)) if code else None
 
 
 def cmd_setup(_args, *, vault=None, stdout=None) -> int:

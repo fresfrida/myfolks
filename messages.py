@@ -121,7 +121,7 @@ def new_card(name: str) -> str:
     return f"New card for {value(name)}. Saved."
 
 
-NOT_SET_UP = "MyFolks isn't set up yet. On your computer, send /myfolks in the terminal, or open the MyFolks page in Hermes Desktop."
+NOT_SET_UP = "Run hermes myfolks setup in your own terminal."
 LOCKED = "MyFolks can't open its data. Nothing was changed. If you moved to a new device, run: hermes myfolks recover"
 BUSY = "MyFolks is busy. Try again in a moment."
 SETUP_DONE = "MyFolks is ready."
@@ -154,11 +154,17 @@ PAIRED = "Linked. This chat is now yours."
 PAIR_CODE_INTRO = "Send this in a private chat with your Hermes bot within 10 minutes:"
 
 
-def overview(count: int) -> str:
+def setup_note(at: Optional[str], surface: Optional[str]) -> str:
+    return f"Set up {date_label(at)} from {value(surface)}." if at and surface else ""
+
+
+def overview(count: int, set_up_at: Optional[str] = None, set_up_from: Optional[str] = None) -> str:
     noun = "card" if count == 1 else "cards"
+    note = setup_note(set_up_at, set_up_from)
     return (
         f"MyFolks: {count} {noun}.\n"
-        "/contacts <name or question>\n"
+        + (note + "\n" if note else "")
+        + "/contacts <name or question>\n"
         "/contacts save <name> <text>\n"
         "/contacts link <name> <relation> <name>\n"
         "/contacts history <name>\n"

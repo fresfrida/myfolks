@@ -48,6 +48,7 @@ TEMPLATES = {
     "did_you_mean_fallback": lambda m: m.did_you_mean_fallback(m.did_you_mean(NAME), [f"/contacts save {NAME} x"]),
     "hidden_only": lambda m: m.hidden_only(NAME),
     "no_one_called": lambda m: m.no_one_called(NAME),
+    "setup_note": lambda m: m.setup_note("2026-01-01T00:00:00+00:00", NAME),
     "did_you_mean": lambda m: m.did_you_mean([NAME, NAME + "s"]),
     "new_card_choice": lambda m: m.new_card_choice(NAME),
     "choice_label": lambda m: m.choice_label(NAME, 3) + "\n" + m.choice_label(NAME),

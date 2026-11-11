@@ -43,7 +43,7 @@ def setup(vault: Optional[Vault] = None) -> dict:
     """Desktop page setup: the same path as hermes myfolks setup. The code is returned once."""
     from .cli import create_store
 
-    code = create_store(vault or Vault())
+    code = create_store(vault or Vault(), surface="Desktop page")
     return {"state": "ready", "code": code} if code else {"state": "ready"}
 
 

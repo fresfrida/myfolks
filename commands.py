@@ -134,17 +134,7 @@ def handle(raw_args: str, *, platform: Optional[str] = None, source=None, ask: O
                     return messages.REFUSED
             label = owner.messaging_label(platform)
         with messages.replies_for(label):
-            try:
-                reply = _dispatch(raw, store, label, label == "terminal", ask, access)
-            except NotSetUp:
-                if label != "terminal":
-                    raise
-                from .cli import first_use_setup
-
-                intro = first_use_setup(store)
-                if intro is None:
-                    raise
-                reply = f"{intro}\n\n{_dispatch(raw, store, label, True, ask, access)}"
+            reply = _dispatch(raw, store, label, label == "terminal", ask, access)
         if label in owner.LOCAL_SURFACES.values() and guard.take_failure_notice(store.directory):
             return f"{messages.GUARD_FAILED}\n{reply}"
         return reply
@@ -256,7 +246,7 @@ def _run(raw: str, vault: Vault, label: str, terminal: bool, answers: dict, acce
     with vault.read() as connection:
         context = _context(connection, label, terminal, answers, access)
         if not parts:
-            return messages.overview(cards.count_cards(connection))
+            return messages.overview(cards.count_cards(connection), db.get_setting(connection, "set_up_at"), db.get_setting(connection, "set_up_from"))
         if verb == "history":
             return _history(context, raw, parts[1:])
         return _query(context, raw)

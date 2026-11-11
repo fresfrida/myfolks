@@ -9,7 +9,7 @@ A contact book your agent can't misremember.
 ## Quick start
 
 1. Install: `hermes plugins install myfolks`
-2. On your computer, send `/myfolks` in the terminal, or open the MyFolks page in Hermes Desktop. The first time, it sets MyFolks up and shows your recovery code once.
+2. Set up once, in your own terminal with `hermes myfolks setup`, or on the MyFolks page in Hermes Desktop. It shows your recovery code once. Chats never show it.
 3. From anywhere Hermes works, send `myfolks remember Priya is allergic to peanuts`, then `myfolks priya allergy`.
 
 MyFolks acts on its own only when the result can't be wrong, tells you exactly what it did and how to undo it, and asks you first whenever a guess could be wrong.
@@ -52,13 +52,13 @@ Hermes asks whether to enable the plugin and whether to prepare its one Python d
 
 ## First setup and your recovery code
 
-The first `/myfolks` or `/contacts` in the terminal sets MyFolks up, and so does the MyFolks page in Hermes Desktop. You can also run this in your own terminal:
+Run this in your own terminal, or use the setup screen on the MyFolks page in Hermes Desktop:
 
 ```bash
 hermes myfolks setup
 ```
 
-Each shows a recovery code **once**. Keep it somewhere safe. If you lose both this device and this code, your contacts are gone.
+Either shows a recovery code **once**. No chat ever shows it, not even the terminal chat. `/myfolks` with nothing after it shows when and from where MyFolks was set up. Keep it somewhere safe. If you lose both this device and this code, your contacts are gone.
 
 On a new device, or if the device key is lost:
 
@@ -200,6 +200,7 @@ On Desktop, use **Hide from chat** on any line. In the terminal, use `/contacts 
 - **Telegram:** bot chats aren't end-to-end encrypted, so questions and answers there pass through Telegram.
 - **Exact means exactly what was saved.** MyFolks can't know a detail has gone out of date.
 - **Other software on your account:** Hermes runs as you, so anything else running as you, including other enabled plugins and an unsandboxed terminal, is not fully walled off. Running Hermes's terminal in a sandbox is the strongest setup.
+- **AI agents with terminal access:** an AI agent with unrestricted terminal access runs as you, with the same reach you have. A sandboxed terminal is the strong setup.
 - **The AI file block is a safety net.** A hook blocks AI tools that directly name the store, its key, its versions or your typed history. An indirect route, such as a wildcard in a shell command, can get past it.
 - **Typed history:** Hermes keeps a plain-text history of what you type in a terminal, including `/contacts` commands.
 - **Lost keys:** if both the key and the recovery code are lost, the contacts are gone.
