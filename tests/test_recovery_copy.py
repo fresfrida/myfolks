@@ -138,6 +138,12 @@ def test_a_folder_gets_the_default_name(vault, mod, tmp_path):
     assert code == 0 and [p.name for p in folder.iterdir()] == [DEFAULT_NAME] and output == _done(folder / DEFAULT_NAME)
 
 
+def test_a_missing_folder_ending_in_a_slash_is_made_and_gets_the_default_name(vault, mod, tmp_path):
+    folder = tmp_path / "new" / "folder"
+    code, output = _backup(mod, vault, f"{folder}/")
+    assert code == 0 and [p.name for p in folder.iterdir()] == [DEFAULT_NAME] and output == _done(folder / DEFAULT_NAME)
+
+
 def test_missing_parent_folders_are_created(vault, mod, tmp_path):
     target = tmp_path / "new" / "deeper" / "b.mfbk"
     code, output = _backup(mod, vault, str(target))

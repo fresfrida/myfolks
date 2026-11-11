@@ -203,7 +203,9 @@ def _write_new_file(path, data: bytes) -> None:
 
 def backup_path(output: Optional[str], now=None):
     """Where hermes myfolks backup writes, following hermes backup: no -o means the home folder,
-    a folder gets the default name inside it, anything else is the file itself. Always absolute."""
+    a folder (or a path ending in a slash) gets the default name inside it, anything else is the file
+    itself. Always absolute."""
+    import os
     from datetime import datetime
     from pathlib import Path
 
@@ -211,7 +213,7 @@ def backup_path(output: Optional[str], now=None):
     if not output:
         return Path.home() / name
     path = Path(output).expanduser().resolve()
-    return path / name if path.is_dir() else path
+    return path / name if path.is_dir() or output.endswith((os.sep, "/")) else path
 
 
 def cmd_backup(args, *, vault=None, read_secret=None, stdin=None, stdout=None) -> int:
