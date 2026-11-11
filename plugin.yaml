@@ -8,12 +8,19 @@ provides_tools:
   - myfolks_contacts
 provides_hooks:
   - pre_tool_call
+  - pre_gateway_dispatch
+  - pre_llm_call
 config_schema:
   ai_tool:
     type: bool
     default: false
     label: Let the AI use MyFolks
     description: Hermes's AI can look up matching lines and save new ones. Off by default.
+  wake_word:
+    type: str
+    default: myfolks
+    label: Wake word
+    description: 'In chat apps, a message that starts with this word goes to MyFolks, such as "myfolks mel dog" or "myfolks remember Mel likes tea". Leave empty to turn it off.'
   shared_people:
     type: str
     default: ""

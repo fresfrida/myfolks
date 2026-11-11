@@ -7,6 +7,7 @@ from pathlib import Path
 class FakeContext:
     def __init__(self):
         self.seen = {"hooks": [], "tools": [], "commands": [], "cli": []}
+        self.handlers = {}
 
     def register_hook(self, name, _handler):
         self.seen["hooks"].append(name)
@@ -14,8 +15,9 @@ class FakeContext:
     def register_tool(self, name, *_args, **_kwargs):
         self.seen["tools"].append(name)
 
-    def register_command(self, name, *_args, **_kwargs):
+    def register_command(self, name, handler=None, *_args, **_kwargs):
         self.seen["commands"].append(name)
+        self.handlers[name] = handler
 
     def register_cli_command(self, name, *_args, **_kwargs):
         self.seen["cli"].append(name)

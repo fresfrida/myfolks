@@ -212,6 +212,15 @@ def link_offer(right: str, left: str, relation: str) -> str:
     return f"Also link {right} as {left}'s {relation}?"
 
 
+def ai_wake_note(word: str, in_chat_app: bool) -> str:
+    start = f'"{word}" or /myfolks' if in_chat_app else "/myfolks"
+    return (
+        f"[MyFolks note: this message mentions {word}, but MyFolks did not run. MyFolks only answers "
+        f"when a message starts with {start}. If the user wanted MyFolks, tell them that. "
+        "Do not answer from guesswork about their contacts.]"
+    )
+
+
 LINK_CHOICE = "Link"
 NOT_NOW_CHOICE = "Not now"
 

@@ -6,7 +6,7 @@ from __future__ import annotations
 def register(ctx) -> None:
     # Imported once here so handlers never depend on this folder still being importable later:
     # a running gateway can keep a handler after the plugin's files are replaced or removed.
-    from . import ai_tool, cli, commands, guard, owner
+    from . import ai_tool, cli, commands, guard, owner, wake
 
     def handle_contacts(raw_args: str, source=None, platform=None, **_context) -> str:
         shared = ctx.get_config(owner.SHARED_SETTING, [])
@@ -28,7 +28,16 @@ def register(ctx) -> None:
         description="Look up your contacts",
         args_hint="<query>",
     )
+    ctx.register_command(
+        "myfolks",
+        handle_contacts,
+        description="Look up your contacts (same as /contacts)",
+        args_hint="<query>",
+    )
+    settings = wake.Settings(ctx.get_config)
     ctx.register_hook("pre_tool_call", guard_tool_call)
+    ctx.register_hook("pre_gateway_dispatch", wake.gateway_hook(settings))
+    ctx.register_hook("pre_llm_call", wake.llm_hook(settings))
     ctx.register_cli_command(
         "myfolks",
         "Set up, recover and manage MyFolks",
