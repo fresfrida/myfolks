@@ -221,6 +221,11 @@ def ai_wake_note(word: str, in_chat_app: bool) -> str:
     )
 
 
+def pair_ask_replace(linked: list[tuple[str, str]]) -> str:
+    accounts = ", ".join(f"{platform} sender {user_id}" for platform, user_id in linked)
+    return f"Already linked: {accounts}. A new code replaces that link on its platform once used. Type REPLACE to continue: "
+
+
 LINK_CHOICE = "Link"
 NOT_NOW_CHOICE = "Not now"
 

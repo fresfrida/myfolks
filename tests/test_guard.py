@@ -107,9 +107,35 @@ def test_nested_arguments_blocked(env, blocked):
     assert blocked("tool_call", {"calls": [{"name": "read_file", "arguments": {"path": str(env["data"] / "store.enc")}}]})
 
 
-@pytest.mark.parametrize("sub", ["setup", "recover", "pair", "backup /tmp/x", "restore /tmp/x", "export /tmp/x"])
-def test_terminal_only_commands_blocked(env, blocked, sub):
-    assert blocked("terminal", {"command": f"hermes -p demo myfolks {sub}"})
+TERMINAL_ONLY = ["setup", "recover", "pair", "import /tmp/x.vcf", "backup /tmp/x", "restore /tmp/x", "export /tmp/x"]
+FORMS = [
+    "hermes -p demo myfolks {sub}",
+    "hermes myfolks {sub}",
+    "hermes myfolks \"{word}\"{rest}",
+    "hermes myfolks '{word}'{rest}",
+    "hermes \"myfolks\" {sub}",
+    "hermes 'myfolks' \"{word}\"{rest}",
+    "hermes my\"folks\" {sub}",
+    "hermes \"myfolks {word}\"{rest}",
+    "hermes myfolks \\{word}{rest}",
+    "cd /tmp; hermes  myfolks   {sub}",
+    "true && HERMES_HOME=/x /usr/local/bin/hermes myfolks {sub}",
+    "hermes myfolks -v {sub}",
+    "HERMES MYFOLKS {upper}",
+]
+
+
+@pytest.mark.parametrize("sub", TERMINAL_ONLY)
+@pytest.mark.parametrize("form", FORMS)
+def test_terminal_only_commands_blocked(env, blocked, sub, form):
+    word, _, rest = sub.partition(" ")
+    command = form.format(sub=sub, word=word, rest=(" " + rest) if rest else "", upper=sub.upper())
+    assert blocked("terminal", {"command": command}), command
+
+
+@pytest.mark.parametrize("command", ["hermes myfolks --help", "hermes plugins list", "echo myfolks is great", "hermes myfolks"])
+def test_other_myfolks_commands_allowed(env, blocked, command):
+    assert not blocked("terminal", {"command": command})
 
 
 def test_unrelated_file_allowed(env, blocked):

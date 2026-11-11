@@ -144,6 +144,11 @@ def _clear_code(connection: sqlite3.Connection) -> None:
     connection.execute("DELETE FROM settings WHERE key=?", (_CODE_SETTING,))
 
 
+def linked_owners(connection: sqlite3.Connection) -> list[tuple[str, str]]:
+    """Messaging accounts already linked as the owner: (platform, sender ID)."""
+    return [(row[0], row[1]) for row in connection.execute("SELECT platform, user_id FROM owners ORDER BY platform, user_id")]
+
+
 def try_pair(connection: sqlite3.Connection, platform: str, user_id: str, code: str, *, clock=time.time) -> bool:
     """Use a one-time code to make this sender the platform's owner."""
     stored = db.get_setting(connection, _CODE_SETTING)

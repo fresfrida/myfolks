@@ -1,4 +1,10 @@
 import argparse
+import io as _io
+
+
+class Terminal(_io.StringIO):
+    def isatty(self):
+        return True
 from pathlib import Path
 
 import pytest
@@ -204,14 +210,12 @@ def test_control_characters_removed_long_text_trimmed(vault, importer):
 
 
 def test_cli_import_reports_and_handles_bad_file(vault, mod, tmp_path):
-    import io
-
-    out = io.StringIO()
+    out = Terminal()
     args = argparse.Namespace(path=str(FIXTURES / "google.csv"))
-    assert mod("cli").cmd_import(args, vault=vault, stdout=out) == 0
+    assert mod("cli").cmd_import(args, vault=vault, stdin=Terminal(), stdout=out) == 0
     assert "New: 2." in out.getvalue()
-    out = io.StringIO()
-    assert mod("cli").cmd_import(argparse.Namespace(path=str(tmp_path / "missing.vcf")), vault=vault, stdout=out) == 1
+    out = Terminal()
+    assert mod("cli").cmd_import(argparse.Namespace(path=str(tmp_path / "missing.vcf")), vault=vault, stdin=Terminal(), stdout=out) == 1
     assert "couldn't be imported" in out.getvalue()
 
 
@@ -219,5 +223,16 @@ def test_failed_import_changes_nothing(vault, mod, tmp_path):
     bad = tmp_path / "x.csv"
     bad.write_text("Foo\n1\n")
     before = vault.store_path.read_bytes()
-    assert mod("cli").cmd_import(argparse.Namespace(path=str(bad)), vault=vault) == 1
+    assert mod("cli").cmd_import(argparse.Namespace(path=str(bad)), vault=vault, stdin=Terminal(), stdout=Terminal()) == 1
+    assert vault.store_path.read_bytes() == before
+
+
+def test_import_refuses_without_a_terminal(vault, mod, capsys):
+    import io
+
+    before = vault.store_path.read_bytes()
+    args = argparse.Namespace(path=str(FIXTURES / "google.csv"))
+    assert mod("cli").cmd_import(args, vault=vault, stdin=io.StringIO(), stdout=Terminal()) == 1
+    assert mod("cli").cmd_import(args, vault=vault, stdin=Terminal(), stdout=io.StringIO()) == 1
+    assert "Run this directly in your own terminal." in capsys.readouterr().err
     assert vault.store_path.read_bytes() == before

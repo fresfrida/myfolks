@@ -66,13 +66,21 @@ def cmd_recover(_args, *, vault=None, read_code=None, stdout=None) -> int:
     return 0
 
 
-def cmd_pair(_args, *, vault=None, stdout=None) -> int:
+def cmd_pair(_args, *, vault=None, read_line=None, stdin=None, stdout=None) -> int:
     from . import owner
     from .vault import NotSetUp, Refused, Vault
 
-    out = stdout or sys.stdout
+    out, source = stdout or sys.stdout, stdin or sys.stdin
+    if not _in_terminal((source, out)):
+        print(messages.TERMINAL_ONLY, file=sys.stderr)
+        return 1
     vault = vault or Vault()
     try:
+        with vault.read() as connection:
+            linked = owner.linked_owners(connection)
+        if linked and (read_line or input)(messages.pair_ask_replace(linked)).strip() != "REPLACE":
+            print(messages.CANCELLED, file=out)
+            return 1
         with vault.write() as connection:
             code = owner.new_pairing_code(connection)
     except NotSetUp:
@@ -86,13 +94,16 @@ def cmd_pair(_args, *, vault=None, stdout=None) -> int:
     return 0
 
 
-def cmd_import(args, *, vault=None, stdout=None) -> int:
+def cmd_import(args, *, vault=None, stdin=None, stdout=None) -> int:
     from pathlib import Path
 
     from . import importer
     from .vault import Busy, NotSetUp, Refused, Vault
 
-    out = stdout or sys.stdout
+    out, source = stdout or sys.stdout, stdin or sys.stdin
+    if not _in_terminal((source, out)):
+        print(messages.TERMINAL_ONLY, file=sys.stderr)
+        return 1
     vault = vault or Vault()
     path = Path(args.path).expanduser()
     try:

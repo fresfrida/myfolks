@@ -1,6 +1,13 @@
 from types import SimpleNamespace
 
+import io as _io
+
 import pytest
+
+
+class Terminal(_io.StringIO):
+    def isatty(self):
+        return True
 
 REFUSED = "MyFolks isn't available here."
 
@@ -38,8 +45,8 @@ def seeded(vault, mod):
 def code_from_cli(vault, mod):
     import io
 
-    out = io.StringIO()
-    assert mod("cli").cmd_pair(None, vault=vault, stdout=out) == 0
+    out = Terminal()
+    assert mod("cli").cmd_pair(None, vault=vault, stdin=Terminal(), stdout=out, read_line=lambda _prompt: "REPLACE") == 0
     return out.getvalue().strip().splitlines()[-1].split()[-1]
 
 
@@ -250,3 +257,41 @@ def test_near_name_on_messaging_gives_question_and_command_only(seeded, allow, s
     allow("111")
     reply = send("prya tea", sender("111"))
     assert reply.startswith("Did you mean Priya?") and "/contacts Priya tea" in reply and "likes tea" not in reply
+
+
+def test_pair_refuses_without_a_terminal(seeded, mod, capsys):
+    before = seeded.store_path.read_bytes()
+    assert mod("cli").cmd_pair(None, vault=seeded, stdin=_io.StringIO(), stdout=Terminal()) == 1
+    assert mod("cli").cmd_pair(None, vault=seeded, stdin=Terminal(), stdout=_io.StringIO()) == 1
+    assert "Run this directly in your own terminal." in capsys.readouterr().err
+    assert seeded.store_path.read_bytes() == before
+
+
+def test_first_pair_needs_no_replace(seeded, mod):
+    asked = []
+    out = Terminal()
+    assert mod("cli").cmd_pair(None, vault=seeded, stdin=Terminal(), stdout=out, read_line=asked.append) == 0
+    assert asked == []
+
+
+def _link_owner(vault, mod, platform="telegram", user_id="111"):
+    with vault.write() as connection:
+        connection.execute("INSERT INTO owners(platform,user_id,created_at) VALUES(?,?,?)", (platform, user_id, "2026-01-01"))
+
+
+def test_pair_shows_owner_and_needs_replace(seeded, mod):
+    _link_owner(seeded, mod)
+    prompts = []
+    out = Terminal()
+    assert mod("cli").cmd_pair(None, vault=seeded, stdin=Terminal(), stdout=out, read_line=lambda p: prompts.append(p) or "no") == 1
+    assert prompts == ["Already linked: telegram sender 111. A new code replaces that link on its platform once used. Type REPLACE to continue: "]
+    assert out.getvalue().strip() == "Nothing was changed."
+    with seeded.read() as connection:
+        assert mod("db").get_setting(connection, "pairing_code") in (None, "")
+
+
+def test_pair_replace_makes_a_code(seeded, mod):
+    _link_owner(seeded, mod)
+    out = Terminal()
+    assert mod("cli").cmd_pair(None, vault=seeded, stdin=Terminal(), stdout=out, read_line=lambda _p: "REPLACE") == 0
+    assert "Send this in a private chat" in out.getvalue()

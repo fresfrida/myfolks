@@ -21,7 +21,8 @@ _DATA_FRAGMENT = "plugin-data/myfolks"
 _MAX_TOKENS = 500
 _FILE_BODY_KEYS = {"content", "old_string", "new_string"}
 _FILE_WRITE_TOOLS = {"write_file", "patch"}
-_TERMINAL_ONLY_COMMANDS = re.compile(r"\bmyfolks\s+(setup|recover|pair|backup|restore|export)\b")
+TERMINAL_ONLY_SUBCOMMANDS = frozenset({"setup", "recover", "pair", "import", "backup", "restore", "export"})
+_TERMINAL_ONLY_COMMANDS = re.compile(r"\bmyfolks\s+(" + "|".join(sorted(TERMINAL_ONLY_SUBCOMMANDS)) + r")\b")
 _SEPARATORS = re.compile(r"[=:;|&<>()`,'\"\s]+")
 
 
@@ -57,6 +58,34 @@ def _candidates(text: str) -> Iterator[str]:
         yield from (piece for piece in _SEPARATORS.split(word) if piece and piece != word)
 
 
+def _shell_words(text: str) -> list[str]:
+    """Words as a shell would see them: quotes removed and joined, separators such as ; and | split off."""
+    try:
+        lexer = shlex.shlex(text, posix=True, punctuation_chars=True)
+        lexer.whitespace_split = True
+        words = list(lexer)[:_MAX_TOKENS]
+    except ValueError:
+        words = text.split()[:_MAX_TOKENS]
+    return [piece for word in words for piece in word.lower().split() if piece]
+
+
+def names_terminal_only_command(text: str) -> bool:
+    """Whether a command line runs a terminal-only myfolks subcommand, however it is quoted."""
+    lowered = text.lower()
+    if "myfolks" not in lowered.replace('"', "").replace("'", "").replace("\\", ""):
+        return False
+    if _TERMINAL_ONLY_COMMANDS.search(lowered):
+        return True
+    words = _shell_words(text)
+    for position, word in enumerate(words):
+        if word.rsplit("/", 1)[-1] != "myfolks":
+            continue
+        following = [w for w in words[position + 1:position + 4] if not w.startswith("-")]
+        if following and following[0] in TERMINAL_ONLY_SUBCOMMANDS:
+            return True
+    return False
+
+
 def _expand(candidate: str, home: str) -> str:
     expanded = candidate.replace("${HERMES_HOME}", home).replace("$HERMES_HOME", home)
     return os.path.expanduser(os.path.expandvars(expanded))
@@ -78,7 +107,7 @@ def touches_protected(tool_name: str, args: dict, protected: tuple[Path, ...], h
     literals = [str(root) for root in protected]
     for text in _strings(args, tool_name):
         lowered = text.lower()
-        if _TERMINAL_ONLY_COMMANDS.search(lowered):
+        if names_terminal_only_command(text):
             return True
         if _DATA_FRAGMENT in lowered or HISTORY_FILE in lowered or any(literal in text for literal in literals):
             return True
