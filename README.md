@@ -219,3 +219,7 @@ Run these yourself from a checkout, with a Python that has `cryptography`. Measu
 | Lookup while 5,000 contacts import | 1.1 ms median, 68 ms slowest | `python3 tests/benchmark.py` |
 | Full test suite | 685 passed on macOS, and 685 passed on Linux in a container | `python3 -m pytest tests` |
 | Plugin check | Passed, security scan `safe` | `hermes plugins validate .` |
+
+## License
+
+MIT. See [LICENSE](LICENSE).
