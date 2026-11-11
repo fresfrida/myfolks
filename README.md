@@ -152,7 +152,7 @@ hermes myfolks restore <file>
 
 Backups are encrypted with a passphrase you type privately. Restoring over a store that already has contacts asks you to type `REPLACE`. MyFolks also keeps the last 7 encrypted versions of your store.
 
-`hermes myfolks export <file>` writes an **unencrypted** copy after you type `EXPORT`. It runs only in a terminal.
+`hermes myfolks export <file>` writes an **unencrypted** copy after you type `EXPORT`. Export, backup, restore and pair ask for your recovery code first, typed privately, and do nothing without it.
 
 ## Multiple Hermes profiles
 
@@ -179,29 +179,31 @@ On Desktop, use **Hide from chat** on any line. In the terminal, use `/contacts 
 - **AI:** `/contacts` uses no model. The optional AI tool is off by default. When on, the lines it returns go to your model provider.
 - **Files:** it reads and writes only its own data folder, plus files you name for import, backup, restore or export.
 - **Stored credentials:** a device key, in your OS keychain when one is available, otherwise a file only your user can read, in the plugin's data folder.
-- **Hooks:** it uses `pre_tool_call` to check AI tool calls for direct access to its files. Tool arguments stay on your machine.
+- **Hooks:** three.
+  - `pre_tool_call` checks AI tool calls for direct access to its files. Tool arguments stay on your machine.
+  - `pre_gateway_dispatch` checks whether a chat app message starts with the wake word.
+  - `pre_llm_call` adds a short note for the AI when a message names MyFolks while AI use is off.
+
+  The two message hooks only check the text in memory. They don't open the store and log nothing.
 - **Shell commands and background processes:** none.
 - **Telemetry:** none.
 - **Dependency:** `cryptography`, which Hermes already includes. Declaring it makes Hermes prepare its Python environment when you install.
 
 ## Test results
 
-Run them yourself from a checkout, with a Python that has `cryptography`:
+Run these yourself from a checkout, with a Python that has `cryptography`. Measured on made-up data on one Mac:
 
-```bash
-python3 tests/evidence_pack.py
-```
-
-Measured on made-up data on one Mac:
-
-| Check | Result |
-|---|---|
-| Search test set | 98 of 103 correct, and no unanswerable question got a direct answer. The 5 misses are printed by the command |
-| Process killed during save, 25 times | The file was always the old or the new version |
-| Three processes writing at once | 120 of 120 saves kept |
-| Wrong key, wrong recovery code, tampered file | Refused, file untouched |
-| Non-owner, group chat, missing sender | Refused |
-| Lookup at 5,000 cards and 20,000 details | 7.9 ms median, 9.2 ms slowest |
-| Save at the same size | 13.2 ms median, 16.2 ms slowest |
-| Wake word check on each chat message | Under 1 microsecond median, 59 microseconds slowest |
-| `hermes plugins validate` | Passed, security scan `safe` |
+| Check | Result | Command |
+|---|---|---|
+| Search test set | 102 of 108 correct, and no unanswerable question got a direct answer. The 6 misses are printed | `python3 tests/evidence_pack.py` |
+| Process killed during save, 25 times | The file was always the old or the new version | `python3 tests/evidence_pack.py` |
+| Three processes writing at once | 120 of 120 saves kept | `python3 tests/evidence_pack.py` |
+| Wrong key, wrong recovery code, tampered file | Refused, file untouched | `python3 tests/evidence_pack.py` |
+| Non-owner, group chat, missing sender | Refused | `python3 tests/evidence_pack.py` |
+| Near name | No details shown until you choose | `python3 tests/evidence_pack.py` |
+| Lookup at 5,000 cards and 20,000 details | 8.1 ms median, 10.1 ms slowest | `python3 tests/benchmark.py` |
+| Save at the same size | 14.8 ms median, 24.0 ms slowest | `python3 tests/benchmark.py` |
+| Wake word check on each chat message | 0.33 microseconds median for an ordinary message | `python3 tests/benchmark.py` |
+| Lookup while 5,000 contacts import | 1.6 ms median, 68 ms slowest | `python3 tests/benchmark.py` |
+| Full test suite | 677 passed | `python3 -m pytest tests` |
+| Plugin check | Passed, security scan `safe` | `hermes plugins validate .` |
