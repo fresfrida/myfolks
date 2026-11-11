@@ -44,10 +44,10 @@ def setup_lines(code: str) -> list[str]:
     return [messages.SETUP_DONE, messages.SETUP_CODE_INTRO, code, messages.SETUP_CODE_NEEDED]
 
 
-def first_use_setup(vault, streams=None) -> Optional[str]:
-    """In a real terminal, set up a store that doesn't exist yet. Same checks as hermes myfolks setup."""
-    if not _in_terminal(streams or (sys.stdin, sys.stdout)):
-        return None
+def first_use_setup(vault) -> Optional[str]:
+    """The first /contacts or /myfolks in Hermes's own terminal chat sets up a store that doesn't exist
+    yet. Hermes wraps the terminal while chatting, so the caller checks the surface (the local terminal)
+    instead of isatty; the reply goes only to that screen."""
     code = create_store(vault)
     return "\n".join(setup_lines(code)) if code else None
 
