@@ -55,7 +55,8 @@ def test_hermes_myfolks_setup_shows_the_code_and_records_terminal(fresh, mod):
     assert mod("commands").handle("", platform="cli", vault=fresh) == mod("messages").EMPTY_OVERVIEW
     mod("commands").handle("save Priya likes tea", platform="cli", vault=fresh)
     overview = mod("commands").handle("", platform="cli", vault=fresh)
-    assert overview.split("\n")[:2] == ["MyFolks: 1 card.", "Set up today from terminal."]
+    assert overview.split("\n")[1:] == ["More: /myfolks help", "Set up today from terminal."]
+    assert overview.startswith("MyFolks: 1 saved.")
     assert not CODE.search(overview)
 
 

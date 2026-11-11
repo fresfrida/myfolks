@@ -184,21 +184,18 @@ def setup_note(at: Optional[str], surface: Optional[str]) -> str:
     return f"Set up {date_label(at)} from {value(surface)}." if at and surface else ""
 
 
+EXAMPLE_QUESTION = "what's Priya's dog called?"
+
+
 def overview(count: int, set_up_at: Optional[str] = None, set_up_from: Optional[str] = None) -> str:
     if not count:
         return EMPTY_OVERVIEW
-    noun = "card" if count == 1 else "cards"
     note = setup_note(set_up_at, set_up_from)
-    return (
-        f"MyFolks: {count} {noun}.\n"
-        + (note + "\n" if note else "")
-        + "/contacts <name or question>\n"
-        "/contacts save <name> <text>\n"
-        "/contacts link <name> <relation> <name>\n"
-        "/contacts history <name>\n"
-        "/contacts correct <name> <line number> <new text>\n"
-        "Undo your last change: /myfolks undo"
-    )
+    return "\n".join([
+        f"MyFolks: {count:,} saved. Ask or save in plain words, like: {command(EXAMPLE_QUESTION)}",
+        f"More: {command('help')}",
+        *([note] if note else []),  # where MyFolks was set up, kept from the old overview
+    ])
 
 
 def choose_fallback(options: list[tuple[int, str, str]]) -> str:
@@ -472,9 +469,23 @@ def did_you_mean_delete_fallback(question: str, commands: list[str]) -> str:
 
 
 # Plain words. New wording, TENTATIVE.
-def help_text(access: str = "full") -> str:
-    """Help as jobs, in plain words. People the owner shared with see only what they may do."""
-    return "MyFolks help"
+def help_text(access: str = "owner") -> str:
+    """Help as jobs, in plain words. People the owner shared with see only the lines they may use:
+    "read" asks, "add" also saves; the owner sees everything."""
+    lines = [command(EXAMPLE_QUESTION)]
+    if access in ("owner", "add"):
+        lines.append(command("remember Priya is allergic to peanuts"))
+    if access == "owner":
+        lines += [
+            command("fix Priya") + " (pick a line to change)",
+            command("forget Priya"),
+            command("undo") + " (your last change)",
+            command("sync") + " (bring in your Google contacts)",
+        ]
+    out = [f"Just talk to MyFolks. Start with {_PREFIX.get()}:", "", *lines]
+    if access == "owner":
+        out += ["", "To see and manage everyone, open MyFolks in Hermes Desktop."]
+    return "\n".join(out)
 
 
 def copy_block(text: str) -> str:

@@ -26,7 +26,7 @@ def test_empty_shows_help_and_count(run):
         "Or save someone now:\n  /myfolks save Priya is allergic to peanuts"
     )
     run("save Priya likes tea")
-    assert run("").startswith("MyFolks: 1 card.")
+    assert run("").startswith("MyFolks: 1 saved.")
 
 
 def test_save_new_then_existing_card(run):

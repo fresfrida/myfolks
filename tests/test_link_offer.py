@@ -38,7 +38,7 @@ def test_possessive_save_offers_the_link(run, vault):
     assert run.asked[0][0] == "Also link Ollie as Mel's dog?"
     assert "Linked: Mel, dog, Ollie." in reply
     assert run("mel dog") == "Ollie\nDog of Mel\nNo lines saved yet.\nChange a line: /myfolks fix Ollie    Delete: /myfolks forget Ollie"
-    assert "dog is called Ollie" in run("mel dog called")
+    assert run("mel dog called").startswith("Ollie\nDog of Mel")  # "called" carries no meaning in a question
 
 
 def test_not_now_links_nothing(run, vault):

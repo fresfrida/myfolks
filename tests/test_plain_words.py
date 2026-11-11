@@ -176,3 +176,45 @@ def test_people_who_may_only_read_get_the_help_pointer_not_a_save(vault, mod, mo
     source = SimpleNamespace(user_id="222", chat_type="dm", is_bot=False)
     reply = mod("commands").handle("Sam has two kids", platform="telegram", source=source, vault=vault, shared="telegram:222:read")
     assert reply.endswith("Not sure what to send? /myfolks help") and "remember" not in reply
+
+
+# 4. Help as jobs, and the short overview.
+
+HELP = """Just talk to MyFolks. Start with myfolks:
+
+myfolks what's Priya's dog called?
+myfolks remember Priya is allergic to peanuts
+myfolks fix Priya (pick a line to change)
+myfolks forget Priya
+myfolks undo (your last change)
+myfolks sync (bring in your Google contacts)
+
+To see and manage everyone, open MyFolks in Hermes Desktop."""
+
+
+def test_help_for_the_owner_in_a_chat_app(phone):
+    assert phone("help") == HELP
+
+
+def test_help_in_the_terminal_uses_slash_myfolks(run):
+    assert run("help") == HELP.replace("myfolks", "/myfolks").replace("/myfolks in Hermes", "MyFolks in Hermes").replace("Open /MyFolks", "open MyFolks")
+
+
+def test_help_for_shared_people_shows_only_their_lines(mod):
+    messages = mod("messages")
+    assert messages.help_text("read") == "Just talk to MyFolks. Start with /myfolks:\n\n/myfolks what's Priya's dog called?"
+    assert messages.help_text("add").splitlines()[-1] == "/myfolks remember Priya is allergic to peanuts"
+
+
+def test_overview_with_people_saved(phone, vault, mod):
+    phone("remember Priya likes tea")
+    reply = phone("")
+    assert reply.splitlines()[:2] == ["MyFolks: 1 saved. Ask or save in plain words, like: myfolks what's Priya's dog called?", "More: myfolks help"]
+    assert mod("messages").overview(1040).splitlines()[0].startswith("MyFolks: 1,040 saved.")
+
+
+def test_the_example_question_in_help_really_works(run):
+    run("save Priya dog is Biscuit")
+    run("save Biscuit is a golden retriever")
+    reply = run("what's Priya's dog called?")
+    assert reply.startswith("Priya\n") and "dog is Biscuit" in reply

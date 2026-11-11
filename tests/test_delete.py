@@ -74,7 +74,7 @@ def test_deleted_person_is_gone_from_every_read(run, vault, mod):
     assert run("priya sister") == "Nothing saved about that.\nNot sure what to send? /myfolks help"
     assert run(f"#{deleted_id}") == "Nothing saved about that.\nNot sure what to send? /myfolks help"
     assert run("sis nell") == "Nothing saved about that.\nNot sure what to send? /myfolks help"  # no "Did you mean" for a deleted person
-    assert run("").startswith("MyFolks: 1 card.")
+    assert run("").startswith("MyFolks: 1 saved.")
     service = mod("desktop_service")
     assert [c["name"] for c in service.find("", vault=vault)["cards"]] == ["Priya"]
     assert service.find("nel", vault=vault)["cards"] == []
@@ -307,7 +307,7 @@ def test_toast_undo_refuses_twice_and_an_unknown_id(run, vault, mod):
 
 def test_chat_help_names_undo_plainly(run):
     run("save Priya likes tea")
-    assert run("").splitlines()[-1] == "Undo your last change: /myfolks undo"
+    assert "/myfolks undo (your last change)" in run("help").splitlines()
 
 
 def test_desktop_toast_wiring():
