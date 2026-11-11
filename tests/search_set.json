@@ -38,7 +38,8 @@
     "save Kofi studies phonetic alphabets",
     "save Kofi mailbox is number 12",
     "save Kofi volunteers at a homeless shelter",
-    "save Kofi is namely the best cook in town"
+    "save Kofi is namely the best cook in town",
+    "save Priya is allergic to dogs"
   ],
   "questions": [
     {
@@ -234,7 +235,8 @@
     },
     {
       "q": "priya dog allergic",
-      "expect": "nothing"
+      "expect": "direct",
+      "find": "allergic to dogs"
     },
     {
       "q": "biscuit owner phone",
@@ -568,6 +570,11 @@
       "q": "kofi name",
       "expect": "related",
       "find": "namely the best cook"
+    },
+    {
+      "q": "priya dog allergy",
+      "expect": "direct",
+      "find": "allergic to dogs"
     }
   ]
 }

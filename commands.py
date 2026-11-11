@@ -641,19 +641,17 @@ def _query(context: Context, raw: str) -> str:
     if not words:
         return messages.NOTHING
     resolved = lookup.resolve(context.connection, words, context.pick)
-    if resolved is not None:
-        card, remaining = resolved.card, resolved.words
-    else:
+    if resolved is None:
         chosen = _chosen_close_card(context, words)
         if chosen is None:
             return messages.NOTHING
         if chosen[0] is None:
             return messages.CANCELLED
-        card, remaining = lookup.follow_links(context.connection, chosen[0], chosen[1], context.pick)
-    wanted = search.important_words(remaining)
-    if not wanted:
-        return _card_view(context, card)
-    results = search.rank(cards.active_lines(context.connection, card["id"], context.show_private), wanted)
+        linked, left = lookup.follow_links(context.connection, chosen[0], chosen[1], context.pick)
+        resolved = lookup.Resolved(linked, left, chosen[0], chosen[1])
+    if not search.important_words(resolved.words):
+        return _card_view(context, resolved.card)
+    card, results = lookup.answer_lines(context.connection, resolved, context.show_private)
     if not (results.direct or results.related) and _hidden_count(context, card):
         return messages.hidden_only(card["name"])
     return _format_results(context, card, results)

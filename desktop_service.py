@@ -79,11 +79,11 @@ def _answer(connection: sqlite3.Connection, words: list[str]) -> Optional[dict]:
         if close is None:
             return {"kind": "nothing"}
         return {"kind": "did_you_mean", "question": messages.did_you_mean(" or ".join(card["name"] for card in close[2])), "choices": [_summary(card) for card in close[2]]}
-    card = _summary(resolved.card)
     wanted = search.important_words(resolved.words)
     if not wanted:
-        return {"kind": "card", "card": card}
-    results = search.rank(cards.active_lines(connection, resolved.card["id"]), wanted)
+        return {"kind": "card", "card": _summary(resolved.card)}
+    found_card, results = lookup.answer_lines(connection, resolved, include_private=True)
+    card = _summary(found_card)
     if results.direct:
         return {"kind": "direct", "card": card, "lines": [_line(l) for l in results.direct]}
     if results.related:

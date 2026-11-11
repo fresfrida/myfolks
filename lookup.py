@@ -7,7 +7,7 @@ import sqlite3
 from dataclasses import dataclass
 from typing import Callable, Optional
 
-from . import cards
+from . import cards, search
 from .text import STOPWORDS
 
 Pick = Callable[[list, str], sqlite3.Row]
@@ -20,6 +20,21 @@ _MAX_NAME_WORDS = 3
 class Resolved:
     card: sqlite3.Row
     words: list[str]
+    start: Optional[sqlite3.Row] = None
+    start_words: Optional[list[str]] = None
+
+
+def answer_lines(connection: sqlite3.Connection, found: Resolved, include_private: bool) -> tuple[sqlite3.Row, search.Results]:
+    """Search the card a question reached. If links led to another card that has no answer, search the
+    starting card with all the words, so "priya dog allergy" still finds "is allergic to dogs" on Priya."""
+    wanted = search.important_words(found.words)
+    results = search.rank(cards.active_lines(connection, found.card["id"], include_private), wanted)
+    if results.direct or results.related or found.start is None or found.start["id"] == found.card["id"]:
+        return found.card, results
+    start_results = search.rank(cards.active_lines(connection, found.start["id"], include_private), search.important_words(found.start_words or []))
+    if start_results.direct or start_results.related:
+        return found.start, start_results
+    return found.card, results
 
 
 def cards_for_words(connection: sqlite3.Connection, words: list[str]) -> list:
@@ -85,5 +100,5 @@ def resolve(connection: sqlite3.Connection, words: list[str], pick: Pick) -> Opt
     start, end, matches = span
     card = pick(matches, " ".join(words[start:end]))
     remaining = [w for w in words[:start] if w not in STOPWORDS] + words[end:]
-    card, remaining = follow_links(connection, card, remaining, pick)
-    return Resolved(card, remaining)
+    linked, left = follow_links(connection, card, remaining, pick)
+    return Resolved(linked, left, card, remaining)
